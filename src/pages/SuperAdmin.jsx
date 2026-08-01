@@ -226,26 +226,8 @@ export default function SuperAdmin() {
   const [updatingCode, setUpdatingCode] = useState(null);
   const navigate = useNavigate();
 
-  // Auto-logout on session expiry (check every minute)
-  useEffect(() => {
-    const check = setInterval(() => {
-      if (!isSessionValid()) {
-        setAuthenticated(false);
-      }
-    }, 60 * 1000);
-    return () => clearInterval(check);
-  }, []);
-
-  const handleLogout = () => {
-    destroySession();
-    setAuthenticated(false);
-  };
-
-  // If not authenticated, show login gate
-  if (!authenticated) {
-    return <SuperAdminLoginGate onSuccess={() => setAuthenticated(true)} />;
-  }
-
+  // Semua hooks HARUS sebelum return kondisional (Rules of Hooks)
+  
   const loadStats = async () => {
     setLoading(true);
     try {
@@ -255,14 +237,32 @@ export default function SuperAdmin() {
       setAffData(affResult);
     } catch (e) {
       console.error(e);
-      alert('Gagal memuat data admin');
     }
     setLoading(false);
   };
 
+  // Auto-logout on session expiry
   useEffect(() => {
-    loadStats();
+    const check = setInterval(() => {
+      if (!isSessionValid()) setAuthenticated(false);
+    }, 60 * 1000);
+    return () => clearInterval(check);
   }, []);
+
+  // Load data saat authenticated
+  useEffect(() => {
+    if (authenticated) loadStats();
+  }, [authenticated]);
+
+  const handleLogout = () => {
+    destroySession();
+    setAuthenticated(false);
+  };
+
+  // Conditional return SETELAH semua hooks
+  if (!authenticated) {
+    return <SuperAdminLoginGate onSuccess={() => setAuthenticated(true)} />;
+  }
 
 
   const handleApprove = async (id) => {
