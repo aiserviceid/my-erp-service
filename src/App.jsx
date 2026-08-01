@@ -27,9 +27,17 @@ class ErrorBoundary extends Component {
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#050811', color: 'white', padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
           <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#f87171' }}>Terjadi Kendala Memuat Halaman</h2>
-          <p style={{ color: '#94a3b8', maxWidth: '500px', margin: '1rem 0 2rem 0' }}>
+          <p style={{ color: '#94a3b8', maxWidth: '500px', margin: '1rem 0 1rem 0' }}>
             Data cache lama browser mungkin perlu dibersihkan. Klik tombol di bawah untuk memuat ulang aplikasi secara bersih:
           </p>
+          {this.state.error && (
+            <details style={{ margin: '0 0 1.5rem 0', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '10px 16px', maxWidth: '600px', textAlign: 'left', cursor: 'pointer' }}>
+              <summary style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: '700' }}>Detail Error (klik untuk lihat)</summary>
+              <pre style={{ color: '#f87171', fontSize: '0.78rem', marginTop: '8px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {this.state.error?.toString()}
+              </pre>
+            </details>
+          )}
           <button 
             onClick={() => {
               localStorage.clear();
@@ -48,6 +56,7 @@ class ErrorBoundary extends Component {
     }
     return this.props.children;
   }
+
 }
 
 const themeColors = {
