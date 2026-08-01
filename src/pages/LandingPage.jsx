@@ -61,14 +61,10 @@ export default function LandingPage() {
             <Search size={20} /> Lacak Status Servis <ChevronRight size={20} />
           </button>
           <a 
-            href="/downloads/app-release.apk" 
+            href="https://github.com/aiserviceid/my-erp-service/releases/download/v1.0.0/app-release.apk" 
             download="Aplikasi-Kasir-ERP.apk"
             className="btn btn-accent" 
             style={{ padding: '1rem 2rem', fontSize: '1.1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white' }}
-            onClick={(e) => {
-              // Graceful download notice if file not yet compiled locally
-              console.log('Downloading APK...');
-            }}
           >
             <Smartphone size={20} /> Download APK Android (v1.0)
           </a>
