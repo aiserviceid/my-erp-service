@@ -1,15 +1,250 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Sparkles, Shield, Wallet, Gift } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// ============================================================
+// KONFIGURASI KEAMANAN SUPER ADMIN
+// Untuk mengubah password: ganti nilai MASTER_PASSWORD di bawah ini
+// ============================================================
+const MASTER_PASSWORD = 'AISERVICE@Syaifudin2026!';
+const SESSION_KEY = 'SA_SESSION';
+const FAIL_KEY = 'SA_FAIL';
+const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 jam
+const MAX_ATTEMPTS = 5;                          // maks percobaan salah
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;     // lockout 15 menit
+
+function isSessionValid() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const { expiry } = JSON.parse(raw);
+    return Date.now() < expiry;
+  } catch {
+    return false;
+  }
+}
+
+function createSession() {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ expiry: Date.now() + SESSION_DURATION_MS }));
+}
+
+function destroySession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+function getFailData() {
+  try { return JSON.parse(localStorage.getItem(FAIL_KEY)) || { count: 0, lockedUntil: 0 }; }
+  catch { return { count: 0, lockedUntil: 0 }; }
+}
+
+function setFailData(data) {
+  localStorage.setItem(FAIL_KEY, JSON.stringify(data));
+}
+
+// ── AUTH GATE COMPONENT ─────────────────────────────────────
+function SuperAdminLoginGate({ onSuccess }) {
+  const [input, setInput] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState('');
+  const [locked, setLocked] = useState(false);
+  const [lockRemain, setLockRemain] = useState(0);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const fail = getFailData();
+    if (fail.lockedUntil > Date.now()) {
+      setLocked(true);
+      setLockRemain(Math.ceil((fail.lockedUntil - Date.now()) / 1000));
+    }
+    inputRef.current?.focus();
+  }, []);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (!locked) return;
+    const interval = setInterval(() => {
+      const fail = getFailData();
+      const remain = Math.ceil((fail.lockedUntil - Date.now()) / 1000);
+      if (remain <= 0) {
+        setLocked(false);
+        setLockRemain(0);
+        setFailData({ count: 0, lockedUntil: 0 });
+        clearInterval(interval);
+      } else {
+        setLockRemain(remain);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [locked]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (locked) return;
+
+    if (input === MASTER_PASSWORD) {
+      setFailData({ count: 0, lockedUntil: 0 });
+      createSession();
+      onSuccess();
+    } else {
+      const fail = getFailData();
+      const newCount = (fail.count || 0) + 1;
+      if (newCount >= MAX_ATTEMPTS) {
+        const lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+        setFailData({ count: newCount, lockedUntil });
+        setLocked(true);
+        setLockRemain(Math.ceil(LOCKOUT_DURATION_MS / 1000));
+        setError(`❌ Terlalu banyak percobaan salah! Akun terkunci selama 15 menit.`);
+      } else {
+        setFailData({ count: newCount, lockedUntil: 0 });
+        setError(`❌ Password salah! Sisa percobaan: ${MAX_ATTEMPTS - newCount} kali.`);
+        setInput('');
+      }
+    }
+  };
+
+  const minutes = Math.floor(lockRemain / 60);
+  const seconds = lockRemain % 60;
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+      fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
+    }}>
+      <div style={{
+        width: '100%', maxWidth: '420px', margin: '0 16px',
+        background: 'white', borderRadius: '24px', overflow: 'hidden',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.4)'
+      }}>
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+          padding: '2.5rem 2rem 2rem',
+          textAlign: 'center'
+        }}>
+          <div style={{ width: '64px', height: '64px', background: 'rgba(255,255,255,0.1)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: '2px solid rgba(255,255,255,0.2)' }}>
+            <Shield size={32} color="#fbbf24" />
+          </div>
+          <h1 style={{ margin: 0, color: 'white', fontSize: '1.5rem', fontWeight: '900' }}>AISERVICE.ID</h1>
+          <p style={{ margin: '6px 0 0 0', color: '#bae6fd', fontSize: '0.88rem', fontWeight: '600' }}>Super Admin Master Panel</p>
+        </div>
+
+        {/* Form */}
+        <div style={{ padding: '2rem' }}>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Lock size={18} color="#0284c7" /> Verifikasi Identitas Admin
+          </h2>
+          <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: '#64748b' }}>
+            Akses ini dilindungi dan dimonitor. Masukkan password master Anda.
+          </p>
+
+          {locked ? (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1.2rem', textAlign: 'center' }}>
+              <AlertTriangle size={32} color="#dc2626" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+              <p style={{ margin: 0, fontWeight: '800', color: '#dc2626', fontSize: '0.95rem' }}>Akses Terkunci Sementara</p>
+              <p style={{ margin: '6px 0 0 0', color: '#991b1b', fontSize: '0.85rem' }}>Terlalu banyak percobaan gagal.</p>
+              <div style={{ marginTop: '12px', background: '#dc2626', color: 'white', borderRadius: '100px', padding: '8px 20px', fontWeight: '900', fontSize: '1.3rem', display: 'inline-block', letterSpacing: '1px' }}>
+                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+              </div>
+              <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '0.78rem' }}>Coba lagi setelah countdown selesai</p>
+            </div>
+          ) : (
+            <form onSubmit={handleLogin}>
+              {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.85rem', color: '#dc2626', fontWeight: '700' }}>
+                  {error}
+                </div>
+              )}
+
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '800', color: '#374151', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Master Password
+              </label>
+              <div style={{ position: 'relative', marginBottom: '20px' }}>
+                <input
+                  ref={inputRef}
+                  type={showPwd ? 'text' : 'password'}
+                  value={input}
+                  onChange={e => { setInput(e.target.value); setError(''); }}
+                  placeholder="Masukkan password master..."
+                  autoComplete="current-password"
+                  style={{
+                    width: '100%', padding: '14px 48px 14px 16px', borderRadius: '12px',
+                    border: error ? '2px solid #ef4444' : '2px solid #e2e8f0',
+                    fontSize: '1rem', fontWeight: '600', outline: 'none', boxSizing: 'border-box',
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    transition: 'border-color 0.2s',
+                    color: '#0f172a'
+                  }}
+                  onFocus={e => { if (!error) e.target.style.borderColor = '#0284c7'; }}
+                  onBlur={e => { if (!error) e.target.style.borderColor = '#e2e8f0'; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(!showPwd)}
+                  style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0' }}
+                >
+                  {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!input}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+                  background: input ? 'linear-gradient(135deg, #0f172a 0%, #0284c7 100%)' : '#e2e8f0',
+                  color: input ? 'white' : '#94a3b8',
+                  fontSize: '0.95rem', fontWeight: '900', cursor: input ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: input ? '0 6px 20px rgba(2, 132, 199, 0.35)' : 'none'
+                }}
+              >
+                <Shield size={18} /> Masuk ke Master Dashboard
+              </button>
+            </form>
+          )}
+
+          <div style={{ marginTop: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.78rem' }}>
+            🔒 Dilindungi enkripsi sesi · Otomatis logout setelah 8 jam tidak aktif<br />
+            🛡️ Maksimal {MAX_ATTEMPTS} percobaan · Terkunci 15 menit jika gagal berulang
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN SUPER ADMIN ─────────────────────────────────────────
 export default function SuperAdmin() {
+  const [authenticated, setAuthenticated] = useState(isSessionValid());
   const [stats, setStats] = useState({ tenants: [], withdrawals: [], platform_balance: 0 });
   const [affData, setAffData] = useState({ affiliates: [], commissions: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [updatingCode, setUpdatingCode] = useState(null);
   const navigate = useNavigate();
+
+  // Auto-logout on session expiry (check every minute)
+  useEffect(() => {
+    const check = setInterval(() => {
+      if (!isSessionValid()) {
+        setAuthenticated(false);
+      }
+    }, 60 * 1000);
+    return () => clearInterval(check);
+  }, []);
+
+  const handleLogout = () => {
+    destroySession();
+    setAuthenticated(false);
+  };
+
+  // If not authenticated, show login gate
+  if (!authenticated) {
+    return <SuperAdminLoginGate onSuccess={() => setAuthenticated(true)} />;
+  }
 
   const loadStats = async () => {
     setLoading(true);
@@ -28,6 +263,7 @@ export default function SuperAdmin() {
   useEffect(() => {
     loadStats();
   }, []);
+
 
   const handleApprove = async (id) => {
     if (!window.confirm('Pastikan Anda sudah mentransfer dana ke rekening teknisi. Lanjutkan tandai sebagai SUKSES?')) return;
@@ -94,13 +330,22 @@ export default function SuperAdmin() {
             <span style={{ fontSize: '0.75rem', color: '#e0f2fe' }}>AISERVICE.ID Platform Controller</span>
           </div>
         </div>
-        <button 
-          onClick={() => navigate('/')} 
-          style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}
-        >
-          Ke Halaman Utama →
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            onClick={() => navigate('/')} 
+            style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}
+          >
+            ← Beranda
+          </button>
+          <button 
+            onClick={handleLogout}
+            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <LogOut size={15} /> Logout
+          </button>
+        </div>
       </header>
+
 
       {/* CONTAINER */}
       <div style={{ display: 'flex', maxWidth: '1280px', margin: '2rem auto', gap: '24px', padding: '0 1.5rem' }}>
