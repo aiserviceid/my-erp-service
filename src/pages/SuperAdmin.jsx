@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Sparkles, Shield, Wallet, ArrowUpRight, DollarSign } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Sparkles, Shield, Wallet, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SuperAdmin() {
   const [stats, setStats] = useState({ tenants: [], withdrawals: [], platform_balance: 0 });
+  const [affData, setAffData] = useState({ affiliates: [], commissions: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [updatingCode, setUpdatingCode] = useState(null);
@@ -15,6 +16,8 @@ export default function SuperAdmin() {
     try {
       const data = await apiService.getAdminStats();
       setStats(data);
+      const affResult = await apiService.getAffiliateAdminData();
+      setAffData(affResult);
     } catch (e) {
       console.error(e);
       alert('Gagal memuat data admin');
@@ -144,6 +147,24 @@ export default function SuperAdmin() {
             {stats.withdrawals.filter(w => w.status === 'PENDING').length > 0 && (
               <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
                 {stats.withdrawals.filter(w => w.status === 'PENDING').length}
+              </span>
+            )}
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('afiliasi')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
+              background: activeTab === 'afiliasi' ? '#059669' : '#ffffff', color: activeTab === 'afiliasi' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'afiliasi' ? '0 4px 12px rgba(5, 150, 105, 0.3)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'afiliasi' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <Gift size={18} /> Komisi Afiliasi
+            {affData.commissions.filter(c => c.status === 'PENDING').length > 0 && (
+              <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
+                {affData.commissions.filter(c => c.status === 'PENDING').length}
               </span>
             )}
           </button>
@@ -330,6 +351,113 @@ export default function SuperAdmin() {
                     ))}
                     {stats.withdrawals.length === 0 && (
                       <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada pengajuan penarikan</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 4. AFFILIATE COMMISSION APPROVAL */}
+          {activeTab === 'afiliasi' && (
+            <div style={{ padding: '2rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>Manajemen Komisi Afiliasi 🎁</h2>
+                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>Komisi <strong style={{ color: '#059669' }}>80% Pembelian Pertama</strong> — Approve untuk kirim ke dompet afiliasi</p>
+                </div>
+                <button onClick={loadStats} style={{ padding: '6px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
+                  Refresh 🔄
+                </button>
+              </div>
+
+              {/* Summary Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '1.5rem' }}>
+                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '12px', padding: '1rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700' }}>Total Afiliasi Aktif</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#059669' }}>{affData.affiliates.length}</div>
+                </div>
+                <div style={{ background: '#fefce8', border: '1px solid #fde047', borderRadius: '12px', padding: '1rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700' }}>Komisi Menunggu Bayar</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#d97706' }}>
+                    {affData.commissions.filter(c => c.status === 'PENDING').length}
+                  </div>
+                </div>
+                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '12px', padding: '1rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700' }}>Total Komisi Dibayar</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#059669' }}>
+                    Rp {affData.commissions.filter(c => c.status === 'PAID').reduce((s, c) => s + (c.commission_amount || 0), 0).toLocaleString('id-ID')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Petunjuk */}
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '10px', padding: '12px 16px', marginBottom: '1.5rem', fontSize: '0.88rem', color: '#14532d' }}>
+                <strong>📋 Cara Kerja:</strong> Ketika toko baru mendaftar Pro/Enterprise menggunakan kode afiliasi, komisi 80% otomatis tercatat di sini dengan status <strong>PENDING</strong>. Anda cukup klik <strong>"Setujui & Bayar"</strong> setelah memverifikasi pembayaran dari toko baru tersebut masuk ke rekening Anda.
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ padding: '12px' }}>Afiliasi (Pemilik Kode)</th>
+                      <th style={{ padding: '12px' }}>Toko yang Direferensikan</th>
+                      <th style={{ padding: '12px' }}>Paket</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Komisi 80%</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Status</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {affData.commissions.map(c => (
+                      <tr key={c.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '12px' }}>
+                          <strong>{c.affiliate_tenant_code}</strong>
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          <strong>{c.referred_tenant_name || c.referred_tenant_code}</strong><br />
+                          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{c.referred_tenant_code}</span>
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          <span style={{ background: c.tier_purchased === 'enterprise' ? '#f3e8ff' : '#e0f2fe', color: c.tier_purchased === 'enterprise' ? '#7c3aed' : '#0284c7', padding: '3px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700' }}>
+                            {c.tier_purchased?.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: '900', fontSize: '1.05rem', color: '#059669' }}>
+                          Rp {(c.commission_amount || 0).toLocaleString('id-ID')}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800',
+                            background: c.status === 'PAID' ? '#dcfce7' : '#fef3c7',
+                            color: c.status === 'PAID' ? '#15803d' : '#b45309'
+                          }}>
+                            {c.status === 'PAID' ? '✅ Dibayar' : '⏳ Menunggu'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          {c.status === 'PENDING' ? (
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm(`Approve & kirim komisi Rp ${(c.commission_amount||0).toLocaleString('id-ID')} ke dompet ${c.affiliate_tenant_code}?`)) return;
+                                try {
+                                  await apiService.approveAffiliateCommission(c.id, c.affiliate_tenant_code, c.commission_amount);
+                                  alert('Komisi berhasil disetujui & masuk ke dompet afiliasi!');
+                                  loadStats();
+                                } catch (e) { alert('Gagal approve: ' + e.message); }
+                              }}
+                              style={{ background: '#059669', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                            >
+                              <CheckCircle size={14} style={{ marginRight: '4px' }} /> Setujui & Bayar
+                            </button>
+                          ) : (
+                            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Selesai ✓</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {affData.commissions.length === 0 && (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada komisi afiliasi masuk</td></tr>
                     )}
                   </tbody>
                 </table>

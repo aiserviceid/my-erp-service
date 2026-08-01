@@ -511,5 +511,157 @@ export const apiService = {
       console.error(e);
       throw e;
     }
+  },
+
+  // ============================================================
+  // 11. SISTEM AFILIASI (Komisi 80% Pembelian Pertama)
+  // ============================================================
+
+  // Ambil atau buat kode afiliasi unik untuk toko ini
+  getOrCreateAffiliateCode: async (tenantCode) => {
+    try {
+      const { data: existing } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('tenant_code', tenantCode)
+        .maybeSingle();
+
+      if (existing) return existing;
+
+      // Generate kode unik: 8 karakter uppercase
+      const code = 'AF-' + tenantCode.slice(0, 4) + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      const { data: created, error } = await supabase
+        .from('affiliates')
+        .insert({ tenant_code: tenantCode, affiliate_code: code, total_earned: 0, total_pending: 0 })
+        .select().single();
+
+      if (error) {
+        // Mungkin sudah ada (race condition), ambil ulang
+        const { data: retry } = await supabase.from('affiliates').select('*').eq('tenant_code', tenantCode).maybeSingle();
+        return retry;
+      }
+      return created;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  // Ambil data afiliasi + riwayat komisi
+  getAffiliateData: async (tenantCode) => {
+    try {
+      const affiliate = await apiService.getOrCreateAffiliateCode(tenantCode);
+      const { data: commissions } = await supabase
+        .from('affiliate_commissions')
+        .select('*')
+        .eq('affiliate_tenant_code', tenantCode)
+        .order('created_at', { ascending: false });
+
+      return {
+        affiliate,
+        commissions: commissions || []
+      };
+    } catch (e) {
+      console.error(e);
+      return { affiliate: null, commissions: [] };
+    }
+  },
+
+  // Proses referral baru (dipanggil saat registrasi toko baru dengan kode afiliasi)
+  processAffiliateReferral: async (affiliateCode, newTenantCode, newTenantName, tier) => {
+    try {
+      // Cek apakah kode afiliasi valid
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('affiliate_code', affiliateCode.toUpperCase().trim())
+        .maybeSingle();
+
+      if (!affiliate) throw new Error('Kode afiliasi tidak valid!');
+
+      // Cek apakah toko baru sudah pernah dapat dari kode ini (prevent double)
+      const { data: existing } = await supabase
+        .from('affiliate_commissions')
+        .select('id')
+        .eq('referred_tenant_code', newTenantCode)
+        .maybeSingle();
+
+      if (existing) throw new Error('Toko ini sudah terdaftar dari afiliasi sebelumnya.');
+
+      // Hitung komisi 80% dari pembelian pertama
+      const COMMISSION_RATE = 0.80;
+      const tierPrices = { pro: 49000, enterprise: 79000, free: 0 };
+      const basePrice = tierPrices[tier] || 0;
+      const commissionAmount = Math.floor(basePrice * COMMISSION_RATE);
+
+      if (commissionAmount === 0) {
+        return { success: true, commissionAmount: 0, message: 'Paket gratis tidak menghasilkan komisi.' };
+      }
+
+      // Catat komisi ke tabel affiliate_commissions
+      const { error: commErr } = await supabase.from('affiliate_commissions').insert({
+        affiliate_tenant_code: affiliate.tenant_code,
+        referred_tenant_code: newTenantCode,
+        referred_tenant_name: newTenantName,
+        tier_purchased: tier,
+        base_amount: basePrice,
+        commission_amount: commissionAmount,
+        commission_rate: COMMISSION_RATE,
+        status: 'PENDING'
+      });
+
+      if (commErr) throw commErr;
+
+      // Update total pending di tabel affiliates
+      await supabase.from('affiliates').update({
+        total_pending: (affiliate.total_pending || 0) + commissionAmount,
+        total_referrals: (affiliate.total_referrals || 0) + 1
+      }).eq('tenant_code', affiliate.tenant_code);
+
+      return { success: true, commissionAmount, affiliateTenantCode: affiliate.tenant_code };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  // Super Admin: Ambil semua data afiliasi untuk approve
+  getAffiliateAdminData: async () => {
+    try {
+      const { data: affiliates } = await supabase.from('affiliates').select('*').order('total_pending', { ascending: false });
+      const { data: commissions } = await supabase.from('affiliate_commissions').select('*').order('created_at', { ascending: false });
+      return { affiliates: affiliates || [], commissions: commissions || [] };
+    } catch (e) {
+      console.error(e);
+      return { affiliates: [], commissions: [] };
+    }
+  },
+
+  // Super Admin: Approve & bayar komisi ke dompet afiliasi
+  approveAffiliateCommission: async (commissionId, affiliateTenantCode, amount) => {
+    try {
+      // Update status komisi ke PAID
+      const { error: updErr } = await supabase
+        .from('affiliate_commissions')
+        .update({ status: 'PAID' })
+        .eq('id', commissionId);
+      if (updErr) throw updErr;
+
+      // Tambahkan saldo ke dompet afiliasi
+      const { data: aff } = await supabase.from('affiliates').select('total_earned, total_pending').eq('tenant_code', affiliateTenantCode).maybeSingle();
+      await supabase.from('affiliates').update({
+        total_earned: ((aff && aff.total_earned) || 0) + amount,
+        total_pending: Math.max(0, ((aff && aff.total_pending) || 0) - amount)
+      }).eq('tenant_code', affiliateTenantCode);
+
+      // Tambahkan ke wallet tenant
+      await apiService.adjustTenantWallet(affiliateTenantCode, amount);
+
+      return { success: true };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   }
 };
+

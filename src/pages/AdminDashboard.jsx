@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, GitBranch, Building2, Check, ExternalLink } from 'lucide-react';
+import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
 import { apiService } from '../services/api';
 import ForumCommunity from '../components/ForumCommunity';
 import WalletDashboard from '../components/WalletDashboard';
 import POSView from '../components/POSView';
+import AffiliatePortal from '../components/AffiliatePortal';
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -83,6 +84,7 @@ export default function AdminDashboard() {
     { id: 'cabang', name: 'Multi-Cabang', icon: Building2, badge: isEnterprise ? '5 Max' : 'Enterprise' },
     { id: 'keuangan', name: 'Keuangan', icon: TrendingUp },
     { id: 'dompet', name: 'Dompet & Penarikan', icon: Wallet },
+    { id: 'afiliasi', name: 'Afiliasi & Komisi 80%', icon: Gift, badge: '🔥' },
     { id: 'forum', name: 'Forum Teknisi', icon: MessageCircle },
     { id: 'harga', name: 'Pasar Harga', icon: DollarSign },
     { id: 'pengaturan', name: 'Pengaturan Toko', icon: Settings },
@@ -338,6 +340,8 @@ export default function AdminDashboard() {
           </div>
         ) : activeTab === 'dompet' ? (
           <WalletDashboard />
+        ) : activeTab === 'afiliasi' ? (
+          <AffiliatePortal />
         ) : activeTab === 'forum' ? (
           <ForumCommunity />
         ) : activeTab === 'harga' ? (
