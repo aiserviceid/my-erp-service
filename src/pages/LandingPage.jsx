@@ -62,7 +62,7 @@ export default function LandingPage() {
             </div>
             <div>
               <span style={{ fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.5px', background: 'linear-gradient(to right, #ffffff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                AI Service ERP
+                AISERVICE.ID
               </span>
               <span style={{ display: 'block', fontSize: '0.7rem', color: '#38bdf8', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase' }}>
                 SaaS No. 1 Bengkel & Servis
@@ -88,18 +88,29 @@ export default function LandingPage() {
                 display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
               }}
             >
-              <Search size={16} /> Cek Resi Konsumen
+              <Search size={16} /> Cek Resi
             </button>
 
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}
               style={{
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)', color: 'white', border: 'none',
-                padding: '0.6rem 1.4rem', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(14, 165, 233, 0.35)', transition: 'all 0.2s'
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none',
+                padding: '0.6rem 1.3rem', borderRadius: '10px', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)', transition: 'all 0.2s'
               }}
             >
-              <LogIn size={16} /> Buka ERP Toko
+              Daftar Toko 🚀
+            </button>
+
+            <button 
+              onClick={() => navigate('/login', { state: { tab: 'login' } })}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.15)',
+                padding: '0.6rem 1.2rem', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
+              }}
+            >
+              <LogIn size={16} /> Masuk
             </button>
           </div>
         </div>
@@ -142,7 +153,7 @@ export default function LandingPage() {
           {/* CTA Group */}
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '4rem' }}>
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}
               style={{
                 padding: '1.1rem 2.4rem', fontSize: '1.1rem', fontWeight: '700', borderRadius: '14px',
                 background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)', color: 'white', border: 'none',
@@ -150,7 +161,7 @@ export default function LandingPage() {
                 boxShadow: '0 8px 30px rgba(14, 165, 233, 0.45)', transform: 'translateY(0)', transition: 'all 0.2s'
               }}
             >
-              Mulai Gratis Sekarang <ArrowRight size={20} />
+              Daftar Toko Gratis Sekarang <ArrowRight size={20} />
             </button>
 
             <a 
@@ -364,7 +375,7 @@ export default function LandingPage() {
               </ul>
 
               <button 
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}
                 style={{
                   width: '100%', padding: '1rem', borderRadius: '12px', fontWeight: '700', fontSize: '1rem',
                   background: 'rgba(255, 255, 255, 0.08)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -406,14 +417,14 @@ export default function LandingPage() {
               </ul>
 
               <button 
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro' } })}
                 style={{
                   width: '100%', padding: '1rem', borderRadius: '12px', fontWeight: '700', fontSize: '1rem',
                   background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)', color: 'white', border: 'none',
                   cursor: 'pointer', boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)', transition: 'all 0.2s'
                 }}
               >
-                Pilih Paket Pro Titan
+                Pilih Paket Pro Titan ⭐
               </button>
             </div>
 
@@ -441,17 +452,29 @@ export default function LandingPage() {
               </ul>
 
               <button 
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'enterprise' } })}
                 style={{
                   width: '100%', padding: '1rem', borderRadius: '12px', fontWeight: '700', fontSize: '1rem',
                   background: 'rgba(255, 255, 255, 0.08)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.15)',
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
               >
-                Hubungi Kami
+                Hubungi Kami (Enterprise)
               </button>
             </div>
 
+          </div>
+
+          {/* Payment Notice Banner */}
+          <div style={{ 
+            marginTop: '3.5rem', padding: '1.5rem 2rem', borderRadius: '16px', 
+            background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', textAlign: 'center'
+          }}>
+            <CreditCard size={24} color="#38bdf8" />
+            <div style={{ fontSize: '0.95rem', color: '#cbd5e1' }}>
+              <strong>Metode Pembayaran Resmi Aktivasi:</strong> Bank BRI <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>2088-01007194505</span> & E-Wallet DANA <span style={{ color: '#10b981', fontWeight: 'bold' }}>085382535050</span> a/n <strong>SYAIFUDIN</strong> (Aktivasi Cepat via WA)
+            </div>
           </div>
 
         </div>
@@ -507,7 +530,7 @@ export default function LandingPage() {
             Bergabunglah bersama ratusan pemilik bengkel & toko servis lainnya. Daftar dalam 1 menit tanpa biaya.
           </p>
           <button 
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}
             style={{
               padding: '1.1rem 2.8rem', fontSize: '1.15rem', fontWeight: '800', borderRadius: '14px',
               background: 'white', color: '#0f172a', border: 'none', cursor: 'pointer',
@@ -526,11 +549,11 @@ export default function LandingPage() {
       }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
-            <span style={{ color: 'white', fontWeight: '700', fontSize: '1.1rem' }}>AI Service ERP</span>
+            <span style={{ color: 'white', fontWeight: '700', fontSize: '1.1rem' }}>AISERVICE.ID</span>
             <p style={{ margin: '4px 0 0 0' }}>Sistem ERP Kasir & Pelacakan Servis Terpadu se-Indonesia.</p>
           </div>
           <div>
-            &copy; {new Date().getFullYear()} AI Service ID. Hak Cipta Dilindungi.
+            &copy; {new Date().getFullYear()} AISERVICE.ID. Hak Cipta Dilindungi.
           </div>
         </div>
       </footer>
