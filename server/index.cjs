@@ -408,6 +408,10 @@ app.put('/api/admin/withdrawals/:id/approve', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Professional Backend API running on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Professional Backend API running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

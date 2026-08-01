@@ -3,7 +3,8 @@ const path = require('path');
 const fs = require('fs');
 
 // Create a data directory if it doesn't exist
-const dataDir = path.join(__dirname, 'data');
+const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const dataDir = isVercel ? '/tmp' : path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
