@@ -105,13 +105,13 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#050811', padding: '2rem 1rem', color: '#f8fafc', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f1f5f9', padding: '2rem 1rem', color: '#0f172a', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       
       {/* CARD CONTAINER */}
       <div style={{ 
         width: '100%', maxWidth: '480px', borderRadius: '24px', 
-        background: 'rgba(11, 17, 32, 0.85)', border: '1px solid rgba(255, 255, 255, 0.08)', 
-        padding: '2.5rem 2rem', backdropFilter: 'blur(20px)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
+        background: '#ffffff', border: '1px solid #e2e8f0', 
+        padding: '2.5rem 2rem', boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.08)'
       }}>
         
         {/* Brand Header */}
@@ -120,27 +120,27 @@ export default function Login() {
             width: '46px', height: '46px', margin: '0 auto 12px auto',
             background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', 
             borderRadius: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(14, 165, 233, 0.4)'
+            boxShadow: '0 4px 15px rgba(2, 132, 199, 0.3)'
           }}>
             <Sparkles size={24} color="white" />
           </div>
-          <h2 style={{ fontSize: '1.65rem', fontWeight: '900', margin: 0, background: 'linear-gradient(to right, #ffffff, #cbd5e1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h2 style={{ fontSize: '1.65rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>
             AISERVICE.ID
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
             Platform ERP Kasir & Manajemen Servis
           </p>
         </div>
 
         {/* TAB SWITCHER */}
-        <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '12px', padding: '4px', marginBottom: '1.8rem' }}>
+        <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '12px', padding: '4px', marginBottom: '1.8rem', border: '1px solid #e2e8f0' }}>
           <button 
             type="button"
             onClick={() => { setActiveTab('login'); setError(''); setSuccessMsg(''); }}
             style={{
               flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
-              background: activeTab === 'login' ? '#0ea5e9' : 'transparent', color: activeTab === 'login' ? 'white' : '#94a3b8',
-              transition: 'all 0.2s'
+              background: activeTab === 'login' ? '#0284c7' : 'transparent', color: activeTab === 'login' ? 'white' : '#64748b',
+              transition: 'all 0.2s', boxShadow: activeTab === 'login' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
             }}
           >
             Masuk Toko
@@ -150,8 +150,8 @@ export default function Login() {
             onClick={() => { setActiveTab('register'); setError(''); setSuccessMsg(''); }}
             style={{
               flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
-              background: activeTab === 'register' ? '#0ea5e9' : 'transparent', color: activeTab === 'register' ? 'white' : '#94a3b8',
-              transition: 'all 0.2s'
+              background: activeTab === 'register' ? '#0284c7' : 'transparent', color: activeTab === 'register' ? 'white' : '#64748b',
+              transition: 'all 0.2s', boxShadow: activeTab === 'register' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
             }}
           >
             Daftar Toko Baru
@@ -159,13 +159,13 @@ export default function Login() {
         </div>
 
         {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#b91c1c', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.5rem', fontWeight: '600' }}>
             {error}
           </div>
         )}
 
         {successMsg && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#6ee7b7', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: '#dcfce7', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.5rem', fontWeight: '600' }}>
             {successMsg}
           </div>
         )}
@@ -174,7 +174,7 @@ export default function Login() {
         {activeTab === 'login' && (
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '1.2rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 Kode ID Toko
               </label>
               <input 
@@ -184,14 +184,14 @@ export default function Login() {
                 onChange={(e) => setTenantCode(e.target.value.toUpperCase())}
                 required 
                 style={{
-                  width: '100%', padding: '12px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', fontSize: '0.95rem', boxSizing: 'border-box'
+                  width: '100%', padding: '12px 14px', borderRadius: '10px', background: '#f8fafc',
+                  border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '1.8rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 PIN Keamanan Toko
               </label>
               <input 
@@ -201,8 +201,8 @@ export default function Login() {
                 onChange={(e) => setPin(e.target.value)}
                 required 
                 style={{
-                  width: '100%', padding: '12px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', fontSize: '0.95rem', boxSizing: 'border-box'
+                  width: '100%', padding: '12px 14px', borderRadius: '10px', background: '#f8fafc',
+                  border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
             </div>
@@ -212,8 +212,8 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%', padding: '12px', borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '1rem',
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)', color: 'white', cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white', cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
               <LogIn size={18} /> {loading ? 'Memverifikasi...' : 'Masuk ke Dashboard'}
@@ -225,7 +225,7 @@ export default function Login() {
         {activeTab === 'register' && (
           <form onSubmit={handleRegister}>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 Nama Bengkel / Toko
               </label>
               <input 
@@ -235,14 +235,14 @@ export default function Login() {
                 onChange={(e) => setTenantName(e.target.value)}
                 required 
                 style={{
-                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', fontSize: '0.95rem', boxSizing: 'border-box'
+                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
+                  border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 Kode ID Toko (Huruf & Angka)
               </label>
               <input 
@@ -252,14 +252,14 @@ export default function Login() {
                 onChange={(e) => setTenantCode(e.target.value.toUpperCase().replace(/\s+/g, '-'))}
                 required 
                 style={{
-                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', fontSize: '0.95rem', boxSizing: 'border-box'
+                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
+                  border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 No. WhatsApp Aktif
               </label>
               <input 
@@ -269,14 +269,14 @@ export default function Login() {
                 onChange={(e) => setPhone(e.target.value)}
                 required 
                 style={{
-                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', fontSize: '0.95rem', boxSizing: 'border-box'
+                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
+                  border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '1.2rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 Buat PIN Keamanan (4-6 Digit)
               </label>
               <input 
@@ -286,15 +286,15 @@ export default function Login() {
                 onChange={(e) => setPin(e.target.value)}
                 required 
                 style={{
-                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', fontSize: '0.95rem', boxSizing: 'border-box'
+                  width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
+                  border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
             </div>
 
             {/* Tier Selector (Starter, Pro 49k, Enterprise 79k) */}
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#cbd5e1', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
                 Pilihan Paket Berlangganan (Promo)
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
@@ -303,13 +303,13 @@ export default function Login() {
                   onClick={() => setSelectedTier('free')}
                   style={{
                     padding: '8px 6px', borderRadius: '10px', cursor: 'pointer',
-                    border: selectedTier === 'free' ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
-                    background: selectedTier === 'free' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                    border: selectedTier === 'free' ? '2px solid #059669' : '1px solid #cbd5e1',
+                    background: selectedTier === 'free' ? '#ecfdf5' : '#f8fafc',
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#10b981' : 'white' }}>Starter</div>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Rp 0 (Gratis)</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#059669' : '#0f172a' }}>Starter</div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Rp 0 (Gratis)</div>
                 </div>
 
                 {/* Pro 49k */}
@@ -317,13 +317,13 @@ export default function Login() {
                   onClick={() => setSelectedTier('pro')}
                   style={{
                     padding: '8px 6px', borderRadius: '10px', cursor: 'pointer',
-                    border: selectedTier === 'pro' ? '2px solid #0ea5e9' : '1px solid rgba(255, 255, 255, 0.1)',
-                    background: selectedTier === 'pro' ? 'rgba(14, 165, 233, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                    border: selectedTier === 'pro' ? '2px solid #0284c7' : '1px solid #cbd5e1',
+                    background: selectedTier === 'pro' ? '#e0f2fe' : '#f8fafc',
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#38bdf8' : 'white' }}>Pro Titan ⭐</div>
-                  <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: '700' }}>Rp 49rb/bln</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#0284c7' : '#0f172a' }}>Pro Titan ⭐</div>
+                  <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>Rp 49rb/bln</div>
                 </div>
 
                 {/* Enterprise 79k */}
@@ -331,13 +331,13 @@ export default function Login() {
                   onClick={() => setSelectedTier('enterprise')}
                   style={{
                     padding: '8px 6px', borderRadius: '10px', cursor: 'pointer',
-                    border: selectedTier === 'enterprise' ? '2px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.1)',
-                    background: selectedTier === 'enterprise' ? 'rgba(192, 132, 252, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                    border: selectedTier === 'enterprise' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                    background: selectedTier === 'enterprise' ? '#f3e8ff' : '#f8fafc',
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#c084fc' : 'white' }}>Enterprise</div>
-                  <div style={{ fontSize: '0.7rem', color: '#c084fc', fontWeight: '700' }}>Rp 79rb/bln</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Enterprise</div>
+                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 79rb/bln</div>
                 </div>
               </div>
             </div>
@@ -347,9 +347,9 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%', padding: '12px', borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '0.95rem',
-                background: selectedTier === 'free' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+                background: selectedTier === 'free' ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
                 color: 'white', cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
               {selectedTier === 'free' ? 'Daftar & Mulai Gratis 🚀' : `Lanjut Pembayaran Promo (${getTierPriceText()}) →`}
@@ -358,11 +358,11 @@ export default function Login() {
         )}
 
         {/* FOOTER LINKS */}
-        <div style={{ marginTop: '2rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={() => navigate('/tracking')} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button onClick={() => navigate('/tracking')} style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
             <Search size={14} /> Cek Resi
           </button>
-          <button onClick={() => navigate('/employee')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.85rem', cursor: 'pointer' }}>
+          <button onClick={() => navigate('/employee')} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}>
             Portal Karyawan →
           </button>
         </div>
@@ -373,41 +373,41 @@ export default function Login() {
       {showPaymentModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0, 0, 0, 0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center',
-          zIndex: 1000, padding: '1rem', backdropFilter: 'blur(10px)'
+          background: 'rgba(15, 23, 42, 0.65)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 1000, padding: '1rem', backdropFilter: 'blur(6px)'
         }}>
           <div style={{
-            maxWidth: '500px', width: '100%', background: '#0b1120', borderRadius: '24px',
-            border: '2px solid #0ea5e9', padding: '2.2rem', color: '#f8fafc', boxShadow: '0 25px 60px rgba(0,0,0,0.85)'
+            maxWidth: '500px', width: '100%', background: '#ffffff', borderRadius: '24px',
+            border: '1px solid #e2e8f0', padding: '2.2rem', color: '#0f172a', boxShadow: '0 25px 60px rgba(0,0,0,0.18)'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              <span style={{ background: 'rgba(14, 165, 233, 0.18)', color: '#38bdf8', padding: '4px 14px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800' }}>
+              <span style={{ background: '#e0f2fe', color: '#0284c7', padding: '4px 14px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '800' }}>
                 AKTIVASI {selectedTier === 'enterprise' ? 'PAKET ENTERPRISE' : 'PAKET PRO TITAN'}
               </span>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '900', marginTop: '10px' }}>Instruksi Pembayaran Promo</h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '4px 0 0 0' }}>
-                Silakan transfer biaya promo sebesar <strong style={{ color: '#38bdf8', fontSize: '1.1rem' }}>{getTierPriceText()}</strong> ke salah satu rekening resmi di bawah:
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '900', marginTop: '10px', color: '#0f172a' }}>Instruksi Pembayaran Promo</h3>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '4px 0 0 0' }}>
+                Silakan transfer biaya promo sebesar <strong style={{ color: '#0284c7', fontSize: '1.1rem' }}>{getTierPriceText()}</strong> ke salah satu rekening resmi di bawah:
               </p>
             </div>
 
             {/* Detail Rekening Pribadi */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '1.5rem' }}>
               {/* BRI */}
-              <div style={{ padding: '14px', borderRadius: '14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700' }}>Bank BRI</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#38bdf8', letterSpacing: '1px', margin: '2px 0' }}>
+              <div style={{ padding: '14px', borderRadius: '14px', background: '#f8fafc', border: '1px solid #cbd5e1' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Bank BRI</div>
+                <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#0284c7', letterSpacing: '1px', margin: '2px 0' }}>
                   2088-01007194505
                 </div>
-                <div style={{ fontSize: '0.85rem', color: '#e2e8f0' }}>Atas Nama: <strong>SYAIFUDIN</strong></div>
+                <div style={{ fontSize: '0.85rem', color: '#334155' }}>Atas Nama: <strong>SYAIFUDIN</strong></div>
               </div>
 
               {/* DANA */}
-              <div style={{ padding: '14px', borderRadius: '14px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700' }}>E-Wallet DANA</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#10b981', letterSpacing: '1px', margin: '2px 0' }}>
+              <div style={{ padding: '14px', borderRadius: '14px', background: '#f8fafc', border: '1px solid #cbd5e1' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>E-Wallet DANA</div>
+                <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#059669', letterSpacing: '1px', margin: '2px 0' }}>
                   085382535050
                 </div>
-                <div style={{ fontSize: '0.85rem', color: '#e2e8f0' }}>Atas Nama: <strong>SYAIFUDIN</strong></div>
+                <div style={{ fontSize: '0.85rem', color: '#334155' }}>Atas Nama: <strong>SYAIFUDIN</strong></div>
               </div>
             </div>
 
@@ -420,7 +420,7 @@ export default function Login() {
                 style={{
                   width: '100%', padding: '14px', borderRadius: '12px', background: '#25D366', color: 'white',
                   fontWeight: '800', fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(37, 211, 102, 0.4)'
+                  justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(37, 211, 102, 0.3)'
                 }}
               >
                 Konfirmasi Otomatis via WhatsApp 💬
@@ -433,7 +433,7 @@ export default function Login() {
                 }}
                 style={{
                   width: '100%', padding: '11px', borderRadius: '12px', background: 'transparent',
-                  color: '#94a3b8', border: '1px solid rgba(255, 255, 255, 0.15)', cursor: 'pointer', fontSize: '0.88rem'
+                  color: '#64748b', border: '1px solid #cbd5e1', cursor: 'pointer', fontSize: '0.88rem', fontWeight: '600'
                 }}
               >
                 Masuk ke Dashboard Dulu (Uji Coba)
