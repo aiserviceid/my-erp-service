@@ -1,5 +1,9 @@
 {
   "appId": "com.trackingservice.app",
-  "appName": "Tracking Service",
-  "webDir": "dist"
+  "appName": "AISERVICE.ID",
+  "webDir": "dist",
+  "server": {
+    "url": "https://aiserviceid.vercel.app",
+    "cleartext": true
+  }
 }
