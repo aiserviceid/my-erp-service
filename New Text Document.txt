@@ -1,0 +1,14 @@
+Nama domain baru Anda https://aiserviceid.vercel.app keren sekali dan terlihat sangat profesional! 🌟
+
+Berikut tautan lengkap dengan nama domain baru Anda:
+
+👑 Master Dashboard (Super Admin):
+👉 https://aiserviceid.vercel.app/super-admin
+🏠 Halaman Utama (Landing Page & Download APK):
+👉 https://aiserviceid.vercel.app/
+🏪 Login Mitra / Buat Toko Baru (ERP & Kasir POS):
+👉 https://aiserviceid.vercel.app/login
+📱 Portal Karyawan & Teknisi:
+👉 https://aiserviceid.vercel.app/employee
+🔍 Cek Resi Publik (Untuk Pelanggan):
+👉 https://aiserviceid.vercel.app/tracking
