@@ -1,0 +1,5 @@
+{
+  "appId": "com.trackingservice.app",
+  "appName": "Tracking Service",
+  "webDir": "dist"
+}
