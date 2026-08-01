@@ -132,7 +132,9 @@ export default function ForumCommunity() {
     if (!amount || amount < 1000) return alert('Minimal sawer Rp 1.000');
     try {
       const res = await apiService.sawerTeknisi(sawerTarget.tenant_code, amount);
-      alert(`Berhasil memberikan Tip! Teknisi menerima Rp ${res.solverShare.toLocaleString('id-ID')} dan Komisi Sistem Rp ${res.commission.toLocaleString('id-ID')}`);
+      const net = res.net || (amount * 0.93);
+      const fee = res.feePlatform || (amount * 0.01);
+      alert(`Berhasil memberikan Tip! Teknisi menerima Rp ${Math.round(net).toLocaleString('id-ID')} dan Komisi Sistem Rp ${Math.round(fee).toLocaleString('id-ID')}`);
       setShowSawerModal(false);
       setSawerTarget(null);
       setSawerAmount('');

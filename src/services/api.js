@@ -476,5 +476,40 @@ export const apiService = {
       console.error(e);
       throw e;
     }
+  },
+
+  updateTenantTier: async (tenantCode, newTier) => {
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ tier: newTier })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  adjustTenantWallet: async (tenantCode, deltaAmount) => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('wallet_balance').eq('code', tenantCode).maybeSingle();
+      const current = (tenant && tenant.wallet_balance) || 0;
+      const newBal = Math.max(0, current + Number(deltaAmount));
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ wallet_balance: newBal })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   }
 };
