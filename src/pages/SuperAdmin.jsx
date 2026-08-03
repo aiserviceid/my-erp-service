@@ -304,6 +304,45 @@ export default function SuperAdmin() {
     }
   };
 
+  const handleResetPin = async (tenantCode) => {
+    const newPin = window.prompt(`Masukkan PIN baru untuk toko ${tenantCode}:`);
+    if (!newPin) return;
+    try {
+      await apiService.resetTenantPin(tenantCode, newPin);
+      alert('PIN berhasil direset!');
+      loadStats();
+    } catch (e) {
+      alert('Gagal reset PIN: ' + e.message);
+    }
+  };
+
+  const handleToggleBan = async (tenantCode, currentBanned) => {
+    const action = currentBanned ? 'mengaktifkan kembali' : 'menonaktifkan (ban)';
+    if (!window.confirm(`Apakah Anda yakin ingin ${action} toko ${tenantCode}?`)) return;
+    try {
+      await apiService.updateTenantStatus(tenantCode, !currentBanned);
+      alert(`Toko berhasil ${currentBanned ? 'diaktifkan' : 'dinonaktifkan'}!`);
+      loadStats();
+    } catch (e) {
+      alert('Gagal update status toko: ' + e.message);
+    }
+  };
+
+  const handleDeleteTenant = async (tenantCode) => {
+    const confirmText = window.prompt(`Ketik "${tenantCode}" untuk menghapus toko ini secara PERMANEN beserta data servisnya:`);
+    if (confirmText !== tenantCode) {
+      if (confirmText !== null) alert('Kode toko tidak cocok, batal menghapus.');
+      return;
+    }
+    try {
+      await apiService.deleteTenant(tenantCode);
+      alert('Toko berhasil dihapus permanen!');
+      loadStats();
+    } catch (e) {
+      alert('Gagal menghapus toko: ' + e.message);
+    }
+  };
+
   const handlePlatformWithdraw = () => {
     if (stats.platform_balance === 0) return alert('Saldo komisi kosong.');
     if (!window.confirm(`Tarik seluruh saldo komisi platform sebesar Rp ${stats.platform_balance.toLocaleString('id-ID')} ke Rekening Pribadi Anda?`)) return;
@@ -487,12 +526,15 @@ export default function SuperAdmin() {
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.tenants.map(t => (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    {stats.tenants.map(t => {
+                      const tSettings = typeof t.settings === 'string' ? JSON.parse(t.settings) : (t.settings || {});
+                      return (
+                      <tr key={t.id} style={{ borderBottom: '1px solid #e2e8f0', opacity: tSettings.is_banned ? 0.6 : 1 }}>
                         <td style={{ padding: '12px' }}>
-                          <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.8rem' }}>
+                          <span style={{ background: tSettings.is_banned ? '#fee2e2' : '#e0f2fe', color: tSettings.is_banned ? '#991b1b' : '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.8rem' }}>
                             {t.code}
                           </span>
+                          {tSettings.is_banned && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#dc2626', fontWeight: 'bold' }}>(BANNED)</span>}
                         </td>
                         <td style={{ padding: '12px', fontWeight: '700' }}>{t.name}</td>
                         <td style={{ padding: '12px' }}>
@@ -517,15 +559,35 @@ export default function SuperAdmin() {
                           Rp {(t.wallet_balance || 0).toLocaleString('id-ID')}
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <button 
-                            onClick={() => handleAdjustWallet(t.code)}
-                            style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
-                          >
-                            Ubah Saldo 💳
-                          </button>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '250px' }}>
+                            <button 
+                              onClick={() => handleAdjustWallet(t.code)}
+                              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' }}
+                            >
+                              💳 Saldo
+                            </button>
+                            <button 
+                              onClick={() => handleResetPin(t.code)}
+                              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#0284c7' }}
+                            >
+                              🔑 Reset PIN
+                            </button>
+                            <button 
+                              onClick={() => handleToggleBan(t.code, tSettings.is_banned)}
+                              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: tSettings.is_banned ? '#15803d' : '#b45309' }}
+                            >
+                              {tSettings.is_banned ? '✅ Aktifkan' : '🚫 Ban'}
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteTenant(t.code)}
+                              style={{ background: '#fee2e2', border: '1px solid #fecaca', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#dc2626' }}
+                            >
+                              🗑️ Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                     {stats.tenants.length === 0 && (
                       <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada toko yang mendaftar</td></tr>
                     )}

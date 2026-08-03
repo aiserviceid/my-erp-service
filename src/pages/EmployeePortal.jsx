@@ -6,9 +6,10 @@ import { apiService } from '../services/api';
 import POSView from '../components/POSView';
 
 export default function EmployeePortal() {
-  const { tenant, employee, setEmployee } = useStore();
+  const { tenant, employee, setEmployee, setTenant } = useStore();
   const navigate = useNavigate();
   
+  const [tenantCode, setTenantCode] = useState(tenant?.code || '');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [services, setServices] = useState([]);
@@ -19,13 +20,18 @@ export default function EmployeePortal() {
       fetchServices();
     }
     if (employee && employee.role === 'Kasir') {
-      apiService.getProducts(tenant.code).then(setProducts);
+      const code = tenant?.code || employee.tenant_code;
+      if (code) {
+        apiService.getProducts(code).then(setProducts);
+      }
     }
-  }, [employee]);
+  }, [employee, tenant?.code]);
 
   const fetchServices = async () => {
     try {
-      const data = await apiService.get(`/services/${tenant.code}`);
+      const code = tenant?.code || employee?.tenant_code;
+      if (!code) return;
+      const data = await apiService.get(`/services/${code}`);
       setServices(data);
     } catch (e) {
       console.error(e);
@@ -34,10 +40,20 @@ export default function EmployeePortal() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!tenantCode) {
+      setError('Kode Toko wajib diisi');
+      return;
+    }
     try {
-      const data = await apiService.loginEmployee(tenant.code, pin);
-      // data contains id, name, role, token
-      setEmployee(data);
+      const code = tenantCode.toUpperCase();
+      const data = await apiService.loginEmployee(code, pin);
+      // data contains token and user
+      const empData = { ...data.user, token: data.token };
+      setEmployee(empData);
+      
+      if (!tenant?.code || tenant.code !== code) {
+        setTenant(code, empData.tenant_code || code, '', 'free', data.token);
+      }
     } catch (e) {
       setError(e.message || 'PIN Salah atau terjadi kesalahan');
     }
@@ -66,10 +82,21 @@ export default function EmployeePortal() {
     return (
       <div className="login-container animate-fade-in" style={{ padding: '2rem' }}>
         <div className="glass-panel" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-          <h2>Portal Teknisi</h2>
-          <p>{tenant.name}</p>
+          <h2>Portal Karyawan</h2>
+          <p>{tenant?.name || 'Masuk sebagai Karyawan'}</p>
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
           <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
+            {!tenant?.code && (
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="Masukkan Kode Toko" 
+                value={tenantCode}
+                onChange={(e) => { setTenantCode(e.target.value.toUpperCase()); setError(''); }}
+                style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: '1rem', letterSpacing: '0.1rem' }}
+                required
+              />
+            )}
             <input 
               type="password" 
               className="input-field" 
@@ -77,6 +104,7 @@ export default function EmployeePortal() {
               value={pin}
               onChange={(e) => { setPin(e.target.value); setError(''); }}
               style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5rem' }}
+              required
             />
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
               <LogIn size={18} /> Masuk

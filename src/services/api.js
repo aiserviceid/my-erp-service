@@ -53,6 +53,12 @@ export const apiService = {
         throw new Error('PIN Toko salah!');
       }
 
+      // Check if banned
+      const existingSettings = typeof existing.settings === 'string' ? JSON.parse(existing.settings) : (existing.settings || {});
+      if (existingSettings.is_banned) {
+        throw new Error('Akun Toko Anda telah dinonaktifkan oleh Admin.');
+      }
+
       return { token: `tenant_${cleanCode}`, tenant: existing };
     } catch (e) {
       console.error('Login tenant error:', e);
@@ -507,6 +513,65 @@ export const apiService = {
         .single();
       if (error) throw error;
       return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  resetTenantPin: async (tenantCode, newPin) => {
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ pin: newPin })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  updateTenantStatus: async (tenantCode, isBanned) => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('settings').eq('code', tenantCode).maybeSingle();
+      if (!tenant) throw new Error('Toko tidak ditemukan');
+      
+      let currentSettings = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings) : (tenant.settings || {});
+      currentSettings.is_banned = isBanned;
+      
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ settings: currentSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  deleteTenant: async (tenantCode) => {
+    try {
+      await supabase.from('users').delete().eq('tenant_code', tenantCode);
+      await supabase.from('products').delete().eq('tenant_code', tenantCode);
+      await supabase.from('services').delete().eq('tenant_code', tenantCode);
+      await supabase.from('transactions').delete().eq('tenant_code', tenantCode);
+      
+      const { error } = await supabase
+        .from('tenants')
+        .delete()
+        .eq('code', tenantCode);
+        
+      if (error) throw error;
+      return { success: true };
     } catch (e) {
       console.error(e);
       throw e;
