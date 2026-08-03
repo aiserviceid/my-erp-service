@@ -77,49 +77,71 @@ export default function POSView({ products }) {
     const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow.document;
     doc.open();
     
+    const css = `
+      <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; }
+        .receipt-container { max-width: ${printerType === 'thermal' ? '300px' : '800px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '10px' : '40px'}; border-radius: 12px; box-shadow: ${printerType === 'thermal' ? 'none' : '0 10px 25px rgba(0,0,0,0.05)'}; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h2 { margin: 0; color: #0f172a; font-size: ${printerType === 'thermal' ? '1.4rem' : '2rem'}; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .header p { margin: 5px 0 0; color: #64748b; font-size: ${printerType === 'thermal' ? '0.8rem' : '1rem'}; font-weight: 600; letter-spacing: 2px; }
+        .divider { border-top: 2px dashed #cbd5e1; margin: 15px 0; }
+        .info-grid { display: flex; flex-direction: column; gap: 8px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; margin-bottom: 20px; }
+        .info-item { margin: 0; display: flex; justify-content: space-between; }
+        .info-item strong { color: #64748b; font-weight: 600; }
+        .info-item span { color: #0f172a; font-weight: 500; text-align: right; max-width: 60%; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; }
+        .table th { border-bottom: 2px solid #cbd5e1; padding: 8px 0; text-align: left; color: #64748b; font-weight: 600; }
+        .table td { padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .text-right { text-align: right; }
+        .total-row td { font-weight: 800; font-size: ${printerType === 'thermal' ? '1rem' : '1.2rem'}; color: #0f172a; border-bottom: none; padding-top: 15px; }
+        .footer { text-align: center; margin-top: 30px; font-size: 0.85rem; color: #94a3b8; }
+        .bank-info { background: #f8fafc; padding: 12px; border-radius: 8px; text-align: center; font-size: 0.85rem; margin: 20px 0; border: 1px solid #e2e8f0; color: #475569; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .receipt-container { border: none; padding: ${printerType === 'thermal' ? '0' : '10px'}; box-shadow: none; } }
+      </style>
+    `;
+    
     const htmlContent = `
-      <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
-        <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko'}</h2>
-        <p style="text-align: center; margin: 0 0 15px 0;">STRUK PEMBELIAN</p>
-        <hr style="border-top: 1px dashed black;"/>
-        <p><strong>ID:</strong> ${lastReceipt.transactionId}</p>
-        <p><strong>Tgl:</strong> ${lastReceipt.date}</p>
-        <hr style="border-top: 1px dashed black;"/>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+      <div class="receipt-container">
+        <div class="header">
+          <h2>${tenant?.name || 'Toko'}</h2>
+          <p>STRUK PEMBELIAN</p>
+        </div>
+        <div class="divider"></div>
+        <div class="info-grid">
+          <div class="info-item"><strong>ID Trx</strong> <span>${lastReceipt.transactionId}</span></div>
+          <div class="info-item"><strong>Tanggal</strong> <span>${lastReceipt.date}</span></div>
+        </div>
+        
+        <table class="table">
+          <thead>
+            <tr><th>Item Barang</th><th class="text-right">Harga (Rp)</th></tr>
+          </thead>
           <tbody>
             ${lastReceipt.items.map(item => `
               <tr>
-                <td style="padding-bottom: 5px;">${item.name}<br/><small>${item.qty}x @ Rp ${item.price.toLocaleString('id-ID')}</small></td>
-                <td style="text-align: right; padding-bottom: 5px;">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</td>
+                <td>${item.name}<br/><span style="color: #64748b; font-size: 0.85em;">${item.qty}x @ ${(item.price).toLocaleString('id-ID')}</span></td>
+                <td class="text-right">${(item.price * item.qty).toLocaleString('id-ID')}</td>
               </tr>
             `).join('')}
+            ${lastReceipt.discount > 0 ? `
+            <tr><td>Subtotal</td><td class="text-right">${lastReceipt.subtotal.toLocaleString('id-ID')}</td></tr>
+            <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${lastReceipt.discount.toLocaleString('id-ID')}</td></tr>
+            ` : ''}
+            <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${lastReceipt.total.toLocaleString('id-ID')}</td></tr>
           </tbody>
         </table>
-        <hr style="border-top: 1px dashed black; margin-bottom: 10px;"/>
-        <table style="width: 100%; font-size: 0.9rem;">
-          ${lastReceipt.discount > 0 ? `
-          <tr>
-            <td>Subtotal</td>
-            <td style="text-align: right;">Rp ${lastReceipt.subtotal.toLocaleString('id-ID')}</td>
-          </tr>
-          <tr>
-            <td>Diskon</td>
-            <td style="text-align: right; color: red;">- Rp ${lastReceipt.discount.toLocaleString('id-ID')}</td>
-          </tr>
-          ` : ''}
-          <tr>
-            <td><strong>TOTAL LUNAS</strong></td>
-            <td style="text-align: right;"><strong>Rp ${lastReceipt.total.toLocaleString('id-ID')}</strong></td>
-          </tr>
-        </table>
-        <hr style="border-top: 1px dashed black; margin-top: 15px;"/>
-        ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
-        <p style="font-size: 0.8rem; text-align: center;">Terima kasih telah berbelanja!</p>
-        <p style="font-size: 0.8rem; text-align: center;">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.</p>
+        
+        ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+        
+        <div class="divider"></div>
+        <div class="footer">
+          <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 600;">Terima kasih telah berbelanja!</p>
+          <p style="margin: 0;">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.</p>
+        </div>
       </div>
     `;
     
-    doc.write(`<html><head><title>Print Struk</title></head><body onload="window.print(); window.close();">${htmlContent}</body></html>`);
+    doc.write(`<html><head><title>Print Struk</title>${css}</head><body onload="window.print(); window.close();">${htmlContent}</body></html>`);
     doc.close();
     setShowPrintModal(false);
   };

@@ -67,22 +67,55 @@ export default function AdminDashboard() {
     let htmlContent = '';
     const dateStr = new Date().toLocaleString('id-ID');
     
+    const css = `
+      <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; }
+        .receipt-container { max-width: ${printerType === 'thermal' ? '300px' : '800px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '10px' : '40px'}; border-radius: 12px; box-shadow: ${printerType === 'thermal' ? 'none' : '0 10px 25px rgba(0,0,0,0.05)'}; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h2 { margin: 0; color: #0f172a; font-size: ${printerType === 'thermal' ? '1.4rem' : '2rem'}; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .header p { margin: 5px 0 0; color: #64748b; font-size: ${printerType === 'thermal' ? '0.8rem' : '1rem'}; font-weight: 600; letter-spacing: 2px; }
+        .divider { border-top: 2px dashed #cbd5e1; margin: 15px 0; }
+        .info-grid { display: flex; flex-direction: column; gap: 8px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; margin-bottom: 20px; }
+        .info-item { margin: 0; display: flex; justify-content: space-between; }
+        .info-item strong { color: #64748b; font-weight: 600; }
+        .info-item span { color: #0f172a; font-weight: 500; text-align: right; max-width: 60%; }
+        .issue-box { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; color: #334155; margin-bottom: 20px; border: 1px solid #e2e8f0; white-space: pre-wrap; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; }
+        .table th { border-bottom: 2px solid #cbd5e1; padding: 8px 0; text-align: left; color: #64748b; font-weight: 600; }
+        .table td { padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .text-right { text-align: right; }
+        .total-row td { font-weight: 800; font-size: ${printerType === 'thermal' ? '1rem' : '1.2rem'}; color: #0f172a; border-bottom: none; padding-top: 15px; }
+        .footer { text-align: center; margin-top: 30px; font-size: 0.85rem; color: #94a3b8; }
+        .bank-info { background: #f8fafc; padding: 12px; border-radius: 8px; text-align: center; font-size: 0.85rem; margin: 20px 0; border: 1px solid #e2e8f0; color: #475569; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .receipt-container { border: none; padding: ${printerType === 'thermal' ? '0' : '10px'}; box-shadow: none; } }
+      </style>
+    `;
+    
     if (printType === 'pendaftaran') {
       htmlContent = `
-        <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
-          <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko Servis'}</h2>
-          <p style="text-align: center; margin: 0 0 15px 0;">NOTA PENDAFTARAN SERVIS</p>
-          <hr style="border-top: 1px dashed black;"/>
-          <p><strong>Resi:</strong> ${selectedService.resi}</p>
-          <p><strong>Tanggal:</strong> ${dateStr}</p>
-          <p><strong>Pelanggan:</strong> ${selectedService.customer_name} (${selectedService.customer_phone})</p>
-          <hr style="border-top: 1px dashed black;"/>
-          <p><strong>Perangkat:</strong> ${selectedService.device_name}</p>
-          <p><strong>Keluhan & Kelengkapan:</strong><br/>${selectedService.issue}</p>
-          <hr style="border-top: 1px dashed black;"/>
-          ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
-          <p style="font-size: 0.8rem; text-align: center;">Simpan struk ini sebagai bukti pengambilan barang.</p>
-          <p style="font-size: 0.8rem; text-align: center;">Cek status servis di web kami menggunakan No Resi.</p>
+        <div class="receipt-container">
+          <div class="header">
+            <h2>${tenant?.name || 'Toko Servis'}</h2>
+            <p>NOTA PENDAFTARAN SERVIS</p>
+          </div>
+          <div class="divider"></div>
+          <div class="info-grid">
+            <div class="info-item"><strong>No. Resi</strong> <span>${selectedService.resi}</span></div>
+            <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
+            <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
+            <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
+            <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+          </div>
+          <div><strong style="color: #64748b; font-size: 0.9rem;">Keluhan & Kelengkapan:</strong></div>
+          <div class="issue-box">${selectedService.issue}</div>
+          
+          ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+          
+          <div class="divider"></div>
+          <div class="footer">
+            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 600;">Simpan struk ini sebagai bukti pengambilan.</p>
+            <p style="margin: 0;">Cek status servis Anda secara online dengan Nomor Resi di atas.</p>
+          </div>
         </div>
       `;
     } else {
@@ -94,37 +127,49 @@ export default function AdminDashboard() {
       const total = subtotal - discount;
       
       htmlContent = `
-        <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
-          <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko Servis'}</h2>
-          <p style="text-align: center; margin: 0 0 15px 0;">NOTA PENGAMBILAN (LUNAS)</p>
-          <hr style="border-top: 1px dashed black;"/>
-          <p><strong>Resi:</strong> ${selectedService.resi}</p>
-          <p><strong>Tanggal:</strong> ${dateStr}</p>
-          <p><strong>Pelanggan:</strong> ${selectedService.customer_name}</p>
-          <hr style="border-top: 1px dashed black;"/>
-          <p><strong>Perangkat:</strong> ${selectedService.device_name}</p>
-          <p><strong>Rincian Perbaikan:</strong><br/>${(selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, '')}</p>
-          <br/>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td>Biaya Sparepart</td><td style="text-align: right;">Rp ${selectedService.part_fee?.toLocaleString('id-ID') || 0}</td></tr>
-            <tr><td>Biaya Jasa</td><td style="text-align: right;">Rp ${selectedService.jasa_fee?.toLocaleString('id-ID') || 0}</td></tr>
-            ${discount > 0 ? `
-            <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
-            <tr><td>Subtotal</td><td style="text-align: right;">Rp ${subtotal.toLocaleString('id-ID')}</td></tr>
-            <tr><td style="color: red;">Diskon</td><td style="text-align: right; color: red;">- Rp ${discount.toLocaleString('id-ID')}</td></tr>
-            ` : ''}
-            <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
-            <tr><td><strong>TOTAL LUNAS</strong></td><td style="text-align: right;"><strong>Rp ${total.toLocaleString('id-ID')}</strong></td></tr>
+        <div class="receipt-container">
+          <div class="header">
+            <h2>${tenant?.name || 'Toko Servis'}</h2>
+            <p>NOTA PELUNASAN SERVIS</p>
+          </div>
+          <div class="divider"></div>
+          <div class="info-grid">
+            <div class="info-item"><strong>No. Resi</strong> <span>${selectedService.resi}</span></div>
+            <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
+            <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
+            <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+          </div>
+          
+          <div><strong style="color: #64748b; font-size: 0.9rem;">Rincian Perbaikan:</strong></div>
+          <div class="issue-box">${(selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, '')}</div>
+          
+          <table class="table">
+            <thead>
+              <tr><th>Keterangan</th><th class="text-right">Biaya (Rp)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Biaya Sparepart</td><td class="text-right">${selectedService.part_fee?.toLocaleString('id-ID') || 0}</td></tr>
+              <tr><td>Biaya Jasa Servis</td><td class="text-right">${selectedService.jasa_fee?.toLocaleString('id-ID') || 0}</td></tr>
+              ${discount > 0 ? `
+              <tr><td>Subtotal</td><td class="text-right">${subtotal.toLocaleString('id-ID')}</td></tr>
+              <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${discount.toLocaleString('id-ID')}</td></tr>
+              ` : ''}
+              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
+            </tbody>
           </table>
-          <hr style="border-top: 1px dashed black; margin-top: 15px;"/>
-          ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
-          <p style="font-size: 0.8rem; text-align: center;">Terima kasih atas kepercayaan Anda!</p>
-          <p style="font-size: 0.8rem; text-align: center;">Barang yang sudah diambil tidak dapat dikembalikan.</p>
+          
+          ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+          
+          <div class="divider"></div>
+          <div class="footer">
+            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 600;">Terima kasih atas kepercayaan Anda!</p>
+            <p style="margin: 0;">Barang yang sudah diambil tidak dapat dikembalikan / ditukar.</p>
+          </div>
         </div>
       `;
     }
     
-    doc.write(`<html><head><title>Print Nota</title></head><body onload="window.print(); window.close();">${htmlContent}</body></html>`);
+    doc.write(`<html><head><title>Print Nota</title>${css}</head><body onload="window.print(); window.close();">${htmlContent}</body></html>`);
     doc.close();
     setShowPrintModal(false);
   };
