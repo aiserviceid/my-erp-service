@@ -183,6 +183,10 @@ export default function AdminDashboard() {
   const isFree = tenant?.tier === 'free';
   const isEnterprise = tenant?.tier === 'enterprise';
 
+  const trialDaysLeft = settings.trial_ends_at 
+    ? Math.max(0, Math.ceil((settings.trial_ends_at - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   useEffect(() => {
     if (tenant?.code) {
       apiService.getProducts(tenant.code).then(setProducts);
@@ -191,13 +195,35 @@ export default function AdminDashboard() {
       apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {});
       
       // Auto-sync tier and settings from server
-      apiService.getTenantPublic(tenant.code).then(data => {
+      apiService.getTenantPublic(tenant.code).then(async data => {
         if (data) {
-          if (data.tier && data.tier !== tenant.tier) {
-            setTenant(tenant.code, data.name || tenant.name, '', data.tier, tenant.token);
+          let updatedTier = data.tier;
+          let updatedSettings = typeof data.settings === 'string' ? JSON.parse(data.settings) : (data.settings || {});
+
+          // Trial Expiration Logic
+          if (updatedSettings.trial_ends_at) {
+            if (Date.now() > updatedSettings.trial_ends_at) {
+              try {
+                const newSet = { ...updatedSettings };
+                delete newSet.trial_ends_at;
+                
+                await apiService.updateTenantSettings(tenant.code, newSet);
+                await apiService.updateTenantTier(tenant.code, 'free');
+                
+                updatedTier = 'free';
+                updatedSettings = newSet;
+                alert('⏳ Masa uji coba (trial) paket Anda telah berakhir. Akun Anda kembali ke versi Starter (Gratis).');
+              } catch (e) {
+                console.error('Gagal downgrade trial:', e);
+              }
+            }
           }
-          if (data.settings && JSON.stringify(data.settings) !== JSON.stringify(tenant.settings)) {
-            // Also sync settings if needed, but primarily tier is important
+
+          if (updatedTier && updatedTier !== tenant.tier) {
+            setTenant(tenant.code, data.name || tenant.name, '', updatedTier, tenant.token);
+          }
+          if (JSON.stringify(updatedSettings) !== JSON.stringify(tenant.settings)) {
+            updateTenantSettings(updatedSettings);
           }
         }
       }).catch(() => {});
@@ -275,6 +301,11 @@ export default function AdminDashboard() {
             <div style={{ fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Building2 size={10} /> {tenant?.name || tenant?.code}
             </div>
+            {trialDaysLeft !== null && (
+              <div style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: 'bold' }}>
+                ⏳ Sisa Trial: {trialDaysLeft} Hari
+              </div>
+            )}
           </div>
         </div>
         <button onClick={handleLogout} className="btn btn-ghost" style={{ padding: '6px' }}>
@@ -312,9 +343,14 @@ export default function AdminDashboard() {
           <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
             <Building2 size={12} /> {tenant?.name || tenant?.code}
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px' }}>
             Tier: <strong style={{ color: isEnterprise ? '#7c3aed' : isFree ? '#64748b' : '#0284c7', textTransform: 'uppercase' }}>{tenant?.tier || 'free'}</strong>
           </div>
+          {trialDaysLeft !== null && (
+            <div style={{ fontSize: '0.72rem', color: '#d97706', marginTop: '2px', fontWeight: 'bold' }}>
+              ⏳ Sisa Trial: {trialDaysLeft} Hari
+            </div>
+          )}
         </div>
 
         {/* Branch Quick Switcher for Enterprise */}

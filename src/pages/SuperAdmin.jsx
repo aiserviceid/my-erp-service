@@ -289,6 +289,37 @@ export default function SuperAdmin() {
     }
   };
 
+  const handleSetTrial = async (tenantCode) => {
+    const daysStr = window.prompt(`Berapa Hari Masa Trial untuk ${tenantCode}? (Contoh: 7 atau 14)\nKetik 0 untuk menghapus trial.`);
+    if (daysStr === null) return;
+    const days = parseInt(daysStr, 10);
+    if (isNaN(days) || days < 0) return alert('Jumlah hari tidak valid!');
+
+    let targetTier = 'free';
+    let trialEndsAtMs = null;
+
+    if (days > 0) {
+      const tierInput = window.prompt(`Pilih Paket Trial:\n1. Pro (Ketik "pro")\n2. Enterprise (Ketik "enterprise")`, "enterprise");
+      if (!tierInput) return;
+      if (tierInput.toLowerCase() === 'pro') targetTier = 'pro';
+      else if (tierInput.toLowerCase() === 'enterprise') targetTier = 'enterprise';
+      else return alert('Paket tidak dikenali!');
+
+      trialEndsAtMs = Date.now() + (days * 24 * 60 * 60 * 1000);
+    }
+
+    try {
+      setUpdatingCode(tenantCode);
+      await apiService.setTenantTrial(tenantCode, targetTier, trialEndsAtMs);
+      alert(days > 0 ? `Trial ${targetTier.toUpperCase()} selama ${days} hari berhasil diaktifkan!` : `Trial untuk ${tenantCode} berhasil dihapus.`);
+      loadStats();
+    } catch (e) {
+      alert('Gagal mengatur trial: ' + e.message);
+    } finally {
+      setUpdatingCode(null);
+    }
+  };
+
   const handleAdjustWallet = async (tenantCode) => {
     const amountStr = window.prompt(`Masukkan jumlah penyesuaian saldo dompet untuk toko ${tenantCode} (contoh: 50000 atau -20000):`);
     if (!amountStr) return;
@@ -577,6 +608,12 @@ export default function SuperAdmin() {
                               style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: tSettings.is_banned ? '#15803d' : '#b45309' }}
                             >
                               {tSettings.is_banned ? '✅ Aktifkan' : '🚫 Ban'}
+                            </button>
+                            <button 
+                              onClick={() => handleSetTrial(t.code)}
+                              style={{ background: '#fef3c7', border: '1px solid #fde68a', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#d97706' }}
+                            >
+                              ⏳ Set Trial
                             </button>
                             <button 
                               onClick={() => handleDeleteTenant(t.code)}

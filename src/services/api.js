@@ -580,6 +580,26 @@ export const apiService = {
     }
   },
 
+  setTenantTrial: async (tenantCode, targetTier, trialEndsAtMs) => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('settings').eq('code', tenantCode).single();
+      const currentSettings = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings) : (tenant.settings || {});
+      const newSettings = { ...currentSettings, trial_ends_at: trialEndsAtMs };
+      
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ tier: targetTier, settings: newSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
   adjustTenantWallet: async (tenantCode, deltaAmount) => {
     try {
       const { data: tenant } = await supabase.from('tenants').select('wallet_balance').eq('code', tenantCode).maybeSingle();
