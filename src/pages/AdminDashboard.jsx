@@ -10,6 +10,8 @@ import ForumCommunity from '../components/ForumCommunity';
 import WalletDashboard from '../components/WalletDashboard';
 import POSView from '../components/POSView';
 import AffiliatePortal from '../components/AffiliatePortal';
+import BarcodeScanner from '../components/BarcodeScanner';
+import { Camera } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -17,6 +19,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('pos');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [selectedResi, setSelectedResi] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
   const [users, setUsers] = useState([]);
@@ -535,14 +538,19 @@ export default function AdminDashboard() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
                 <h3 style={{ margin: 0 }}>Daftar Servis Aktif ({tenant?.name})</h3>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  placeholder="Cari Resi atau Nama Pelanggan..." 
-                  value={serviceSearchQuery}
-                  onChange={(e) => setServiceSearchQuery(e.target.value)}
-                  style={{ minWidth: '250px' }}
-                />
+                <div style={{ display: 'flex', gap: '8px', minWidth: '300px' }}>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Cari Resi atau Nama Pelanggan..." 
+                    value={serviceSearchQuery}
+                    onChange={(e) => setServiceSearchQuery(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button className="btn" style={{ background: '#0284c7', color: 'white', display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => setShowScanner(true)}>
+                    <Camera size={18} /> Scan
+                  </button>
+                </div>
               </div>
               
               <div style={{ overflowX: 'auto' }}>
@@ -890,7 +898,34 @@ export default function AdminDashboard() {
                      </td>
                    </tr>
                  ))}
-                 {users.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan terdaftar.</td></tr>}
+                 {users.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan terdaftar.</td></tr>}
+               </tbody>
+             </table>
+
+             <h4 style={{ marginTop: '2rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>Laporan Absensi (Hari Ini)</h4>
+             <table className="table">
+               <thead><tr><th>Nama Karyawan</th><th>Status Absen</th><th>Jam Masuk</th><th>Jam Pulang</th></tr></thead>
+               <tbody>
+                 {users.map(u => {
+                   const todayStr = new Date().toDateString();
+                   const absensi = transactions.filter(t => t.description === `ATTENDANCE_EMP_${u.id}` && new Date(t.created_at).toDateString() === todayStr);
+                   const masuk = absensi.find(t => t.type === 'ATTENDANCE_IN');
+                   const keluar = absensi.find(t => t.type === 'ATTENDANCE_OUT');
+                   
+                   return (
+                     <tr key={u.id}>
+                       <td>{u.name}</td>
+                       <td>
+                         {masuk && keluar ? <span className="badge badge-success">Selesai Shift</span> :
+                          masuk ? <span className="badge badge-warning" style={{ background: '#fef08a', color: '#854d0e' }}>Sedang Bekerja</span> : 
+                          <span className="badge" style={{ background: '#f1f5f9', color: '#64748b' }}>Belum Hadir</span>}
+                       </td>
+                       <td>{masuk ? new Date(masuk.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                       <td>{keluar ? new Date(keluar.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                     </tr>
+                   )
+                 })}
+                 {users.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan.</td></tr>}
                </tbody>
              </table>
           </div>
@@ -949,6 +984,16 @@ export default function AdminDashboard() {
             )
           })}
         </div>
+      )}
+
+      {/* BARCODE SCANNER MODAL */}
+      {showScanner && (
+        <BarcodeScanner 
+          onScan={(text) => {
+            setServiceSearchQuery(text);
+          }}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   );

@@ -167,7 +167,13 @@ export default function EmployeePortal() {
         </div>
       `;
     } else {
-      const total = (selectedService.part_fee || 0) + (selectedService.jasa_fee || 0);
+      const discountMatch = (selectedService.issue || '').match(/\[Diskon: Rp (.*?)\]/);
+      const discountStr = discountMatch ? discountMatch[1].replace(/\./g, '') : '0';
+      const discount = parseInt(discountStr) || 0;
+      
+      const subtotal = (selectedService.part_fee || 0) + (selectedService.jasa_fee || 0);
+      const total = subtotal - discount;
+      
       htmlContent = `
         <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
           <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko Servis'}</h2>
@@ -178,11 +184,16 @@ export default function EmployeePortal() {
           <p><strong>Pelanggan:</strong> ${selectedService.customer_name}</p>
           <hr style="border-top: 1px dashed black;"/>
           <p><strong>Perangkat:</strong> ${selectedService.device_name}</p>
-          <p><strong>Rincian Perbaikan:</strong><br/>${selectedService.issue}</p>
+          <p><strong>Rincian Perbaikan:</strong><br/>${(selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, '')}</p>
           <br/>
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td>Biaya Sparepart</td><td style="text-align: right;">Rp ${selectedService.part_fee?.toLocaleString('id-ID') || 0}</td></tr>
             <tr><td>Biaya Jasa</td><td style="text-align: right;">Rp ${selectedService.jasa_fee?.toLocaleString('id-ID') || 0}</td></tr>
+            ${discount > 0 ? `
+            <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
+            <tr><td>Subtotal</td><td style="text-align: right;">Rp ${subtotal.toLocaleString('id-ID')}</td></tr>
+            <tr><td style="color: red;">Diskon</td><td style="text-align: right; color: red;">- Rp ${discount.toLocaleString('id-ID')}</td></tr>
+            ` : ''}
             <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
             <tr><td><strong>TOTAL LUNAS</strong></td><td style="text-align: right;"><strong>Rp ${total.toLocaleString('id-ID')}</strong></td></tr>
           </table>
@@ -251,10 +262,39 @@ export default function EmployeePortal() {
 
   const isKasir = employee.role === 'Kasir' || employee.role === 'KASIR';
 
+  const todayDateStr = new Date().toDateString();
+  const myAttendanceToday = transactions.filter(t => t.description === `ATTENDANCE_EMP_${employee.id}` && new Date(t.created_at).toDateString() === todayDateStr);
+  const hasCheckedIn = myAttendanceToday.some(t => t.type === 'ATTENDANCE_IN');
+  const hasCheckedOut = myAttendanceToday.some(t => t.type === 'ATTENDANCE_OUT');
+
+  const handleAttendance = async (type) => {
+    try {
+      await apiService.post('/transactions', {
+        tenant_code: employee.tenant_code || tenant.code,
+        type: type,
+        amount: 0,
+        description: `ATTENDANCE_EMP_${employee.id}`
+      });
+      alert(`Berhasil Absen ${type === 'ATTENDANCE_IN' ? 'Masuk' : 'Keluar'}!`);
+      fetchTransactions();
+    } catch(e) { alert('Gagal mencatat absensi'); }
+  };
+
   return (
     <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h2>Halo, {employee.name} <span className="badge badge-warning">{employee.role}</span></h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }}>
+        <div>
+          <h2 style={{ margin: '0 0 10px 0' }}>Halo, {employee.name} <span className="badge badge-warning">{employee.role}</span></h2>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {!hasCheckedIn ? (
+              <button className="btn" style={{ background: '#059669', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_IN')}>✅ Absen Masuk</button>
+            ) : !hasCheckedOut ? (
+              <button className="btn" style={{ background: '#ef4444', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_OUT')}>👋 Absen Keluar</button>
+            ) : (
+              <span className="badge badge-success" style={{ fontSize: '0.8rem' }}>Absensi Hari Ini Selesai</span>
+            )}
+          </div>
+        </div>
         <button className="btn btn-danger" onClick={() => {
           useStore.getState().clearEmployee();
         }}><LogOut size={16} /> Keluar</button>
@@ -446,11 +486,14 @@ export default function EmployeePortal() {
               e.preventDefault();
               const fd = new FormData(e.target);
               try {
-                const partFee = parseInt(fd.get('part_fee'));
-                const jasaFee = parseInt(fd.get('jasa_fee'));
+                const partFee = parseInt(fd.get('part_fee')) || 0;
+                const jasaFee = parseInt(fd.get('jasa_fee')) || 0;
+                const diskon = parseInt(fd.get('diskon')) || 0;
                 const partName = fd.get('part_name');
                 
-                const updatedIssue = partName ? `${selectedService.issue}\n[Sparepart diganti: ${partName}]` : selectedService.issue;
+                let updatedIssue = selectedService.issue || '';
+                if (partName) updatedIssue += `\n[Sparepart diganti: ${partName}]`;
+                if (diskon > 0) updatedIssue += `\n[Diskon: Rp ${diskon}]`;
 
                 await apiService.post('/services/finish', {
                   resi: selectedService.resi,
@@ -461,7 +504,7 @@ export default function EmployeePortal() {
                   issue: updatedIssue
                 });
                 
-                const totalTagihan = partFee + jasaFee;
+                const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
                 
                 const fonnteToken = tenant?.settings?.fonnte_token;
@@ -498,7 +541,10 @@ export default function EmployeePortal() {
               <input type="number" name="part_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '10px' }} />
               
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Biaya Jasa (Rp):</label>
-              <input type="number" name="jasa_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '20px' }} />
+              <input type="number" name="jasa_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '10px' }} />
+              
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)' }}>Diskon Khusus (Rp):</label>
+              <input type="number" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '20px' }} />
               
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Simpan & Tandai Selesai</button>
             </form>

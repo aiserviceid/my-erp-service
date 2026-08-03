@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { Package, Trash, Printer, X, ShoppingCart } from 'lucide-react';
+import { Package, Trash, Printer, X, ShoppingCart, Camera } from 'lucide-react';
 import { apiService } from '../services/api';
+import BarcodeScanner from './BarcodeScanner';
 
 export default function POSView({ products }) {
   const { tenant, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -9,17 +10,34 @@ export default function POSView({ products }) {
   
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
+  const [discount, setDiscount] = useState(0);
+  const [showScanner, setShowScanner] = useState(false);
   const printIframeRef = useRef(null);
 
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const handleScan = (decodedText) => {
+    const product = products.find(p => p.id === decodedText || p.name.toLowerCase().includes(decodedText.toLowerCase()));
+    if (product) {
+      if (product.stock <= 0) { alert('Stok Habis!'); return; }
+      addToCart(product);
+      // Optional: beep sound
+    } else {
+      alert('Produk tidak ditemukan untuk barcode: ' + decodedText);
+    }
+  };
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
     const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const finalTotal = Math.max(0, total - discount);
+
     const receiptData = {
       items: [...cart],
-      total: total,
+      subtotal: total,
+      discount: discount,
+      total: finalTotal,
       date: new Date().toLocaleString('id-ID'),
       transactionId: 'POS-' + Date.now()
     };
@@ -29,8 +47,8 @@ export default function POSView({ products }) {
       await apiService.post('/transactions', {
         tenant_code: tenant.code,
         type: 'POS_SALES',
-        amount: total,
-        description: `POS: ${cart.length} brg (${receiptData.transactionId})`
+        amount: finalTotal,
+        description: `POS: ${cart.length} brg (${receiptData.transactionId}) - Diskon Rp${discount}`
       });
 
       // 2. Reduce Stock
@@ -46,6 +64,7 @@ export default function POSView({ products }) {
 
       setLastReceipt(receiptData);
       clearCart();
+      setDiscount(0);
       setShowPrintModal(true);
       
     } catch (e) {
@@ -58,13 +77,6 @@ export default function POSView({ products }) {
     const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow.document;
     doc.open();
     
-    let itemsHtml = lastReceipt.items.map(item => `
-      <tr>
-        <td style="padding-bottom:5px;">${item.name}<br/><small>${item.qty}x @Rp ${item.price.toLocaleString('id-ID')}</small></td>
-        <td style="text-align: right; vertical-align: top;">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</td>
-      </tr>
-    `).join('');
-
     const htmlContent = `
       <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
         <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko'}</h2>
@@ -74,8 +86,27 @@ export default function POSView({ products }) {
         <p><strong>Tgl:</strong> ${lastReceipt.date}</p>
         <hr style="border-top: 1px dashed black;"/>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-          ${itemsHtml}
-          <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
+          <tbody>
+            ${lastReceipt.items.map(item => `
+              <tr>
+                <td style="padding-bottom: 5px;">${item.name}<br/><small>${item.qty}x @ Rp ${item.price.toLocaleString('id-ID')}</small></td>
+                <td style="text-align: right; padding-bottom: 5px;">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <hr style="border-top: 1px dashed black; margin-bottom: 10px;"/>
+        <table style="width: 100%; font-size: 0.9rem;">
+          ${lastReceipt.discount > 0 ? `
+          <tr>
+            <td>Subtotal</td>
+            <td style="text-align: right;">Rp ${lastReceipt.subtotal.toLocaleString('id-ID')}</td>
+          </tr>
+          <tr>
+            <td>Diskon</td>
+            <td style="text-align: right; color: red;">- Rp ${lastReceipt.discount.toLocaleString('id-ID')}</td>
+          </tr>
+          ` : ''}
           <tr>
             <td><strong>TOTAL LUNAS</strong></td>
             <td style="text-align: right;"><strong>Rp ${lastReceipt.total.toLocaleString('id-ID')}</strong></td>
@@ -96,7 +127,12 @@ export default function POSView({ products }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
       <div>
-        <input type="text" className="input-field" placeholder="Cari barang..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ marginBottom: '1rem' }} />
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '1rem' }}>
+          <input type="text" className="input-field" placeholder="Cari barang atau scan barcode..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1 }} />
+          <button className="btn" style={{ background: '#0284c7', color: 'white', display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => setShowScanner(true)}>
+            <Camera size={18} /> Scan
+          </button>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '15px' }}>
           {filteredProducts.map(p => (
             <div key={p.id} className="glass-panel" style={{ padding: '1rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', border: p.stock <= 0 ? '1px solid #ef4444' : 'none', opacity: p.stock <= 0 ? 0.6 : 1 }} onClick={() => {
@@ -133,15 +169,26 @@ export default function POSView({ products }) {
         </div>
         
         <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Diskon Pembelian (Rp)</label>
+            <input type="number" className="input-field" style={{ width: '100%', marginTop: '4px' }} placeholder="0" value={discount || ''} onChange={(e) => setDiscount(Math.max(0, parseInt(e.target.value) || 0))} />
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontWeight: 'bold', fontSize: '1.2rem' }}>
-            <span>Total</span>
-            <span>Rp {cart.reduce((sum, item) => sum + (item.price * item.qty), 0).toLocaleString('id-ID')}</span>
+            <span>Total Bayar</span>
+            <span>Rp {Math.max(0, cart.reduce((sum, item) => sum + (item.price * item.qty), 0) - discount).toLocaleString('id-ID')}</span>
           </div>
           <button className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }} onClick={handleCheckout} disabled={cart.length === 0}>
-            Bayar Sekarang
+            Bayar & Cetak Struk
           </button>
         </div>
       </div>
+
+      {showScanner && (
+        <BarcodeScanner 
+          onScan={handleScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
 
       {/* Hidden iframe for printing */}
       <iframe ref={printIframeRef} style={{ display: 'none' }} title="Receipt Printer" />
