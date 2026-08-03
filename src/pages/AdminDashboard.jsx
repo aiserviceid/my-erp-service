@@ -801,18 +801,20 @@ export default function AdminDashboard() {
         ) : activeTab === 'karyawan' ? (
           <div className="glass-panel" style={{ minHeight: '400px' }}>
              <h3 style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
-             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
-                <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1 }} />
-                <input type="text" className="input-field" placeholder="PIN (Angka)" id="newEmpPin" style={{ width: '150px' }} />
-                <select className="input-field" id="newEmpRole" style={{ width: '150px' }}>
+             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1, minWidth: '150px' }} />
+                <input type="text" className="input-field" placeholder="PIN (Angka)" id="newEmpPin" style={{ width: '120px' }} />
+                <select className="input-field" id="newEmpRole" style={{ width: '120px' }}>
                   <option value="TEKNISI">Teknisi</option>
                   <option value="KASIR">Kasir</option>
                 </select>
+                <input type="number" className="input-field" placeholder="Gaji/Bulan (Rp)" id="newEmpSalary" style={{ width: '150px' }} defaultValue="0" />
                 <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} defaultValue="0" />
                 <button className="btn btn-primary" onClick={async () => {
                   const name = document.getElementById('newEmpName').value;
                   const pin = document.getElementById('newEmpPin').value;
                   const role = document.getElementById('newEmpRole').value;
+                  const salary = document.getElementById('newEmpSalary').value || '0';
                   const comm = document.getElementById('newEmpComm').value || '0';
                   if (!name || !pin) return alert('Nama dan PIN wajib diisi');
                   try {
@@ -820,14 +822,17 @@ export default function AdminDashboard() {
                     
                     const currentSettings = tenant.settings || {};
                     const employee_commissions = currentSettings.employee_commissions || {};
+                    const employee_salaries = currentSettings.employee_salaries || {};
                     employee_commissions[newUser.id] = parseInt(comm);
-                    const newSettings = { ...currentSettings, employee_commissions };
+                    employee_salaries[newUser.id] = parseInt(salary);
+                    const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
                     await apiService.updateTenantSettings(tenant.code, newSettings);
                     updateTenantSettings(newSettings);
 
                     setUsers([...users, newUser]);
                     document.getElementById('newEmpName').value = '';
                     document.getElementById('newEmpPin').value = '';
+                    document.getElementById('newEmpSalary').value = '0';
                     document.getElementById('newEmpComm').value = '0';
                     alert('Karyawan Berhasil Ditambah!');
                   } catch (e) { alert('Gagal'); }
@@ -837,13 +842,14 @@ export default function AdminDashboard() {
              </div>
              <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
              <table className="table" style={{ marginTop: '1.5rem' }}>
-               <thead><tr><th>Nama Karyawan</th><th>Peran (Role)</th><th>PIN Login</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
+               <thead><tr><th>Nama Karyawan</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
                <tbody>
                  {users.map(u => (
                    <tr key={u.id}>
                      <td>{u.name}</td>
                      <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
                      <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
+                     <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
                      <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
                      <td>
                         <div style={{ display: 'flex', gap: '5px' }}>
@@ -852,6 +858,8 @@ export default function AdminDashboard() {
                             if (newName === null) return;
                             const newPin = prompt('PIN Login:', u.pin);
                             if (newPin === null) return;
+                            const newSalaryStr = prompt('Gaji Pokok/Bulan (Rp):', tenant.settings?.employee_salaries?.[u.id] || 0);
+                            if (newSalaryStr === null) return;
                             const newCommStr = prompt('Komisi (%):', tenant.settings?.employee_commissions?.[u.id] || 0);
                             if (newCommStr === null) return;
 
@@ -860,8 +868,10 @@ export default function AdminDashboard() {
                               
                               const currentSettings = tenant.settings || {};
                               const employee_commissions = currentSettings.employee_commissions || {};
+                              const employee_salaries = currentSettings.employee_salaries || {};
                               employee_commissions[u.id] = parseInt(newCommStr);
-                              const newSettings = { ...currentSettings, employee_commissions };
+                              employee_salaries[u.id] = parseInt(newSalaryStr);
+                              const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
                               await apiService.updateTenantSettings(tenant.code, newSettings);
                               updateTenantSettings(newSettings);
 
