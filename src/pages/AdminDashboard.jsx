@@ -339,72 +339,78 @@ export default function AdminDashboard() {
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '2rem 0' }} />
 
-            <h3 style={{ marginBottom: '1.5rem' }}>Otomatisasi WhatsApp & Kontak</h3>
-            <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
-              <h4>Otomatisasi WhatsApp (API Fonnte)</h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            <div style={{ opacity: isFree ? 0.6 : 1 }}>
+              <h3 style={{ marginBottom: '1.5rem' }}>Otomatisasi WhatsApp & Kontak {isFree && <span className="badge badge-warning">Premium</span>}</h3>
+              <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
+                <h4>Otomatisasi WhatsApp (API Fonnte)</h4>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                 Pilih metode pengiriman WA saat servis selesai. Jika memilih Otomatis, sistem membutuhkan Token API Fonnte.
               </p>
-              <select 
-                className="input-field" 
-                id="waMethodInput" 
-                defaultValue={tenant?.settings?.wa_method || 'auto'} 
-                style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
-              >
-                <option value="auto">Otomatis (API Fonnte)</option>
-                <option value="manual">Manual (WhatsApp Web / Aplikasi)</option>
-              </select>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Token API Fonnte (Abaikan jika Manual)..."
-                defaultValue={tenant?.settings?.fonnte_token || ''}
-                id="fonnteTokenInput"
-                style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem' }}
-              />
-              <button className="btn btn-primary" onClick={async () => {
-                const token = document.getElementById('fonnteTokenInput').value;
-                const method = document.getElementById('waMethodInput').value;
-                try {
-                  const newSettings = { ...tenant?.settings, fonnte_token: token, wa_method: method };
-                  await apiService.updateTenantSettings(tenant.code, newSettings);
-                  updateTenantSettings(newSettings);
-                  alert('Pengaturan WhatsApp berhasil disimpan!');
-                } catch(e) { alert('Gagal menyimpan pengaturan'); }
-              }}>Simpan Pengaturan WA</button>
-            </div>
+                <select 
+                  className="input-field" 
+                  id="waMethodInput" 
+                  defaultValue={tenant?.settings?.wa_method || 'auto'} 
+                  style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
+                  disabled={isFree}
+                >
+                  <option value="auto">Otomatis (API Fonnte)</option>
+                  <option value="manual">Manual (WhatsApp Web / Aplikasi)</option>
+                </select>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Token API Fonnte (Abaikan jika Manual)..."
+                  defaultValue={tenant?.settings?.fonnte_token || ''}
+                  id="fonnteTokenInput"
+                  style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem' }}
+                  disabled={isFree}
+                />
+                <button className="btn btn-primary" disabled={isFree} onClick={async () => {
+                  const token = document.getElementById('fonnteTokenInput').value;
+                  const method = document.getElementById('waMethodInput').value;
+                  try {
+                    const newSettings = { ...tenant?.settings, fonnte_token: token, wa_method: method };
+                    await apiService.updateTenantSettings(tenant.code, newSettings);
+                    updateTenantSettings(newSettings);
+                    alert('Pengaturan WhatsApp berhasil disimpan!');
+                  } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                }}>Simpan Pengaturan WA</button>
+              </div>
 
             <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
               <h4>Pengaturan Kontak Toko & Rekening Bank</h4>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                 Nomor WhatsApp khusus penerima pesanan dari Katalog, dan Info Rekening Bank yang akan dicetak di Nota.
               </p>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Nomor WA Toko (Misal: 08123456789)..."
-                defaultValue={tenant?.settings?.store_wa || ''}
-                id="storeWaInput"
-                style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
-              />
-              <textarea 
-                className="input-field" 
-                placeholder="Info Rekening (Misal: BCA 12345678 a/n Budi)..."
-                defaultValue={tenant?.settings?.store_bank || ''}
-                id="storeBankInput"
-                style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem', minHeight: '60px', resize: 'vertical' }}
-              />
-              <div>
-                <button className="btn btn-primary" onClick={async () => {
-                  const storeWa = document.getElementById('storeWaInput').value;
-                  const storeBank = document.getElementById('storeBankInput').value;
-                  try {
-                    const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank };
-                    await apiService.updateTenantSettings(tenant.code, newSettings);
-                    updateTenantSettings(newSettings);
-                    alert('Informasi Toko & Bank berhasil disimpan!');
-                  } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                }}>Simpan Kontak & Bank</button>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Nomor WA Toko (Misal: 08123456789)..."
+                  defaultValue={tenant?.settings?.store_wa || ''}
+                  id="storeWaInput"
+                  style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
+                  disabled={isFree}
+                />
+                <textarea 
+                  className="input-field" 
+                  placeholder="Info Rekening (Misal: BCA 12345678 a/n Budi)..."
+                  defaultValue={tenant?.settings?.store_bank || ''}
+                  id="storeBankInput"
+                  style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem', minHeight: '60px', resize: 'vertical' }}
+                  disabled={isFree}
+                />
+                <div>
+                  <button className="btn btn-primary" disabled={isFree} onClick={async () => {
+                    const storeWa = document.getElementById('storeWaInput').value;
+                    const storeBank = document.getElementById('storeBankInput').value;
+                    try {
+                      const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank };
+                      await apiService.updateTenantSettings(tenant.code, newSettings);
+                      updateTenantSettings(newSettings);
+                      alert('Informasi Toko & Bank berhasil disimpan!');
+                    } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                  }}>Simpan Kontak & Bank</button>
+                </div>
               </div>
             </div>
 
