@@ -808,8 +808,8 @@ export default function AdminDashboard() {
                   <option value="TEKNISI">Teknisi</option>
                   <option value="KASIR">Kasir</option>
                 </select>
-                <input type="number" className="input-field" placeholder="Gaji/Bulan (Rp)" id="newEmpSalary" style={{ width: '150px' }} defaultValue="0" />
-                <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} defaultValue="0" />
+                <input type="number" className="input-field" placeholder="Gaji/Bulan (Rp)" id="newEmpSalary" style={{ width: '150px' }} />
+                <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} />
                 <button className="btn btn-primary" onClick={async () => {
                   const name = document.getElementById('newEmpName').value;
                   const pin = document.getElementById('newEmpPin').value;
@@ -832,8 +832,8 @@ export default function AdminDashboard() {
                     setUsers([...users, newUser]);
                     document.getElementById('newEmpName').value = '';
                     document.getElementById('newEmpPin').value = '';
-                    document.getElementById('newEmpSalary').value = '0';
-                    document.getElementById('newEmpComm').value = '0';
+                    document.getElementById('newEmpSalary').value = '';
+                    document.getElementById('newEmpComm').value = '';
                     alert('Karyawan Berhasil Ditambah!');
                   } catch (e) { alert('Gagal'); }
                 }}>
