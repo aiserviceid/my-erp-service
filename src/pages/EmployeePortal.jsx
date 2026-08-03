@@ -129,7 +129,7 @@ export default function EmployeePortal() {
     try {
       await apiService.post('/transactions', {
         tenant_code: employee.tenant_code || tenant.code,
-        type: 'BON_KARYAWAN',
+        type: 'BON_PENDING',
         amount: amount,
         description: `EMP_${employee.id}`
       });

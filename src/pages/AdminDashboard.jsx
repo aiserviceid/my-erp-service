@@ -918,6 +918,38 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* KASBON APPROVAL NOTIFICATION */}
+      {transactions.filter(t => t.type === 'BON_PENDING').length > 0 && (
+        <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {transactions.filter(t => t.type === 'BON_PENDING').map(bon => {
+            const empId = bon.description.replace('EMP_', '');
+            const emp = users.find(u => u.id === empId);
+            return (
+              <div key={bon.id} className="glass-panel animate-fade-in" style={{ padding: '15px', background: 'var(--bg-light)', borderLeft: '4px solid var(--warning)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', width: '300px' }}>
+                <h4 style={{ margin: '0 0 5px 0' }}>Ajuan Kasbon Baru</h4>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>
+                  <strong>{emp ? emp.name : `Karyawan (${empId})`}</strong> mengajukan Kasbon sebesar <strong>Rp {bon.amount.toLocaleString('id-ID')}</strong>.
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
+                    try {
+                      await apiService.post(`/transactions/${bon.id}/update`, { type: 'BON_KARYAWAN' });
+                      setTransactions(transactions.map(t => t.id === bon.id ? { ...t, type: 'BON_KARYAWAN' } : t));
+                    } catch(e) { alert('Gagal menyetujui'); }
+                  }}>Setujui</button>
+                  <button className="btn btn-danger" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
+                    try {
+                      await apiService.post(`/transactions/${bon.id}/update`, { type: 'BON_REJECTED' });
+                      setTransactions(transactions.map(t => t.id === bon.id ? { ...t, type: 'BON_REJECTED' } : t));
+                    } catch(e) { alert('Gagal menolak'); }
+                  }}>Tolak</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   );
 }

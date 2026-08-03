@@ -246,6 +246,12 @@ export const apiService = {
         if (error) throw error;
         return data;
       }
+      if (endpoint.startsWith('/transactions/') && endpoint.endsWith('/update')) {
+        const id = endpoint.split('/')[2];
+        const { data, error } = await supabase.from('transactions').update(body).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      }
       if (endpoint === '/users') {
         const { data, error } = await supabase.from('users').insert(body).select().single();
         if (error) throw error;
