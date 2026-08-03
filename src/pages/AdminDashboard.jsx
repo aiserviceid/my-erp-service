@@ -653,6 +653,34 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '2rem 0' }} />
+
+            <div style={{ padding: '1.5rem', border: '1px solid #fecaca', borderRadius: '12px', background: '#fef2f2' }}>
+              <h3 style={{ color: '#dc2626', margin: '0 0 1rem 0' }}>Zona Bahaya (Danger Zone)</h3>
+              <p style={{ fontSize: '0.85rem', color: '#991b1b', marginBottom: '1rem' }}>
+                Hapus seluruh data transaksi, servis, dan produk dari toko ini. Akun karyawan (kasir/teknisi) akan tetap dipertahankan. <strong>Aksi ini tidak dapat dibatalkan.</strong>
+              </p>
+              <button 
+                className="btn btn-danger"
+                onClick={async () => {
+                  const confirm1 = window.confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA DATA (Transaksi, Servis, Produk)?');
+                  if (!confirm1) return;
+                  const confirm2 = window.prompt('Peringatan Terakhir! Aksi ini permanen dan tidak bisa dikembalikan.\n\nKetik "RESET" untuk melanjutkan:');
+                  if (confirm2 !== 'RESET') return alert('Batal mereset data.');
+
+                  try {
+                    await apiService.resetTenantData(tenant.code, { keepUsers: true });
+                    alert('Berhasil! Seluruh data transaksi, servis, dan produk telah dihapus.');
+                    window.location.reload();
+                  } catch (e) {
+                    alert('Gagal mereset data: ' + e.message);
+                  }
+                }}
+              >
+                🗑️ Reset Data Semua
+              </button>
+            </div>
             
           </div>
         ) : activeTab === 'dompet' ? (

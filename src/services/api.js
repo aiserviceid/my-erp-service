@@ -843,6 +843,21 @@ export const apiService = {
       console.error(e);
       throw e;
     }
+  },
+
+  resetTenantData: async (tenantCode, options = { keepUsers: true }) => {
+    try {
+      await supabase.from('transactions').delete().eq('tenant_code', tenantCode);
+      await supabase.from('services').delete().eq('tenant_code', tenantCode);
+      await supabase.from('products').delete().eq('tenant_code', tenantCode);
+      if (!options.keepUsers) {
+        await supabase.from('users').delete().eq('tenant_code', tenantCode);
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('Reset data error:', e);
+      throw e;
+    }
   }
 };
 
