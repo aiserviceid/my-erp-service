@@ -393,12 +393,12 @@ export default function LandingPage() {
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.5rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Hingga 50 Servis / bulan</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Kasir POS & Data Stok Sparepart</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cek Status Resi Online Pelanggan</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> 1 Akun Admin Toko</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cetak Nota Resi Barcode</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> Multi-Karyawan & Multi-Teknisi</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> Custom Logo & Template Nota Sendiri</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Kasir POS & Cek Status Resi Online</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> 1 Akun Admin & Cetak Nota Barcode</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Otomatisasi Notif WA</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Portal Karyawan & Kasbon</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Katalog Digital Toko</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Rekening & Custom Branding</li>
               </ul>
 
               <button 
@@ -458,11 +458,11 @@ export default function LandingPage() {
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.2rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>UNLIMITED</strong> Servis & Transaksi POS</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Multi-Karyawan</strong> (Kasir & Teknisi PIN)</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Custom Logo Toko & Nama Usaha Sendiri</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Cetak Nota Thermal & QR Tracking</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Otomatisasi Notif WA Pelanggan</strong></li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Portal Karyawan</strong> (Login via PIN)</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Manajemen Gaji, Komisi & Kasbon</strong></li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Katalog Digital & Rekening Toko</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Laporan Laba Bersih & Arus Kas Lengkap</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Akses Komunitas & Dompet Saweran</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Bantuan Support WhatsApp Prioritas</li>
               </ul>
 
