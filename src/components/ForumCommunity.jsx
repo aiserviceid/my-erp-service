@@ -302,15 +302,15 @@ export default function ForumCommunity() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '5px', flex: 1 }}>
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '5px', flex: 1, minWidth: '250px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch' }}>
           {categories.map(cat => (
-            <button key={cat.id} className={`btn ${activeCategory === cat.id ? 'btn-primary' : 'btn-ghost'}`} style={{ flex: 1 }} onClick={() => setActiveCategory(cat.id)}>
+            <button key={cat.id} className={`btn ${activeCategory === cat.id ? 'btn-primary' : 'btn-ghost'}`} style={{ flex: '1 0 auto', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => setActiveCategory(cat.id)}>
               {cat.label}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', flex: 1, background: 'white', borderRadius: '8px', border: '1px solid var(--border-light)', padding: '0 10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flex: 1, minWidth: '250px', background: 'white', borderRadius: '8px', border: '1px solid var(--border-light)', padding: '0 10px', alignItems: 'center' }}>
           <Search size={18} color="var(--text-muted)" />
           <input type="text" placeholder="Cari masalah atau solusi..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchThreads()} style={{ border: 'none', background: 'transparent', flex: 1, padding: '10px', outline: 'none' }} />
           <button className="btn btn-ghost" style={{ padding: '5px 10px', fontSize: '0.85rem' }} onClick={fetchThreads}>Cari</button>

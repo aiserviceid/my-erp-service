@@ -891,14 +891,14 @@ export default function AdminDashboard() {
               <div className="glass-panel" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 style={{ margin: 0 }}>Laporan Keuangan Toko ({tenant?.name})</h3>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button className="btn btn-ghost" onClick={() => exportToExcel(filteredTransactions)} style={{ padding: '6px 12px', background: '#10b981', color: 'white' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button className="btn btn-ghost" onClick={() => exportToExcel(filteredTransactions)} style={{ padding: '6px 12px', background: '#10b981', color: 'white', flex: '1 1 auto', justifyContent: 'center' }}>
                       📥 Export Excel
                     </button>
-                    <button className="btn btn-ghost" onClick={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions)} style={{ padding: '6px 12px' }}>
+                    <button className="btn btn-ghost" onClick={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions)} style={{ padding: '6px 12px', flex: '1 1 auto', justifyContent: 'center' }}>
                       🔄 Segarkan
                     </button>
-                    <select className="input-field" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} style={{ padding: '6px 12px', minWidth: '130px' }}>
+                    <select className="input-field" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} style={{ padding: '6px 12px', flex: '1 1 auto', minWidth: '130px' }}>
                       <option value="Hari Ini">Hari Ini</option>
                       <option value="Bulan Ini">Bulan Ini</option>
                       <option value="Semua">Semua Waktu</option>
@@ -979,6 +979,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <h4 style={{ marginBottom: '1rem', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>Riwayat Transaksi: {timeFilter}</h4>
+                <div className="table-container">
                 <table className="table">
                   <thead><tr><th>Tanggal & Waktu</th><th>Kategori</th><th>Nominal</th><th>Keterangan</th></tr></thead>
                   <tbody>
@@ -998,9 +999,10 @@ export default function AdminDashboard() {
                         <td style={{ color: 'var(--text-muted)' }}>{t.description}</td>
                       </tr>
                     ))}
-                    {filteredTransactions.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada transaksi pada periode ini.</td></tr>}
+                    {filteredTransactions.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada transaksi.</td></tr>}
                   </tbody>
                 </table>
+                </div>
               </div>
             );
           })()
