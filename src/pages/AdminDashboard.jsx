@@ -490,7 +490,27 @@ export default function AdminDashboard() {
           </div>
         ) : activeTab === 'master' ? (
           <div className="glass-panel" style={{ minHeight: '400px' }}>
-             <h3 style={{ marginBottom: '1.5rem' }}>Master Barang & Sparepart ({tenant?.name})</h3>
+             <h3 style={{ marginBottom: '0.5rem' }}>Master Barang & Sparepart ({tenant?.name})</h3>
+             
+             <div style={{ background: '#e0f2fe', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+               <div>
+                 <p style={{ margin: '0 0 5px 0', fontSize: '0.9rem', color: '#0369a1', fontWeight: 'bold' }}>Bagikan Tautan Katalog Digital ke Pelanggan:</p>
+                 <a href={`${window.location.origin}/katalog/${tenant?.code}`} target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '500' }}>
+                   {window.location.origin}/katalog/{tenant?.code}
+                 </a>
+               </div>
+               <div style={{ display: 'flex', gap: '10px' }}>
+                 <button className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '6px 12px', border: '1px solid #7dd3fc', color: '#0369a1', background: 'white' }} onClick={() => {
+                   navigator.clipboard.writeText(`${window.location.origin}/katalog/${tenant?.code}`);
+                   alert('Tautan Katalog berhasil disalin!');
+                 }}>
+                   📋 Salin Link
+                 </button>
+                 <button className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => window.open(`/katalog/${tenant?.code}`, '_blank')}>
+                   <ExternalLink size={14} style={{ display: 'inline', marginRight: '5px' }}/> Buka
+                 </button>
+               </div>
+             </div>
              
              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
                 <input type="text" className="input-field" placeholder="Nama Barang..." id="newProductName" style={{ flex: 1 }} />
