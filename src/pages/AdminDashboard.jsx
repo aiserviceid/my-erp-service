@@ -260,7 +260,43 @@ export default function AdminDashboard() {
 
   return (
     <div className="dashboard-layout">
-      {/* SIDEBAR */}
+      {/* MOBILE TOP BAR (Visible only on mobile) */}
+      <header className="mobile-top-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {settings.logoUrl ? (
+            <img src={settings.logoUrl} alt="Logo" style={{ height: '32px', borderRadius: '6px' }} />
+          ) : (
+            <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
+              {settings.storeName?.charAt(0) || 'A'}
+            </div>
+          )}
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem' }}>{settings.storeName || 'AISERVICE.ID'}</h3>
+            <div style={{ fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Building2 size={10} /> {tenant?.name || tenant?.code}
+            </div>
+          </div>
+        </div>
+        <button onClick={handleLogout} className="btn btn-ghost" style={{ padding: '6px' }}>
+          <LogOut size={18} color="#ef4444" />
+        </button>
+      </header>
+
+      {/* MOBILE BOTTOM NAV (Visible only on mobile) */}
+      <nav className="mobile-bottom-nav">
+        {tabs.map(tab => (
+          <button 
+            key={tab.id}
+            className={`mobile-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <tab.icon size={20} />
+            <span>{tab.name.replace(/&.*/, '').split(' ')[0]}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* SIDEBAR (Desktop only) */}
       <div className="sidebar animate-slide-in">
         <div style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid var(--border-light)', marginBottom: '1rem' }}>
           {settings.logoUrl ? (

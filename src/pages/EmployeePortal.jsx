@@ -326,24 +326,59 @@ export default function EmployeePortal() {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }}>
-        <div>
-          <h2 style={{ margin: '0 0 10px 0' }}>Halo, {employee.name} <span className="badge badge-warning">{employee.role}</span></h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
+    <div className="dashboard-layout" style={{ display: 'block' }}>
+      {/* MOBILE TOP BAR (Visible only on mobile) */}
+      <header className="mobile-top-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem', fontWeight: 'bold' }}>{tenant?.name || 'Toko Servis'}</h3>
+            <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{employee.name} • {employee.role}</div>
+          </div>
+        </div>
+        <button className="btn btn-ghost" onClick={() => useStore.getState().clearEmployee()} style={{ padding: '6px' }}>
+          <LogOut size={18} color="#ef4444" />
+        </button>
+      </header>
+
+      {/* MOBILE BOTTOM NAV (Visible only on mobile) */}
+      <nav className="mobile-bottom-nav" style={{ justifyContent: 'space-around' }}>
+        <div className="mobile-nav-item active">
+           {isKasir ? <ShoppingCart size={20} /> : <Wrench size={20} />}
+           <span>{isKasir ? 'Kasir POS' : 'Tugas Servis'}</span>
+        </div>
+      </nav>
+
+      <div className="main-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
+          <div>
+            <h2 style={{ margin: '0 0 10px 0' }}>Halo, {employee.name} <span className="badge badge-warning">{employee.role}</span></h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {!hasCheckedIn ? (
+                <button className="btn" style={{ background: '#059669', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_IN')}>✅ Absen Masuk</button>
+              ) : !hasCheckedOut ? (
+                <button className="btn" style={{ background: '#ef4444', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_OUT')}>👋 Absen Keluar</button>
+              ) : (
+                <span className="badge badge-success" style={{ fontSize: '0.8rem' }}>Absensi Hari Ini Selesai</span>
+              )}
+            </div>
+          </div>
+          <button className="btn btn-danger hide-on-mobile" onClick={() => {
+            useStore.getState().clearEmployee();
+          }}><LogOut size={16} /> Keluar</button>
+        </div>
+
+        {/* Mobile Quick Attendance Action */}
+        <div className="mobile-only-attendance" style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
             {!hasCheckedIn ? (
-              <button className="btn" style={{ background: '#059669', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_IN')}>✅ Absen Masuk</button>
+              <button className="btn" style={{ background: '#059669', color: 'white', fontSize: '0.85rem', padding: '10px', flex: 1 }} onClick={() => handleAttendance('ATTENDANCE_IN')}>✅ Absen Masuk</button>
             ) : !hasCheckedOut ? (
-              <button className="btn" style={{ background: '#ef4444', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_OUT')}>👋 Absen Keluar</button>
+              <button className="btn" style={{ background: '#ef4444', color: 'white', fontSize: '0.85rem', padding: '10px', flex: 1 }} onClick={() => handleAttendance('ATTENDANCE_OUT')}>👋 Absen Keluar</button>
             ) : (
-              <span className="badge badge-success" style={{ fontSize: '0.8rem' }}>Absensi Hari Ini Selesai</span>
+              <span className="badge badge-success" style={{ fontSize: '0.85rem', padding: '8px', flex: 1, justifyContent: 'center' }}>Absensi Selesai</span>
             )}
           </div>
         </div>
-        <button className="btn btn-danger" onClick={() => {
-          useStore.getState().clearEmployee();
-        }}><LogOut size={16} /> Keluar</button>
-      </div>
 
       {isKasir ? (
         <POSView products={products} />
@@ -664,6 +699,7 @@ export default function EmployeePortal() {
         </div>
       )}
 
+    </div>
     </div>
   );
 }
