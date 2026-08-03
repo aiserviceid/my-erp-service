@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift } from 'lucide-react';
+import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
@@ -20,6 +20,10 @@ export default function AdminDashboard() {
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [selectedResi, setSelectedResi] = useState('');
   const [showScanner, setShowScanner] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [printType, setPrintType] = useState('pendaftaran');
+  const printIframeRef = useRef(null);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
   const [users, setUsers] = useState([]);
@@ -30,8 +34,8 @@ export default function AdminDashboard() {
   
   const exportToExcel = (txs) => {
     const data = txs.map(t => {
-      const typeStr = t.type === 'INCOME' ? 'Pendapatan Servis' : t.type === 'POS_SALES' ? 'Penjualan' : t.type === 'BON_KARYAWAN' ? 'Kasbon' : t.type === 'EXPENSE' ? 'Pengeluaran' : 'Lainnya';
-      const amount = (t.type === 'INCOME' || t.type === 'POS_SALES' ? t.amount : -t.amount);
+      const typeStr = t.type === 'INCOME' || t.type.startsWith('INCOME_') ? 'Pendapatan Servis' : t.type === 'POS_SALES' ? 'Penjualan' : t.type === 'BON_KARYAWAN' ? 'Kasbon' : t.type === 'EXPENSE' ? 'Pengeluaran' : 'Lainnya';
+      const amount = (t.type === 'INCOME' || t.type.startsWith('INCOME_') || t.type === 'POS_SALES' ? t.amount : -t.amount);
       return {
         "Tanggal": new Date(t.created_at).toLocaleString('id-ID'),
         "Kategori": typeStr,
@@ -53,6 +57,76 @@ export default function AdminDashboard() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Keuangan");
     XLSX.writeFile(workbook, `Laporan_Keuangan_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const doPrint = (printerType) => {
+    if (!selectedService) return;
+    const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow.document;
+    doc.open();
+    
+    let htmlContent = '';
+    const dateStr = new Date().toLocaleString('id-ID');
+    
+    if (printType === 'pendaftaran') {
+      htmlContent = `
+        <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
+          <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko Servis'}</h2>
+          <p style="text-align: center; margin: 0 0 15px 0;">NOTA PENDAFTARAN SERVIS</p>
+          <hr style="border-top: 1px dashed black;"/>
+          <p><strong>Resi:</strong> ${selectedService.resi}</p>
+          <p><strong>Tanggal:</strong> ${dateStr}</p>
+          <p><strong>Pelanggan:</strong> ${selectedService.customer_name} (${selectedService.customer_phone})</p>
+          <hr style="border-top: 1px dashed black;"/>
+          <p><strong>Perangkat:</strong> ${selectedService.device_name}</p>
+          <p><strong>Keluhan & Kelengkapan:</strong><br/>${selectedService.issue}</p>
+          <hr style="border-top: 1px dashed black;"/>
+          ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
+          <p style="font-size: 0.8rem; text-align: center;">Simpan struk ini sebagai bukti pengambilan barang.</p>
+          <p style="font-size: 0.8rem; text-align: center;">Cek status servis di web kami menggunakan No Resi.</p>
+        </div>
+      `;
+    } else {
+      const discountMatch = (selectedService.issue || '').match(/\[Diskon: Rp (.*?)\]/);
+      const discountStr = discountMatch ? discountMatch[1].replace(/\./g, '') : '0';
+      const discount = parseInt(discountStr) || 0;
+      
+      const subtotal = (selectedService.part_fee || 0) + (selectedService.jasa_fee || 0);
+      const total = subtotal - discount;
+      
+      htmlContent = `
+        <div style="font-family: monospace; padding: 10px; max-width: ${printerType === 'thermal' ? '300px' : '100%'}; margin: auto;">
+          <h2 style="text-align: center; margin-bottom: 5px;">${tenant?.name || 'Toko Servis'}</h2>
+          <p style="text-align: center; margin: 0 0 15px 0;">NOTA PENGAMBILAN (LUNAS)</p>
+          <hr style="border-top: 1px dashed black;"/>
+          <p><strong>Resi:</strong> ${selectedService.resi}</p>
+          <p><strong>Tanggal:</strong> ${dateStr}</p>
+          <p><strong>Pelanggan:</strong> ${selectedService.customer_name}</p>
+          <hr style="border-top: 1px dashed black;"/>
+          <p><strong>Perangkat:</strong> ${selectedService.device_name}</p>
+          <p><strong>Rincian Perbaikan:</strong><br/>${(selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, '')}</p>
+          <br/>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td>Biaya Sparepart</td><td style="text-align: right;">Rp ${selectedService.part_fee?.toLocaleString('id-ID') || 0}</td></tr>
+            <tr><td>Biaya Jasa</td><td style="text-align: right;">Rp ${selectedService.jasa_fee?.toLocaleString('id-ID') || 0}</td></tr>
+            ${discount > 0 ? `
+            <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
+            <tr><td>Subtotal</td><td style="text-align: right;">Rp ${subtotal.toLocaleString('id-ID')}</td></tr>
+            <tr><td style="color: red;">Diskon</td><td style="text-align: right; color: red;">- Rp ${discount.toLocaleString('id-ID')}</td></tr>
+            ` : ''}
+            <tr><td colspan="2"><hr style="border-top: 1px dashed black; margin: 5px 0;"/></td></tr>
+            <tr><td><strong>TOTAL LUNAS</strong></td><td style="text-align: right;"><strong>Rp ${total.toLocaleString('id-ID')}</strong></td></tr>
+          </table>
+          <hr style="border-top: 1px dashed black; margin-top: 15px;"/>
+          ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
+          <p style="font-size: 0.8rem; text-align: center;">Terima kasih atas kepercayaan Anda!</p>
+          <p style="font-size: 0.8rem; text-align: center;">Barang yang sudah diambil tidak dapat dikembalikan.</p>
+        </div>
+      `;
+    }
+    
+    doc.write(`<html><head><title>Print Nota</title></head><body onload="window.print(); window.close();">${htmlContent}</body></html>`);
+    doc.close();
+    setShowPrintModal(false);
   };
   
   // Multi Branch States
@@ -572,8 +646,9 @@ export default function AdminDashboard() {
                         <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
                         <td><span className={`badge ${s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'badge-success' : 'badge-warning'}`}>{s.status.replace('_', ' ')}</span></td>
                         <td>
-                          <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
+                            <button className="btn btn-primary" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', background: '#0ea5e9' }}>Cetak Nota</button>
                             <a href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=Halo ${s.customer_name}, servis ${s.device_name} Anda (Resi: ${s.resi}) status: ${s.status.replace('_', ' ')}.`} target="_blank" rel="noreferrer" className="btn btn-accent" style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}>Kirim WA</a>
                           </div>
                         </td>
@@ -688,7 +763,9 @@ export default function AdminDashboard() {
               filteredTransactions = transactions.filter(t => new Date(t.created_at).toDateString() === todayString);
             }
 
-            const totalServis = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalServis = filteredTransactions.filter(t => t.type === 'INCOME' || t.type === 'INCOME_JASA' || t.type === 'INCOME_SPAREPART').reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalServisJasa = filteredTransactions.filter(t => t.type === 'INCOME' || t.type === 'INCOME_JASA').reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalServisSparepart = filteredTransactions.filter(t => t.type === 'INCOME_SPAREPART').reduce((sum, t) => sum + (t.amount || 0), 0);
             const totalPOS = filteredTransactions.filter(t => t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount || 0), 0);
             const totalExpense = filteredTransactions.filter(t => t.type === 'BON_KARYAWAN' || t.type === 'EXPENSE' || t.type === 'WITHDRAWAL').reduce((sum, t) => sum + (t.amount || 0), 0);
             const netProfit = totalServis + totalPOS - totalExpense;
@@ -735,8 +812,12 @@ export default function AdminDashboard() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2.5rem' }}>
                     <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid var(--accent)', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Pemasukan Servis</p>
-                      <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.5rem' }}>Rp {totalServis.toLocaleString('id-ID')}</h3>
+                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Pemasukan Servis (Jasa)</p>
+                      <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.5rem' }}>Rp {totalServisJasa.toLocaleString('id-ID')}</h3>
+                    </div>
+                    <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid #8b5cf6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Pemasukan Servis (Sparepart)</p>
+                      <h3 style={{ margin: 0, color: '#8b5cf6', fontSize: '1.5rem' }}>Rp {totalServisSparepart.toLocaleString('id-ID')}</h3>
                     </div>
                     <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid #3b82f6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
                       <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Penjualan Kasir (POS)</p>
@@ -763,7 +844,7 @@ export default function AdminDashboard() {
                         });
                         return days.map(dStr => {
                           const txs = transactions.filter(t => new Date(t.created_at).toDateString() === dStr);
-                          const masuk = txs.filter(t => t.type === 'INCOME' || t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount||0), 0);
+                          const masuk = txs.filter(t => t.type === 'INCOME' || t.type === 'INCOME_JASA' || t.type === 'INCOME_SPAREPART' || t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount||0), 0);
                           const keluar = txs.filter(t => t.type === 'BON_KARYAWAN' || t.type === 'EXPENSE').reduce((sum, t) => sum + (t.amount||0), 0);
                           return { name: dStr.substring(0,3) + ' ' + dStr.split(' ')[2], Pemasukan: masuk, Pengeluaran: keluar };
                         });
@@ -995,6 +1076,31 @@ export default function AdminDashboard() {
           onClose={() => setShowScanner(false)}
         />
       )}
+
+      {/* PRINT NOTA MODAL */}
+      {showPrintModal && selectedService && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: '350px', background: 'var(--bg-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Cetak {printType === 'pendaftaran' ? 'Nota Pendaftaran' : 'Nota Pengambilan'}</h3>
+              <button className="btn btn-ghost" onClick={() => setShowPrintModal(false)}><X size={20}/></button>
+            </div>
+            <p style={{ fontSize: '0.9rem', marginBottom: '20px' }}>Pilih jenis printer yang Anda gunakan:</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doPrint('thermal')}>
+                <Printer size={16} style={{ display: 'inline', marginRight: '5px' }} /> Thermal
+              </button>
+              <button className="btn btn-ghost" style={{ flex: 1, border: '1px solid var(--border-light)' }} onClick={() => doPrint('a4')}>
+                <Printer size={16} style={{ display: 'inline', marginRight: '5px' }} /> A4 Biasa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden iframe for printing nota */}
+      <iframe ref={printIframeRef} style={{ display: 'none' }} title="Receipt Printer" />
+
     </div>
   );
 }

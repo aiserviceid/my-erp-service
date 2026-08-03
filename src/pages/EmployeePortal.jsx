@@ -391,12 +391,30 @@ export default function EmployeePortal() {
                                         issue: updatedIssue
                                       });
 
-                                      await apiService.post('/transactions', {
-                                        tenant_code: employee.tenant_code || tenant.code,
-                                        type: 'INCOME',
-                                        amount: (s.part_fee || 0) + (s.jasa_fee || 0),
-                                        description: `Pelunasan Servis Resi ${s.resi} (${s.customer_name})`
-                                      });
+                                      const discountMatch = (updatedIssue || '').match(/\[Diskon: Rp (.*?)\]/);
+                                      const discountStr = discountMatch ? discountMatch[1].replace(/\./g, '') : '0';
+                                      const discount = parseInt(discountStr) || 0;
+
+                                      const jasaFee = s.jasa_fee || 0;
+                                      const partFee = s.part_fee || 0;
+                                      const jasaAfterDiscount = Math.max(0, jasaFee - discount);
+                                      
+                                      if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
+                                        await apiService.post('/transactions', {
+                                          tenant_code: employee.tenant_code || tenant.code,
+                                          type: 'INCOME_JASA',
+                                          amount: jasaAfterDiscount,
+                                          description: `Jasa Servis Resi ${s.resi} (${s.customer_name})`
+                                        });
+                                      }
+                                      if (partFee > 0) {
+                                        await apiService.post('/transactions', {
+                                          tenant_code: employee.tenant_code || tenant.code,
+                                          type: 'INCOME_SPAREPART',
+                                          amount: partFee,
+                                          description: `Sparepart Servis Resi ${s.resi} (${s.customer_name})`
+                                        });
+                                      }
                                       fetchServices();
                                       fetchTransactions();
                                       
