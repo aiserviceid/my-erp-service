@@ -161,6 +161,7 @@ export default function EmployeePortal() {
           <p><strong>Perangkat:</strong> ${selectedService.device_name}</p>
           <p><strong>Keluhan & Kelengkapan:</strong><br/>${selectedService.issue}</p>
           <hr style="border-top: 1px dashed black;"/>
+          ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
           <p style="font-size: 0.8rem; text-align: center;">Simpan struk ini sebagai bukti pengambilan barang.</p>
           <p style="font-size: 0.8rem; text-align: center;">Cek status servis di web kami menggunakan No Resi.</p>
         </div>
@@ -186,6 +187,7 @@ export default function EmployeePortal() {
             <tr><td><strong>TOTAL LUNAS</strong></td><td style="text-align: right;"><strong>Rp ${total.toLocaleString('id-ID')}</strong></td></tr>
           </table>
           <hr style="border-top: 1px dashed black; margin-top: 15px;"/>
+          ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
           <p style="font-size: 0.8rem; text-align: center;">Terima kasih atas kepercayaan Anda!</p>
           <p style="font-size: 0.8rem; text-align: center;">Barang yang sudah diambil tidak dapat dikembalikan.</p>
         </div>

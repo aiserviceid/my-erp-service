@@ -812,6 +812,40 @@ export default function AdminDashboard() {
                  } catch(e) { alert('Gagal menyimpan pengaturan'); }
                }}>Simpan Pengaturan WA</button>
              </div>
+
+             <div style={{ background: 'rgba(255,255,255,0.6)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+               <h4>Pengaturan Kontak Toko & Rekening Bank</h4>
+               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                 Nomor WhatsApp khusus penerima pesanan dari Katalog, dan Info Rekening Bank yang akan dicetak di Nota.
+               </p>
+               <input 
+                 type="text" 
+                 className="input-field" 
+                 placeholder="Nomor WA Toko (Misal: 08123456789)..."
+                 defaultValue={tenant?.settings?.store_wa || ''}
+                 id="storeWaInput"
+                 style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
+               />
+               <textarea 
+                 className="input-field" 
+                 placeholder="Info Rekening (Misal: BCA 12345678 a/n Budi)..."
+                 defaultValue={tenant?.settings?.store_bank || ''}
+                 id="storeBankInput"
+                 style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem', minHeight: '60px', resize: 'vertical' }}
+               />
+               <div>
+                 <button className="btn btn-primary" onClick={async () => {
+                   const storeWa = document.getElementById('storeWaInput').value;
+                   const storeBank = document.getElementById('storeBankInput').value;
+                   try {
+                     const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank };
+                     await apiService.updateTenantSettings(tenant.code, newSettings);
+                     updateTenantSettings(newSettings);
+                     alert('Informasi Toko & Bank berhasil disimpan!');
+                   } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                 }}>Simpan Info Toko</button>
+               </div>
+             </div>
           </div>
         ) : null}
       </div>

@@ -14,11 +14,8 @@ export default function PublicCatalog() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch specific tenant using the code
-        // Supabase mock fetch (since tenant settings might just exist in global state, 
-        // we'll rely on our apiService mock for now, but usually it fetches by code).
-        // For local mock:
-        setTenant({ name: 'Katalog ' + tenantCode });
+        const tenantData = await apiService.getTenantPublic(tenantCode);
+        setTenant(tenantData || { name: 'Katalog ' + tenantCode, settings: {} });
         const productData = await apiService.get(`/products/${tenantCode}`);
         setProducts(productData);
       } catch (err) {
@@ -42,7 +39,12 @@ export default function PublicCatalog() {
         <h2 style={{ margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
           <ShoppingBag /> {tenant?.name}
         </h2>
-        <button onClick={() => navigate('/tracking')} className="btn btn-ghost" style={{ fontSize: '0.9rem' }}>Lacak Servis</button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {tenant?.settings?.store_wa && (
+            <button onClick={() => window.open(`https://wa.me/${tenant.settings.store_wa.replace(/\\D/g,'')}?text=Halo%20${encodeURIComponent(tenant.name)},%20saya%20ingin%20bertanya%20seputar%20produk%20di%20katalog.`, '_blank')} className="btn btn-primary" style={{ fontSize: '0.85rem', background: '#25D366' }}>Hubungi WA</button>
+          )}
+          <button onClick={() => navigate('/tracking')} className="btn btn-ghost" style={{ fontSize: '0.9rem' }}>Lacak Servis</button>
+        </div>
       </header>
 
       <main style={{ flex: 1, padding: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
@@ -78,8 +80,19 @@ export default function PublicCatalog() {
                 </div>
                 <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: 'var(--text-dark)' }}>{p.name}</h3>
                 <h2 style={{ margin: '0 0 10px 0', color: 'var(--accent)', fontSize: '1.2rem' }}>Rp {p.price.toLocaleString('id-ID')}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', color: p.stock > 0 ? '#16a34a' : '#ef4444' }}>
-                  <CheckCircle size={14} /> {p.stock > 0 ? `Stok Tersedia: ${p.stock}` : 'Stok Habis'}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', color: p.stock > 0 ? '#16a34a' : '#ef4444' }}>
+                    <CheckCircle size={14} /> {p.stock > 0 ? `Stok: ${p.stock}` : 'Habis'}
+                  </div>
+                  {p.stock > 0 && tenant?.settings?.store_wa && (
+                    <button 
+                      onClick={() => window.open(`https://wa.me/${tenant.settings.store_wa.replace(/\\D/g,'')}?text=Halo%20${encodeURIComponent(tenant.name)},%20saya%20ingin%20membeli%20${encodeURIComponent(p.name)}%20(Rp%20${p.price.toLocaleString('id-ID')}).%20Apakah%20stoknya%20masih%20ada?`, '_blank')} 
+                      className="btn" 
+                      style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#25D366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Beli via WA
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

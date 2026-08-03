@@ -82,6 +82,7 @@ export default function POSView({ products }) {
           </tr>
         </table>
         <hr style="border-top: 1px dashed black; margin-top: 15px;"/>
+        ${tenant?.settings?.store_bank ? `<p style="font-size: 0.8rem; text-align: center; margin: 10px 0;"><strong>INFO REKENING:</strong><br/>${tenant.settings.store_bank.replace(/\\n/g, '<br/>')}</p><hr style="border-top: 1px dashed black; margin: 15px 0;"/>` : ''}
         <p style="font-size: 0.8rem; text-align: center;">Terima kasih telah berbelanja!</p>
         <p style="font-size: 0.8rem; text-align: center;">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.</p>
       </div>

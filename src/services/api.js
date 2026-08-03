@@ -12,6 +12,21 @@ export const apiService = {
     };
   },
 
+  getTenantPublic: async (tenantCode) => {
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('name, code, settings')
+        .eq('code', tenantCode)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('getTenantPublic error', e);
+      return null;
+    }
+  },
+
   // 1. Login / Register Tenant (Store)
   loginTenant: async (code, name = '', pin = '') => {
     try {
