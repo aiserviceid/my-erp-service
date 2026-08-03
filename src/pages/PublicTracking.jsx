@@ -88,15 +88,20 @@ export default function PublicTracking() {
                 </div>
               </div>
 
-              <div style={{ background: result.status === 'SELESAI' ? '#dcfce7' : '#fef9c3', padding: '1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {result.status === 'SELESAI' ? <CheckCircle color="#16a34a" /> : <Clock color="#ca8a04" />}
+              <div style={{ background: result.status === 'SELESAI' || result.status === 'DI_AMBIL' ? '#dcfce7' : '#fef9c3', padding: '1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {result.status === 'SELESAI' || result.status === 'DI_AMBIL' ? <CheckCircle color="#16a34a" /> : <Clock color="#ca8a04" />}
                 <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: result.status === 'SELESAI' ? '#16a34a' : '#ca8a04' }}>
-                    Status: {result.status}
+                  <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: result.status === 'SELESAI' || result.status === 'DI_AMBIL' ? '#16a34a' : '#ca8a04' }}>
+                    Status: {result.status.replace('_', ' ')}
                   </div>
                   {result.status === 'SELESAI' && (
                     <div style={{ fontSize: '0.8rem', marginTop: '5px' }}>
                       Silakan ambil perangkat Anda di toko. Total Biaya: Rp {(result.jasa_fee + result.part_fee).toLocaleString('id-ID')}
+                    </div>
+                  )}
+                  {result.status === 'DI_AMBIL' && (
+                    <div style={{ fontSize: '0.8rem', marginTop: '5px' }}>
+                      Perangkat telah diambil.
                     </div>
                   )}
                 </div>

@@ -6,6 +6,7 @@ import EmployeePortal from './pages/EmployeePortal';
 import PublicTracking from './pages/PublicTracking';
 import LandingPage from './pages/LandingPage';
 import SuperAdmin from './pages/SuperAdmin';
+import PublicCatalog from './pages/PublicCatalog';
 import { useStore } from './store/useStore';
 
 class ErrorBoundary extends Component {
@@ -122,6 +123,9 @@ function App() {
           
           {/* Cek Resi Publik */}
           <Route path="/tracking" element={<PublicTracking />} />
+          
+          {/* Katalog Produk Publik */}
+          <Route path="/katalog/:tenantCode" element={<PublicCatalog />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />

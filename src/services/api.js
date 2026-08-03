@@ -27,6 +27,11 @@ export const apiService = {
       }
 
       if (!existing) {
+        // Jika tidak ada nama (berasal dari form login), tolak akses
+        if (!name) {
+          throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
+        }
+
         // Auto register new store
         const newStore = {
           code: cleanCode,
@@ -120,6 +125,28 @@ export const apiService = {
     }
   },
 
+  updateProduct: async (id, productData) => {
+    try {
+      const { data, error } = await supabase.from('products').update(productData).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  deleteProduct: async (id) => {
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
   // 4. Users / Employees
   getUsers: async (tenantCode) => {
     try {
@@ -133,6 +160,28 @@ export const apiService = {
     } catch (e) {
       console.error(e);
       return [];
+    }
+  },
+
+  updateUser: async (id, userData) => {
+    try {
+      const { data, error } = await supabase.from('users').update(userData).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  deleteUser: async (id) => {
+    try {
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error(e);
+      throw e;
     }
   },
 
@@ -158,6 +207,16 @@ export const apiService = {
     try {
       if (endpoint === '/services') {
         const { data, error } = await supabase.from('services').insert(body).select().single();
+        if (error) throw error;
+        return data;
+      }
+      if (endpoint === '/services/finish') {
+        const { data, error } = await supabase.from('services').update({ 
+          status: body.status, 
+          part_fee: body.part_fee, 
+          jasa_fee: body.jasa_fee,
+          technician_id: body.technician_id
+        }).eq('resi', body.resi).select().single();
         if (error) throw error;
         return data;
       }
@@ -513,6 +572,22 @@ export const apiService = {
         .single();
       if (error) throw error;
       return { success: true, data };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
+  updateTenantSettings: async (tenantCode, newSettings) => {
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ settings: newSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
     } catch (e) {
       console.error(e);
       throw e;
