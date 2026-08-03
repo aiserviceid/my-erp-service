@@ -67,6 +67,18 @@ export default function AdminDashboard() {
       apiService.getServices(tenant.code).then(setServices);
       apiService.getUsers(tenant.code).then(setUsers);
       apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {});
+      
+      // Auto-sync tier and settings from server
+      apiService.getTenantPublic(tenant.code).then(data => {
+        if (data) {
+          if (data.tier && data.tier !== tenant.tier) {
+            setTenant(tenant.code, data.name || tenant.name, '', data.tier, tenant.token);
+          }
+          if (data.settings && JSON.stringify(data.settings) !== JSON.stringify(tenant.settings)) {
+            // Also sync settings if needed, but primarily tier is important
+          }
+        }
+      }).catch(() => {});
     }
   }, [tenant?.code]);
 

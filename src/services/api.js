@@ -16,7 +16,7 @@ export const apiService = {
     try {
       const { data, error } = await supabase
         .from('tenants')
-        .select('name, code, settings')
+        .select('name, code, settings, tier')
         .eq('code', tenantCode)
         .maybeSingle();
       if (error) throw error;
