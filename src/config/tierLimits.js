@@ -5,7 +5,7 @@
 
 // ─── SERVICE STATUS FLOW ────────────────────────────────
 export const SERVICE_STATUSES = [
-  { id: 'DITERIMA',       label: 'Diterima',        color: '#64748b', bg: '#f1f5f9', icon: '📥', description: 'Barang sudah diterima di toko' },
+  { id: 'PROSES',         label: 'Diterima',        color: '#64748b', bg: '#f1f5f9', icon: '📥', description: 'Barang sudah diterima di toko' },
   { id: 'DICEK',          label: 'Sedang Dicek',    color: '#0284c7', bg: '#e0f2fe', icon: '🔍', description: 'Teknisi sedang melakukan pengecekan' },
   { id: 'DIKERJAKAN',     label: 'Sedang Dikerjakan', color: '#d97706', bg: '#fef3c7', icon: '🔧', description: 'Perbaikan sedang dilakukan' },
   { id: 'MENUNGGU_PART',  label: 'Menunggu Part',   color: '#9333ea', bg: '#f3e8ff', icon: '📦', description: 'Menunggu sparepart yang dipesan' },

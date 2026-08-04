@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench } from 'lucide-react';
 import { apiService } from '../services/api';
 import POSView from '../components/POSView';
+import { SERVICE_STATUSES } from '../config/tierLimits';
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -431,7 +432,7 @@ export default function EmployeePortal() {
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          {(s.status === 'PROSES' || s.status === 'MENUNGGU PART' || s.status === 'ANTRIAN') && (
+                          {(s.status === 'PROSES' || s.status === 'MENUNGGU_PART' || s.status === 'DICEK' || s.status === 'DIKERJAKAN') && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => {
                               setSelectedService(s);
                               setShowPersetujuanModal(true);
@@ -440,7 +441,7 @@ export default function EmployeePortal() {
                             </button>
                           )}
                           
-                          {s.status !== 'DI AMBIL' ? (
+                          {s.status !== 'DIAMBIL' ? (
                             <select 
                               className="input-field" 
                               style={{ padding: '4px 8px', fontSize: '0.8rem', width: '140px', background: 'white' }}
@@ -515,12 +516,20 @@ export default function EmployeePortal() {
                                 }
                               }}
                             >
-                              <option value="ANTRIAN">Antrian</option>
-                              <option value="PROSES">Proses Servis</option>
-                              <option value="MENUNGGU PART">Menunggu Part</option>
-                              <option value="BATAL">Batal</option>
-                              <option value="SELESAI" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Selesai (Tagihan)</option>
-                              {s.status === 'SELESAI' && <option value="DI AMBIL" style={{ color: 'var(--accent)', fontWeight: 'bold' }}>Di Ambil (Lunas)</option>}
+                              {SERVICE_STATUSES.map(st => {
+                                let style = {};
+                                let label = st.label;
+                                if (st.id === 'SELESAI') {
+                                  style = { color: 'var(--primary)', fontWeight: 'bold' };
+                                  label = 'Selesai (Tagihan)';
+                                }
+                                if (st.id === 'DIAMBIL') {
+                                  style = { color: 'var(--accent)', fontWeight: 'bold' };
+                                  label = 'Di Ambil (Lunas)';
+                                  if (s.status !== 'SELESAI') return null; // Only show DIAMBIL if currently SELESAI
+                                }
+                                return <option key={st.id} value={st.id} style={style}>{label}</option>;
+                              })}
                             </select>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'flex-end' }}>
