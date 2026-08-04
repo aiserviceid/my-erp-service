@@ -56,12 +56,10 @@ export default function LandingPage() {
       
       {/* TOP PROMO ANNOUNCEMENT BAR */}
       <div style={{
-        background: 'linear-gradient(90deg, #1e3a8a 0%, #0284c7 100%)',
-        padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.86rem', color: '#ffffff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap'
+        background: '#4c1d95', color: 'white', padding: '8px 16px', textAlign: 'center', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
       }}>
         <Flame size={16} color="#fbbf24" />
-        <span><strong>PROMO SPESIAL BULAN INI:</strong> Dapatkan Paket Pro Titan hanya <span style={{ color: '#fef08a', fontWeight: '800' }}>Rp 49.000/bln</span> & Enterprise <span style={{ color: '#86efac', fontWeight: '800' }}>Rp 79.000/bln</span>!</span>
+        <span><strong>PROMO SPESIAL BULAN INI:</strong> Dapatkan Paket Pro Titan hanya <span style={{ color: '#fef08a', fontWeight: '800' }}>Rp 59.000/bln</span> (Atau <span style={{ color: '#86efac', fontWeight: '800' }}>Rp 33.000/bln</span> untuk tahunan)!</span>
         <button 
           onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro' } })}
           style={{ background: '#ffffff', color: '#0369a1', border: 'none', padding: '3px 12px', borderRadius: '6px', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer', marginLeft: '6px' }}
@@ -657,16 +655,16 @@ export default function LandingPage() {
               <div style={{ marginBottom: '1.8rem' }}>
                 {billingCycle === 'yearly' && (
                   <div style={{ fontSize: '0.85rem', color: '#94a3b8', textDecoration: 'line-through' }}>
-                    Rp 149.000/bulan
+                    Rp 59.000/bulan
                   </div>
                 )}
                 <div style={{ fontSize: '2.6rem', fontWeight: '900', color: '#0284c7', margin: '2px 0', transition: 'all 0.3s' }}>
-                  {billingCycle === 'yearly' ? 'Rp 119.200' : 'Rp 149.000'}
+                  {billingCycle === 'yearly' ? 'Rp 33.000' : 'Rp 59.000'}
                   <span style={{ fontSize: '0.95rem', color: '#64748b', fontWeight: 'normal' }}>/bulan</span>
                 </div>
                 {billingCycle === 'yearly' && (
                   <div style={{ fontSize: '0.8rem', background: '#dcfce7', color: '#15803d', fontWeight: '800', padding: '3px 10px', borderRadius: '8px', display: 'inline-block', margin: '4px 0' }}>
-                    🎉 Hemat Rp 358.800/tahun — Ditagih Rp {(119200 * 12).toLocaleString('id-ID')}/thn
+                    🎉 Hemat Rp 312.000/tahun — Ditagih Rp 396.000/thn
                   </div>
                 )}
                 <div style={{ fontSize: '0.82rem', color: '#059669', fontWeight: '700', marginTop: '4px' }}>
@@ -684,14 +682,14 @@ export default function LandingPage() {
               </ul>
 
               <button 
-                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro' } })}
+                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro', billing: billingCycle } })}
                 style={{
                   width: '100%', padding: '1.05rem', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
                   background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white', border: 'none',
                   cursor: 'pointer', boxShadow: '0 4px 18px rgba(2, 132, 199, 0.4)', transition: 'all 0.2s'
                 }}
               >
-                {billingCycle === 'yearly' ? 'Pilih Paket Pro Tahunan ⭐ (Hemat 20%)' : 'Pilih Paket Pro ⭐ (Rp 149rb/bln)'}
+                {billingCycle === 'yearly' ? 'Pilih Paket Pro Tahunan ⭐ (Rp 33rb/bln)' : 'Pilih Paket Pro ⭐ (Rp 59rb/bln)'}
               </button>
             </div>
 

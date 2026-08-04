@@ -18,6 +18,7 @@ export default function Login() {
   const location = useLocation();
   const initialTab = location.state?.tab || 'login'; // 'login' | 'register'
   const initialTier = location.state?.tier || 'pro'; // default Pro agar user selalu lihat payment
+  const initialBilling = location.state?.billing || 'monthly'; // 'monthly' | 'yearly'
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [tenantCode, setTenantCode] = useState('');
@@ -141,15 +142,17 @@ export default function Login() {
 
   const getTierPriceText = () => {
     const tier = pendingReg?.tier || selectedTier;
-    if (tier === 'enterprise') return 'Rp 299.000';
-    if (tier === 'pro') return 'Rp 149.000';
+    const isYearly = initialBilling === 'yearly';
+    if (tier === 'enterprise') return 'Rp 79.000';
+    if (tier === 'pro') return isYearly ? 'Rp 396.000 (Setahun)' : 'Rp 59.000';
     return 'GRATIS';
   };
 
   const getTierTitle = () => {
     const tier = pendingReg?.tier || selectedTier;
-    if (tier === 'enterprise') return 'Paket Enterprise (Rp 299.000/bln)';
-    if (tier === 'pro') return 'Paket Pro (Rp 149.000/bln)';
+    const isYearly = initialBilling === 'yearly';
+    if (tier === 'enterprise') return 'Paket Enterprise (Rp 79.000/bln)';
+    if (tier === 'pro') return isYearly ? 'Paket Pro Tahunan (Rp 33.000/bln x 12)' : 'Paket Pro (Rp 59.000/bln)';
     return 'Paket Gratis (Rp 0/selamanya)';
   };
 
@@ -421,7 +424,9 @@ export default function Login() {
                   }}
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#0284c7' : '#0f172a' }}>Pro ⭐</div>
-                  <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>Rp 149rb/bln</div>
+                  <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
+                    {initialBilling === 'yearly' ? 'Rp 33rb/bln' : 'Rp 59rb/bln'}
+                  </div>
                 </div>
 
                 {/* Enterprise 299k */}
@@ -435,7 +440,7 @@ export default function Login() {
                   }}
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Enterprise</div>
-                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 299rb/bln</div>
+                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 79rb/bln</div>
                 </div>
               </div>
             </div>
