@@ -225,7 +225,7 @@ export default function AdminDashboard() {
           
           <div class="divider"></div>
           <div class="footer">
-            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>
+            ${tenant?.settings?.receipt_note ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>`}
             <p style="margin: 0;">Terima kasih atas kepercayaan Anda.</p>
           </div>
         </div>
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
           
           <div class="divider"></div>
           <div class="footer">
-            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>
+            ${tenant?.settings?.receipt_note ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>`}
             <p style="margin: 0;">Barang yang sudah diambil tidak dapat dikembalikan / ditukar.</p>
           </div>
         </div>
@@ -1189,9 +1189,9 @@ export default function AdminDashboard() {
               </div>
 
             <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
-              <h4>Pengaturan Kontak Toko & Rekening Bank</h4>
+              <h4>Pengaturan Kontak Toko, Rekening Bank & Nota</h4>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                Nomor WhatsApp khusus penerima pesanan dari Katalog, dan Info Rekening Bank yang akan dicetak di Nota.
+                Nomor WhatsApp khusus penerima pesanan dari Katalog, Info Rekening Bank, dan Catatan Kaki yang akan dicetak di Nota.
               </p>
                 <input 
                   type="text" 
@@ -1207,6 +1207,14 @@ export default function AdminDashboard() {
                   placeholder="Info Rekening (Misal: BCA 12345678 a/n Budi)..."
                   defaultValue={tenant?.settings?.store_bank || ''}
                   id="storeBankInput"
+                  style={{ width: '100%', maxWidth: '400px', marginBottom: '10px', minHeight: '60px', resize: 'vertical' }}
+                  disabled={isFree}
+                />
+                <textarea 
+                  className="input-field" 
+                  placeholder="Catatan Kaki Nota (Misal: Garansi servis 1 minggu dari tanggal pengambilan)..."
+                  defaultValue={tenant?.settings?.receipt_note || ''}
+                  id="receiptNoteInput"
                   style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem', minHeight: '60px', resize: 'vertical' }}
                   disabled={isFree}
                 />
@@ -1214,13 +1222,14 @@ export default function AdminDashboard() {
                   <button className="btn btn-primary" disabled={isFree} onClick={async () => {
                     const storeWa = document.getElementById('storeWaInput').value;
                     const storeBank = document.getElementById('storeBankInput').value;
+                    const receiptNote = document.getElementById('receiptNoteInput').value;
                     try {
-                      const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank };
+                      const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, receipt_note: receiptNote };
                       await apiService.updateTenantSettings(tenant.code, newSettings);
                       updateTenantSettings(newSettings);
-                      alert('Informasi Toko & Bank berhasil disimpan!');
+                      alert('Informasi Kontak, Bank & Nota berhasil disimpan!');
                     } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                  }}>Simpan Kontak & Bank</button>
+                  }}>Simpan Kontak, Bank & Nota</button>
                 </div>
               </div>
             </div>
