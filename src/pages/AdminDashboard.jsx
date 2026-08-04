@@ -635,28 +635,48 @@ export default function AdminDashboard() {
 
                 {/* Steps Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                  <div style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div 
+                    onClick={() => setActiveTab('settings')}
+                    style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                  >
                     <span style={{ fontSize: '1.2rem' }}>✅</span>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#166534' }}>1. Profil Toko</div>
                       <div style={{ fontSize: '0.72rem', color: '#15803d' }}>Nama & WA terkonfigurasi</div>
                     </div>
                   </div>
-                  <div style={{ padding: '12px', borderRadius: '12px', background: users.length > 0 ? '#f0fdf4' : '#fffbeb', border: `1px solid ${users.length > 0 ? '#bbf7d0' : '#fde68a'}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div 
+                    onClick={() => setActiveTab('users')}
+                    style={{ padding: '12px', borderRadius: '12px', background: users.length > 0 ? '#f0fdf4' : '#fffbeb', border: `1px solid ${users.length > 0 ? '#bbf7d0' : '#fde68a'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                  >
                     <span style={{ fontSize: '1.2rem' }}>{users.length > 0 ? '✅' : '👨‍🔧'}</span>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: '800', color: users.length > 0 ? '#166534' : '#b45309' }}>2. Tambah Teknisi</div>
                       <div style={{ fontSize: '0.72rem', color: users.length > 0 ? '#15803d' : '#d97706' }}>{users.length} Teknisi Terdaftar</div>
                     </div>
                   </div>
-                  <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div 
+                    onClick={() => setActiveTab('products')}
+                    style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                  >
                     <span style={{ fontSize: '1.2rem' }}>📦</span>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#475569' }}>3. Tambah Barang</div>
                       <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Master Sparepart</div>
                     </div>
                   </div>
-                  <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div 
+                    onClick={() => setActiveTab('services')}
+                    style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                  >
                     <span style={{ fontSize: '1.2rem' }}>📝</span>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#475569' }}>4. Buat Servis</div>
