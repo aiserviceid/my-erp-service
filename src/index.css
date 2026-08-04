@@ -261,3 +261,18 @@
     }
   }
 }
+
+/* TRUE DARK MODE OVERRIDES VIA INVERT FILTER */
+html[data-theme="dark"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Re-invert media and specific elements so they look normal */
+html[data-theme="dark"] img,
+html[data-theme="dark"] video,
+html[data-theme="dark"] iframe,
+html[data-theme="dark"] canvas,
+html[data-theme="dark"] .qr-section img,
+html[data-theme="dark"] .logo {
+  filter: invert(1) hue-rotate(180deg);
+}

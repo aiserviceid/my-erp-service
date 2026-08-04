@@ -63,44 +63,44 @@ class ErrorBoundary extends Component {
 }
 
 const themeColors = {
-  hp: {
-    primary: '#0ea5e9', // Sky blue
-    primaryHover: '#0284c7',
-    primaryLight: '#38bdf8',
-    accent: '#06b6d4', // Cyan
-    accentHover: '#0891b2',
-  },
-  laptop: {
-    primary: '#0f172a', // Slate
+  default: {
+    primary: '#0f172a',
     primaryHover: '#1e293b',
     primaryLight: '#334155',
-    accent: '#10b981', // Emerald
+    accent: '#10b981',
     accentHover: '#059669',
   },
-  motor: {
-    primary: '#18181b', // Zinc
-    primaryHover: '#27272a',
-    primaryLight: '#3f3f46',
-    accent: '#f97316', // Orange
-    accentHover: '#ea580c',
+  dark: {
+    primary: '#0f172a',
+    primaryHover: '#1e293b',
+    primaryLight: '#334155',
+    accent: '#10b981',
+    accentHover: '#059669',
   }
 };
 
 function App() {
   const tenant = useStore((state) => state.tenant);
-  const settings = tenant?.settings || { theme: 'laptop' };
+  const settings = tenant?.settings || { theme: 'default' };
 
   // Apply Theme CSS Variables dynamically
   useEffect(() => {
     try {
-      const currentTheme = settings?.theme || 'laptop';
-      const colors = themeColors[currentTheme] || themeColors.laptop;
+      const currentTheme = settings?.theme || 'default';
+      const colors = themeColors[currentTheme] || themeColors.default;
       const root = document.documentElement;
       root.style.setProperty('--primary', colors.primary);
       root.style.setProperty('--primary-hover', colors.primaryHover);
       root.style.setProperty('--primary-light', colors.primaryLight);
       root.style.setProperty('--accent', colors.accent);
       root.style.setProperty('--accent-hover', colors.accentHover);
+
+      // Apply true dark mode via data attribute
+      if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
     } catch (e) {
       console.warn('Theme apply error:', e);
     }
