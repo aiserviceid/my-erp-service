@@ -256,7 +256,7 @@ export default function AdminDashboard() {
           
           <div class="divider"></div>
           <div class="footer">
-            ${tenant?.settings?.receipt_note ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>`}
+            ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note_service.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>`}
             <p style="margin: 0;">Terima kasih atas kepercayaan Anda.</p>
           </div>
         </div>
@@ -304,9 +304,14 @@ export default function AdminDashboard() {
           
           ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
           
+          <div class="qr-section">
+            <img src="${qrCodeUrl}" alt="QR Code Tracking" />
+            <p>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>${trackingUrl}</strong></p>
+          </div>
+
           <div class="divider"></div>
           <div class="footer">
-            ${tenant?.settings?.receipt_note ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>`}
+            ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note_service.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>`}
             <p style="margin: 0;">Barang yang sudah diambil tidak dapat dikembalikan / ditukar.</p>
           </div>
         </div>
@@ -1282,9 +1287,13 @@ export default function AdminDashboard() {
                         </div>
 
                         <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
-                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota</h5>
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota (Servis)</h5>
                           <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Garansi servis 1 minggu dari tanggal pengambilan."</p>
-                          <textarea className="input-field" placeholder="Ketik aturan garansi / ucapan terima kasih di sini..." defaultValue={tenant?.settings?.receipt_note || ''} id="receiptNoteInput" style={{ width: '100%', minHeight: '70px', resize: 'vertical' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note: e.target.value })} />
+                          <textarea className="input-field" placeholder="Ketik aturan garansi / ucapan terima kasih di sini..." defaultValue={tenant?.settings?.receipt_note_service || tenant?.settings?.receipt_note || ''} id="receiptNoteServiceInput" style={{ width: '100%', minHeight: '60px', resize: 'vertical', marginBottom: '1rem' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_service: e.target.value })} />
+
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota (Penjualan Kasir)</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Barang yang sudah dibeli tidak dapat ditukar/dikembalikan."</p>
+                          <textarea className="input-field" placeholder="Ketik ucapan terima kasih / aturan retur di sini..." defaultValue={tenant?.settings?.receipt_note_pos || ''} id="receiptNotePosInput" style={{ width: '100%', minHeight: '60px', resize: 'vertical' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_pos: e.target.value })} />
                         </div>
 
                         <button className="btn" style={{ background: '#0ea5e9', color: 'white', border: 'none', width: '100%', padding: '12px' }} disabled={isFree} onClick={async () => {
@@ -1292,12 +1301,13 @@ export default function AdminDashboard() {
                           const bankName = document.getElementById('bankNameSelect').value;
                           const accNumber = document.getElementById('accNumberInput').value;
                           const accName = document.getElementById('accNameInput').value;
-                          const receiptNote = document.getElementById('receiptNoteInput').value;
+                          const receiptNoteService = document.getElementById('receiptNoteServiceInput').value;
+                          const receiptNotePos = document.getElementById('receiptNotePosInput').value;
                           
                           const storeBank = bankName && accNumber ? `${bankName} ${accNumber} a/n ${accName}` : '';
                           
                           try {
-                            const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, receipt_note: receiptNote };
+                            const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, receipt_note_service: receiptNoteService, receipt_note_pos: receiptNotePos };
                             await apiService.updateTenantSettings(tenant.code, newSettings);
                             updateTenantSettings(newSettings);
                             alert('Informasi berhasil disimpan!');
@@ -1308,7 +1318,7 @@ export default function AdminDashboard() {
                       {/* LIVE PREVIEW SECTION */}
                       <div style={{ flex: 1, minWidth: '300px' }}>
                         <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
-                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota</h4>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota (Servis)</h4>
                           <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
                             <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
                               <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
@@ -1331,7 +1341,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
-                              <strong style={{ color: '#0f172a' }}>{settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
+                              <strong style={{ color: '#0f172a' }}>{settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
                               Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
                             </div>
                           </div>

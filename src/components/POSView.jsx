@@ -218,8 +218,8 @@ export default function POSView({ products, transactions = [], onTransactionCrea
         </div>
         ${settings.store_bank ? `<div style="text-align:center;font-size:0.75rem;color:#666;margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:6px">${settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
         <div class="footer">
-          <p style="margin:0 0 4px">Terima kasih atas pembelian Anda!</p>
-          <p style="margin:0">Barang yang sudah dibeli tidak dapat dikembalikan.</p>
+          ${settings.receipt_note_pos ? `<p style="margin: 0 0 5px 0; color: #333; font-weight: 700;">${settings.receipt_note_pos.replace(/\n/g, '<br/>')}</p>` : `<p style="margin:0 0 4px; font-weight: bold;">Terima kasih atas pembelian Anda!</p>
+          <p style="margin:0">Barang yang sudah dibeli tidak dapat dikembalikan.</p>`}
         </div>
       </div>
     `;
