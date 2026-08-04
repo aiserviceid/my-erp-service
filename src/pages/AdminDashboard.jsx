@@ -1675,7 +1675,7 @@ export default function AdminDashboard() {
                     <button onClick={() => setServiceTechTab('ALL')} style={{ padding: '6px 12px', border: 'none', background: serviceTechTab === 'ALL' ? 'var(--accent)' : '#e2e8f0', color: serviceTechTab === 'ALL' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Semua Teknisi</button>
                     {techIds.map(tId => {
                       const tech = users.find(u => u.id === tId);
-                      const tName = tech ? tech.name : (tId ? 'Teknisi ID: '+tId : 'Belum Dipilih');
+                      const tName = tech ? tech.name.replace(/\s*\(.*\)/, '') : (tId ? 'Teknisi ID: '+tId : 'Belum Dipilih');
                       const tabId = tId || 'unassigned';
                       return (
                         <button key={tabId} onClick={() => setServiceTechTab(tabId)} style={{ padding: '6px 12px', border: 'none', background: serviceTechTab === tabId ? 'var(--accent)' : '#e2e8f0', color: serviceTechTab === tabId ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>{tName}</button>
