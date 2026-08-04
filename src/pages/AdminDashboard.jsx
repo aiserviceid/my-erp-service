@@ -42,6 +42,8 @@ export default function AdminDashboard() {
   const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'nota' | 'promo'
   const [previewTab, setPreviewTab] = useState('servis');
   const [empTab, setEmpTab] = useState('daftar'); // 'daftar' | 'kasbon' | 'absensi'
+  const [masterTab, setMasterTab] = useState('stok'); // 'stok' | 'audit'
+  const [auditLogs, setAuditLogs] = useState([]);
 
   const handleImageUpload = (file, callback) => {
     if (!file) return;
@@ -435,6 +437,7 @@ export default function AdminDashboard() {
       loadDemoData();
     } else if (tenant?.code) {
       apiService.getProducts(tenant.code).then(setProducts);
+      if (apiService.getAuditLogs) apiService.getAuditLogs(tenant.code).then(setAuditLogs).catch(() => {});
       apiService.getServices(tenant.code).then(setServices);
       apiService.getUsers(tenant.code).then(setUsers);
       apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {});
@@ -1737,8 +1740,17 @@ export default function AdminDashboard() {
           </div>
         ) : activeTab === 'master' ? (
           <div className="glass-panel" style={{ minHeight: '400px' }}>
-             <h3 style={{ marginBottom: '0.5rem' }}>Master Barang & Sparepart ({tenant?.name})</h3>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+               <h3 style={{ margin: 0 }}>Master Barang & Sparepart ({tenant?.name})</h3>
+             </div>
              
+             <div style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-light)' }}>
+               <button onClick={() => setMasterTab('stok')} className={`tab-btn ${masterTab === 'stok' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'stok' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'stok' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📦 Daftar & Stok Barang</button>
+               <button onClick={() => setMasterTab('audit')} className={`tab-btn ${masterTab === 'audit' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'audit' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'audit' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📜 Log Aktivitas Stok</button>
+             </div>
+
+             {masterTab === 'stok' && (
+               <>
              {/* FORM TAMBAH BARANG DENGAN UPLOAD GAMBAR */}
              <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
                 <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={18} color="var(--accent)" /> Tambah Barang Baru</h4>
@@ -1798,7 +1810,8 @@ export default function AdminDashboard() {
                     if (isDuplicate) return alert(`⚠️ Peringatan: Barang dengan nama "${name}" sudah ada di data stok Anda! Silakan gunakan nama lain atau edit barang yang sudah ada.`);
                     
                     try {
-                      const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl });
+                      const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
+                      const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
                       setProducts([...products, { ...newProd, imageUrl }]);
                       document.getElementById('newProductName').value = '';
                       document.getElementById('newProductPrice').value = '';
@@ -1848,7 +1861,8 @@ export default function AdminDashboard() {
                             const newImg = prompt('URL Gambar:', p.imageUrl || '');
                             if (newImg === null) return;
                             try {
-                              await apiService.updateProduct(p.id, { name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg });
+                              const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
+                              await apiService.updateProduct(p.id, { name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg }, p.stock, currentUser, 'Edit Manual Stok (Master Data)');
                               setProducts(products.map(x => x.id === p.id ? { ...x, name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg } : x));
                             } catch(e) { alert('Gagal edit barang'); }
                           }}>Edit</button>
@@ -1867,6 +1881,30 @@ export default function AdminDashboard() {
                  {products.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data barang.</td></tr>}
                </tbody>
              </table>
+               </>
+             )}
+
+             {masterTab === 'audit' && (
+               <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', overflowX: 'auto' }}>
+                  <h4 style={{ margin: '0 0 1rem 0' }}>Riwayat Pergerakan Stok</h4>
+                  <table className="table" style={{ width: '100%', minWidth: '700px' }}>
+                    <thead><tr><th>Waktu</th><th>Nama Barang</th><th>Karyawan</th><th>Perubahan</th><th>Keterangan</th></tr></thead>
+                    <tbody>
+                      {auditLogs.length > 0 ? auditLogs.map((log) => (
+                        <tr key={log.id}>
+                          <td>{new Date(log.created_at).toLocaleString('id-ID')}</td>
+                          <td style={{ fontWeight: 'bold' }}>{log.products?.name || '-'}</td>
+                          <td>{log.user_name}</td>
+                          <td style={{ color: log.change_amount > 0 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                            {log.change_amount > 0 ? '+' : ''}{log.change_amount}
+                          </td>
+                          <td>{log.description}</td>
+                        </tr>
+                      )) : <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada aktivitas stok.</td></tr>}
+                    </tbody>
+                  </table>
+               </div>
+             )}
           </div>
         ) : activeTab === 'keuangan' ? (
           (() => {

@@ -155,7 +155,7 @@ export const apiService = {
     }
   },
 
-  addProduct: async (productData) => {
+  addProduct: async (productData, userName = 'Admin') => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -164,6 +164,17 @@ export const apiService = {
         .single();
 
       if (error) throw error;
+
+      if (productData.stock > 0) {
+        await supabase.from('stock_movements').insert({
+          tenant_code: productData.tenant_code,
+          product_id: data.id,
+          user_name: userName,
+          change_amount: productData.stock,
+          description: 'Stok Awal Barang Baru'
+        });
+      }
+
       return data;
     } catch (e) {
       console.error(e);
@@ -171,14 +182,44 @@ export const apiService = {
     }
   },
 
-  updateProduct: async (id, productData) => {
+  updateProduct: async (id, productData, currentStock = null, userName = 'Admin', description = 'Edit Manual Stok') => {
     try {
       const { data, error } = await supabase.from('products').update(productData).eq('id', id).select().single();
       if (error) throw error;
+
+      if (productData.stock !== undefined && currentStock !== null) {
+         const diff = productData.stock - currentStock;
+         if (diff !== 0) {
+            await supabase.from('stock_movements').insert({
+              tenant_code: data.tenant_code,
+              product_id: data.id,
+              user_name: userName,
+              change_amount: diff,
+              description: description
+            });
+         }
+      }
+
       return data;
     } catch (e) {
       console.error(e);
       throw e;
+    }
+  },
+  
+  getAuditLogs: async (tenantCode) => {
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*, products(name)')
+        .eq('tenant_code', tenantCode)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.error(e);
+      return [];
     }
   },
 

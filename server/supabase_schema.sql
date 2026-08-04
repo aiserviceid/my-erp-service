@@ -99,6 +99,17 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 
 INSERT INTO platform_wallet (id, balance) VALUES (1, 0) ON CONFLICT (id) DO NOTHING;
 
+-- 10. Stock Movements (Audit Log)
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id BIGSERIAL PRIMARY KEY,
+  tenant_code TEXT REFERENCES tenants(code),
+  product_id BIGINT REFERENCES products(id) ON DELETE CASCADE,
+  user_name TEXT NOT NULL,
+  change_amount INTEGER NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Disable Row Level Security for open API access
 ALTER TABLE tenants DISABLE ROW LEVEL SECURITY;
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
@@ -109,3 +120,4 @@ ALTER TABLE forum_threads DISABLE ROW LEVEL SECURITY;
 ALTER TABLE forum_posts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_wallet DISABLE ROW LEVEL SECURITY;
 ALTER TABLE withdrawals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE stock_movements DISABLE ROW LEVEL SECURITY;

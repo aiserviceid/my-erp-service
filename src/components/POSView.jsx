@@ -110,6 +110,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       });
 
       // 2. Update stock for each item
+      const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
       for (const item of cart) {
         const newStock = Math.max(0, item.stock - item.qty);
         apiService.updateProduct(item.id, {
@@ -117,7 +118,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
           price: item.price,
           stock: newStock,
           cost_price: item.cost_price || 0
-        }).catch(() => {});
+        }, item.stock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`).catch(() => {});
       }
 
       // 3. Show receipt

@@ -55,6 +55,19 @@ const db = new sqlite3.Database(dbPath, (err) => {
         FOREIGN KEY (tenant_code) REFERENCES tenants(code)
       )`);
 
+      // 3.5 Stock Movements (Audit Log)
+      db.run(`CREATE TABLE IF NOT EXISTS stock_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_code TEXT NOT NULL,
+        product_id INTEGER,
+        user_name TEXT NOT NULL,
+        change_amount INTEGER NOT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_code) REFERENCES tenants(code),
+        FOREIGN KEY (product_id) REFERENCES products(id)
+      )`);
+
       // 4. Services
       db.run(`CREATE TABLE IF NOT EXISTS services (
         resi TEXT PRIMARY KEY,

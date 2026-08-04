@@ -61,6 +61,19 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Middleware to enforce Tenant Isolation (Security)
+const enforceTenantAccess = (req, res, next) => {
+  const requestedTenant = req.body.tenant_code || req.params.tenant || req.body.code;
+  const userTenant = req.user.tenant || req.user.code; // Employee uses .tenant, Tenant uses .code
+  
+  if (requestedTenant && userTenant && requestedTenant !== userTenant) {
+     return res.status(403).json({ error: 'Akses Ditolak: Anda mencoba mengakses data dari cabang/toko lain!' });
+  }
+  next();
+};
+
+const secureRoute = [authenticateToken, enforceTenantAccess];
+
 // Middleware to enforce premium feature limits & tiers on the backend server-side
 const requirePremiumFeature = (req, res, next) => {
   const tier = req.user?.tier || 'free';
