@@ -44,6 +44,8 @@ export default function AdminDashboard() {
   const [empTab, setEmpTab] = useState('daftar'); // 'daftar' | 'kasbon' | 'absensi'
   const [masterTab, setMasterTab] = useState('stok'); // 'stok' | 'audit'
   const [auditLogs, setAuditLogs] = useState([]);
+  const [serviceTechTab, setServiceTechTab] = useState('ALL');
+  const [serviceStatusTab, setServiceStatusTab] = useState('ALL');
 
   const handleImageUpload = (file, callback) => {
     if (!file) return;
@@ -1666,16 +1668,52 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
+              {(() => {
+                const techIds = [...new Set(services.map(s => s.technician_id))];
+                return (
+                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid var(--border-light)' }}>
+                    <button onClick={() => setServiceTechTab('ALL')} style={{ padding: '6px 12px', border: 'none', background: serviceTechTab === 'ALL' ? 'var(--accent)' : '#e2e8f0', color: serviceTechTab === 'ALL' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Semua Teknisi</button>
+                    {techIds.map(tId => {
+                      const tech = users.find(u => u.id === tId);
+                      const tName = tech ? tech.name : (tId ? 'Teknisi ID: '+tId : 'Belum Dipilih');
+                      const tabId = tId || 'unassigned';
+                      return (
+                        <button key={tabId} onClick={() => setServiceTechTab(tabId)} style={{ padding: '6px 12px', border: 'none', background: serviceTechTab === tabId ? 'var(--accent)' : '#e2e8f0', color: serviceTechTab === tabId ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>{tName}</button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px' }}>
+                <button onClick={() => setServiceStatusTab('ALL')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: serviceStatusTab === 'ALL' ? '#334155' : 'white', color: serviceStatusTab === 'ALL' ? 'white' : '#475569', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: serviceStatusTab === 'ALL' ? 'bold' : 'normal' }}>Semua Status</button>
+                {typeof SERVICE_STATUSES !== 'undefined' && SERVICE_STATUSES.map(st => (
+                  <button key={st.id} onClick={() => setServiceStatusTab(st.id)} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: serviceStatusTab === st.id ? st.bg : 'white', color: serviceStatusTab === st.id ? 'white' : '#475569', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: serviceStatusTab === st.id ? 'bold' : 'normal' }}>{st.label}</button>
+                ))}
+              </div>
+
               <div style={{ overflowX: 'auto' }}>
                 <table className="table">
                  <thead><tr><th>Resi</th><th>Pelanggan</th><th>Perangkat</th><th>Kerusakan</th><th>Garansi</th><th>Teknisi</th><th>Status</th><th>Aksi</th></tr></thead>
                  <tbody>
-                   {services.filter(s => (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase())).length > 0 ? services.filter(s => (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase())).map(s => {
-                     const tech = users.find(u => u.id === s.technician_id);
-                     const garansiMatch = (s.issue || '').match(/\[Masa Garansi Servis: s\/d (.*?)\]/);
-                     const garansiStatus = garansiMatch ? garansiMatch[1] : '-';
-                     const cleanIssue = (s.issue || '').replace(/\[Masa Garansi Servis: s\/d .*?\]/, '').trim();
-                     return (
+                   {(() => {
+                     const filteredServices = services.filter(s => {
+                       const matchQuery = (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
+                       const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !s.technician_id : s.technician_id === serviceTechTab);
+                       const matchStatus = serviceStatusTab === 'ALL' || s.status === serviceStatusTab;
+                       return matchQuery && matchTech && matchStatus;
+                     });
+
+                     if (filteredServices.length === 0) {
+                       return <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{serviceSearchQuery ? 'Tidak ada hasil pencarian.' : 'Belum ada data servis di tab ini.'}</td></tr>;
+                     }
+
+                     return filteredServices.map(s => {
+                       const tech = users.find(u => u.id === s.technician_id);
+                       const garansiMatch = (s.issue || '').match(/\[Masa Garansi Servis: s\/d (.*?)\]/);
+                       const garansiStatus = garansiMatch ? garansiMatch[1] : '-';
+                       const cleanIssue = (s.issue || '').replace(/\[Masa Garansi Servis: s\/d .*?\]/, '').trim();
+                       return (
                       <tr key={s.resi}>
                         <td>
                           <a 
@@ -1731,9 +1769,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                       </tr>
-                   )}) : (
-                     <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{serviceSearchQuery ? 'Tidak ada hasil pencarian.' : 'Belum ada data servis.'}</td></tr>
-                   )}
+                   )})}
                  </tbody>
                </table>
               </div>
