@@ -33,6 +33,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
       db.run("ALTER TABLE tenants ADD COLUMN wallet_balance INTEGER DEFAULT 0", (err) => {});
       db.run("ALTER TABLE tenants ADD COLUMN bank_details TEXT", (err) => {});
       db.run("ALTER TABLE tenants ADD COLUMN pin TEXT DEFAULT ''", (err) => {});
+      db.run("ALTER TABLE tenants ADD COLUMN phone TEXT DEFAULT ''", (err) => {});
 
       // 2. Users (Employees/Admins)
       db.run(`CREATE TABLE IF NOT EXISTS users (

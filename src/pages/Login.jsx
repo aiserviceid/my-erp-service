@@ -4,6 +4,16 @@ import { apiService } from '../services/api';
 import { Store, LogIn, Search, Sparkles, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+// ── VALIDASI FORMAT INPUT (sesuai jenis data masing-masing field) ──
+// Kode Toko: huruf kapital, angka, strip (-), underscore (_) saja
+const CODE_REGEX = /^[A-Z0-9_-]{3,32}$/;
+// Nama Toko: huruf, angka, spasi, dan tanda baca umum saja
+const NAME_REGEX = /^[A-Za-z0-9À-ÿ .,'&()-]{2,80}$/;
+// No. WhatsApp: angka saja, 9-15 digit
+const PHONE_REGEX = /^[0-9]{9,15}$/;
+// PIN: angka saja, 4-6 digit
+const PIN_REGEX = /^[0-9]{4,6}$/;
+
 export default function Login() {
   const location = useLocation();
   const initialTab = location.state?.tab || 'login'; // 'login' | 'register'
@@ -36,6 +46,16 @@ export default function Login() {
       setLoading(false);
       return;
     }
+    if (!CODE_REGEX.test(code)) {
+      setError('Format Kode Toko tidak valid (huruf, angka, - dan _ saja)');
+      setLoading(false);
+      return;
+    }
+    if (!PIN_REGEX.test(pin)) {
+      setError('PIN harus berupa 4-6 digit angka');
+      setLoading(false);
+      return;
+    }
     
     try {
       const res = await apiService.loginTenant(code, '', pin);
@@ -59,9 +79,26 @@ export default function Login() {
 
     const code = tenantCode.toUpperCase().trim().replace(/[^A-Z0-9_-]/g, '');
     const name = tenantName.trim();
+    const cleanPhone = phone.trim();
 
-    if (!code || !name || !pin) {
-      setError('Nama Toko, Kode ID, dan PIN wajib diisi');
+    if (!code || !name || !pin || !cleanPhone) {
+      setError('Nama Toko, Kode ID, No. WhatsApp, dan PIN wajib diisi');
+      return;
+    }
+    if (!NAME_REGEX.test(name)) {
+      setError('Nama Toko tidak valid. Gunakan huruf, angka, dan spasi (2-80 karakter)');
+      return;
+    }
+    if (!CODE_REGEX.test(code)) {
+      setError('Kode ID Toko hanya boleh berisi huruf, angka, - dan _ (3-32 karakter)');
+      return;
+    }
+    if (!PHONE_REGEX.test(cleanPhone)) {
+      setError('No. WhatsApp hanya boleh berisi angka (9-15 digit), contoh: 081234567890');
+      return;
+    }
+    if (!PIN_REGEX.test(pin)) {
+      setError('PIN harus berupa 4-6 digit angka');
       return;
     }
 
@@ -69,7 +106,7 @@ export default function Login() {
       // Paket gratis — langsung daftar dan masuk
       setLoading(true);
       try {
-        const res = await apiService.loginTenant(code, name, pin);
+        const res = await apiService.loginTenant(code, name, pin, cleanPhone);
         const data = res.tenant || res;
         setSuccessMsg('Akun Gratis berhasil dibuat! Mengalihkan ke Dashboard...');
         setTenant(data.code, data.name, '', 'free', res.token || `tenant_${data.code}`);
@@ -82,7 +119,7 @@ export default function Login() {
     } else {
       // Paket berbayar — tampilkan payment modal DULU, belum simpan ke DB
       // Simpan data form di pendingReg untuk diproses setelah konfirmasi
-      setPendingReg({ code, name, pin, tier: selectedTier });
+      setPendingReg({ code, name, pin, phone: cleanPhone, tier: selectedTier });
       setShowPaymentModal(true);
     }
   };
@@ -92,7 +129,7 @@ export default function Login() {
     if (!pendingReg) return;
     setLoading(true);
     try {
-      const res = await apiService.loginTenant(pendingReg.code, pendingReg.name, pendingReg.pin);
+      const res = await apiService.loginTenant(pendingReg.code, pendingReg.name, pendingReg.pin, pendingReg.phone);
       const data = res.tenant || res;
       setTenant(data.code, data.name, '', pendingReg.tier, res.token || `tenant_${data.code}`);
     } catch (err) {
@@ -201,7 +238,8 @@ export default function Login() {
                 type="text" 
                 placeholder="Contoh: TOKO-SERVIS" 
                 value={tenantCode}
-                onChange={(e) => setTenantCode(e.target.value.toUpperCase())}
+                onChange={(e) => setTenantCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                maxLength={32}
                 required 
                 style={{
                   width: '100%', padding: '12px 14px', borderRadius: '10px', background: '#f8fafc',
@@ -218,7 +256,10 @@ export default function Login() {
                 type="password" 
                 placeholder="Masukkan PIN Anda" 
                 value={pin}
-                onChange={(e) => setPin(e.target.value)}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
                 required 
                 style={{
                   width: '100%', padding: '12px 14px', borderRadius: '10px', background: '#f8fafc',
@@ -281,7 +322,8 @@ export default function Login() {
                 type="text" 
                 placeholder="Contoh: iPud Smartphone & Bengkel" 
                 value={tenantName}
-                onChange={(e) => setTenantName(e.target.value)}
+                onChange={(e) => setTenantName(e.target.value.replace(/[^A-Za-z0-9À-ÿ .,'&()-]/g, ''))}
+                maxLength={80}
                 required 
                 style={{
                   width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
@@ -298,7 +340,8 @@ export default function Login() {
                 type="text" 
                 placeholder="Contoh: IPUD-SERVICE" 
                 value={tenantCode}
-                onChange={(e) => setTenantCode(e.target.value.toUpperCase().replace(/\s+/g, '-'))}
+                onChange={(e) => setTenantCode(e.target.value.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9_-]/g, ''))}
+                maxLength={32}
                 required 
                 style={{
                   width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
@@ -309,13 +352,16 @@ export default function Login() {
 
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                No. WhatsApp Aktif
+                No. WhatsApp Aktif (Angka Saja)
               </label>
               <input 
                 type="tel" 
                 placeholder="Contoh: 081234567890" 
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={15}
                 required 
                 style={{
                   width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',
@@ -332,7 +378,10 @@ export default function Login() {
                 type="password" 
                 placeholder="PIN untuk login admin" 
                 value={pin}
-                onChange={(e) => setPin(e.target.value)}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
                 required 
                 style={{
                   width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#f8fafc',

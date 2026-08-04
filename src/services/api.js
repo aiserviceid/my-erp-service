@@ -28,13 +28,13 @@ export const apiService = {
   },
 
   // 1. Login / Register Tenant (Store) — Express Backend Auth
-  loginTenant: async (code, name = '', pin = '') => {
+  loginTenant: async (code, name = '', pin = '', phone = '') => {
     try {
       const cleanCode = (code || '').trim().toUpperCase();
       const response = await fetch(`${API_BASE_URL}/tenant/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cleanCode, name, pin })
+        body: JSON.stringify({ code: cleanCode, name, pin, phone })
       });
 
       if (!response.ok) {
@@ -54,7 +54,7 @@ export const apiService = {
       const cleanCode = (code || '').trim().toUpperCase();
       const { data: existing, error } = await supabase
         .from('tenants')
-        .select('code, name, tier, settings')
+        .select('code, name, tier, settings, phone')
         .eq('code', cleanCode)
         .maybeSingle();
 
@@ -62,7 +62,7 @@ export const apiService = {
 
       if (!existing) {
         if (!name) throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
-        const newStore = { code: cleanCode, name: name || cleanCode, tier: 'free', settings: {} };
+        const newStore = { code: cleanCode, name: name || cleanCode, tier: 'free', settings: {}, phone: phone || '' };
         await supabase.from('tenants').insert(newStore);
         return { token: `dev_token_${cleanCode}`, tenant: newStore };
       }

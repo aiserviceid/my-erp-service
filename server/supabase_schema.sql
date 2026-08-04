@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   reputation_points INTEGER DEFAULT 0,
   wallet_balance INTEGER DEFAULT 0,
   bank_details JSONB,
-  pin TEXT DEFAULT ''
+  pin TEXT DEFAULT '',
+  phone TEXT DEFAULT ''
 );
 
 -- 2. Users (Employees/Admins)

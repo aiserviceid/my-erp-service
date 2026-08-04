@@ -70,10 +70,33 @@ const requirePremiumFeature = (req, res, next) => {
   next();
 };
 
+// ── VALIDASI FORMAT INPUT (sesuai jenis data masing-masing field) ──
+// Kode Toko: hanya huruf kapital, angka, strip, underscore
+const CODE_REGEX = /^[A-Z0-9_-]{3,32}$/;
+// Nama Toko: huruf, angka, spasi, dan beberapa tanda baca umum
+const NAME_REGEX = /^[A-Za-z0-9À-ÿ .,'&()-]{2,80}$/;
+// No. WhatsApp: hanya angka, 9-15 digit
+const PHONE_REGEX = /^[0-9]{9,15}$/;
+// PIN: hanya angka, 4-6 digit
+const PIN_REGEX = /^[0-9]{4,6}$/;
+
 // API: Register / Login Tenant
 app.post('/api/tenant/login', async (req, res) => {
-  const { code, name, pin } = req.body;
+  let { code, name, pin, phone } = req.body;
+  code = (code || '').trim().toUpperCase();
+  name = (name || '').trim();
+  phone = (phone || '').trim();
+
   if (!code || !pin) return res.status(400).json({ error: 'Kode Cabang dan PIN wajib diisi' });
+
+  // Validasi format Kode Toko
+  if (!CODE_REGEX.test(code)) {
+    return res.status(400).json({ error: 'Kode Toko hanya boleh berisi huruf, angka, strip (-), dan underscore (_), 3-32 karakter' });
+  }
+  // Validasi format PIN (harus angka saja)
+  if (!PIN_REGEX.test(pin)) {
+    return res.status(400).json({ error: 'PIN harus berupa 4-6 digit angka' });
+  }
 
   db.get('SELECT * FROM tenants WHERE code = ?', [code], async (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -88,17 +111,31 @@ app.post('/api/tenant/login', async (req, res) => {
         const hashedPin = await bcrypt.hash(pin, 10);
         db.run('UPDATE tenants SET pin = ? WHERE code = ?', [hashedPin, code]);
       }
+
+      // Lengkapi nomor WA jika sebelumnya belum tersimpan (akun lama)
+      if (phone && PHONE_REGEX.test(phone) && !row.phone) {
+        db.run('UPDATE tenants SET phone = ? WHERE code = ?', [phone, code]);
+        row.phone = phone;
+      }
       
       const token = jwt.sign({ code: row.code, role: 'tenant', tier: row.tier || 'free' }, JWT_SECRET, { expiresIn: '24h' });
       res.json({ ...row, token });
     } else {
+      // Registrasi toko baru — validasi Nama & No. WhatsApp wajib untuk pendaftaran
+      if (!name || !NAME_REGEX.test(name)) {
+        return res.status(400).json({ error: 'Nama Toko tidak valid. Gunakan huruf, angka, dan spasi (2-80 karakter)' });
+      }
+      if (phone && !PHONE_REGEX.test(phone)) {
+        return res.status(400).json({ error: 'No. WhatsApp hanya boleh berisi angka (9-15 digit)' });
+      }
+
       // Create new tenant if not exists
       const hashedPin = await bcrypt.hash(pin, 10);
       const defaultSettings = JSON.stringify({ theme: 'laptop', storeName: name || 'Toko Baru', ads: [] });
-      db.run('INSERT INTO tenants (code, name, settings, pin) VALUES (?, ?, ?, ?)', [code, name || 'Toko Baru', defaultSettings, hashedPin], function(err) {
+      db.run('INSERT INTO tenants (code, name, settings, pin, phone) VALUES (?, ?, ?, ?, ?)', [code, name || 'Toko Baru', defaultSettings, hashedPin, phone || ''], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         const token = jwt.sign({ code, role: 'tenant', tier: 'free' }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ code, name: name || 'Toko Baru', tier: 'free', settings: defaultSettings, token });
+        res.json({ code, name: name || 'Toko Baru', tier: 'free', settings: defaultSettings, phone: phone || '', token });
       });
     }
   });

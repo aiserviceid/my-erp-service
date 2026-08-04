@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ============================================================
@@ -267,6 +267,180 @@ function SuperAdminLoginGate({ onSuccess }) {
   );
 }
 
+// ── CRM PELANGGAN — dikelompokkan berdasarkan paket berlangganan ──
+const TIER_META = {
+  free: { label: 'Gratis', color: '#059669', bg: '#ecfdf5', border: '#86efac' },
+  pro: { label: 'Pro', color: '#0284c7', bg: '#e0f2fe', border: '#7dd3fc' },
+  enterprise: { label: 'Enterprise', color: '#7c3aed', bg: '#f3e8ff', border: '#d8b4fe' },
+};
+
+function CrmPelangganPanel({ tenants, onRefresh }) {
+  const [search, setSearch] = useState('');
+  const [tierFilter, setTierFilter] = useState('all');
+
+  const normalized = (tenants || []).map(t => ({
+    ...t,
+    tier: (t.tier || 'free').toLowerCase(),
+  }));
+
+  const q = search.trim().toLowerCase();
+  const filtered = normalized.filter(t => {
+    const matchesSearch = !q || t.name?.toLowerCase().includes(q) || t.code?.toLowerCase().includes(q) || (t.phone || '').includes(q);
+    const matchesTier = tierFilter === 'all' || t.tier === tierFilter;
+    return matchesSearch && matchesTier;
+  });
+
+  const groups = ['free', 'pro', 'enterprise'].map(tier => ({
+    tier,
+    meta: TIER_META[tier],
+    items: filtered.filter(t => t.tier === tier),
+  }));
+
+  const counts = {
+    free: normalized.filter(t => t.tier === 'free').length,
+    pro: normalized.filter(t => t.tier === 'pro').length,
+    enterprise: normalized.filter(t => t.tier === 'enterprise').length,
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>CRM Pelanggan 📇</h2>
+          <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>Data pelanggan yang mendaftar, dikelompokkan otomatis berdasarkan paket langganan</p>
+        </div>
+        <button onClick={onRefresh} style={{ padding: '6px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
+          Refresh Data 🔄
+        </button>
+      </div>
+
+      {/* Summary Cards per Paket */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '1.5rem' }}>
+        {['free', 'pro', 'enterprise'].map(tier => {
+          const meta = TIER_META[tier];
+          return (
+            <div
+              key={tier}
+              onClick={() => setTierFilter(tierFilter === tier ? 'all' : tier)}
+              style={{
+                background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: '14px', padding: '1rem',
+                cursor: 'pointer', outline: tierFilter === tier ? `2px solid ${meta.color}` : 'none'
+              }}
+            >
+              <div style={{ fontSize: '0.8rem', color: meta.color, fontWeight: '800', textTransform: 'uppercase' }}>Paket {meta.label}</div>
+              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#0f172a' }}>{counts[tier]}</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Pelanggan Terdaftar</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Search & Filter */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari nama toko, kode, atau nomor WhatsApp..."
+            style={{ width: '100%', padding: '10px 12px 10px 36px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+          />
+        </div>
+        <select
+          value={tierFilter}
+          onChange={e => setTierFilter(e.target.value)}
+          style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '700', background: '#fff' }}
+        >
+          <option value="all">Semua Paket</option>
+          <option value="free">Gratis</option>
+          <option value="pro">Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+
+      {/* Grouped by Paket */}
+      {groups.map(({ tier, meta, items }) => {
+        if (tierFilter !== 'all' && tierFilter !== tier) return null;
+        return (
+          <div key={tier} style={{ marginBottom: '1.8rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.8rem' }}>
+              <span style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '900' }}>
+                Paket {meta.label} — {items.length} Pelanggan
+              </span>
+            </div>
+
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ padding: '12px' }}>Nama Toko / Pelanggan</th>
+                      <th style={{ padding: '12px' }}>Kode Toko</th>
+                      <th style={{ padding: '12px' }}>No. WhatsApp</th>
+                      <th style={{ padding: '12px' }}>Reputasi</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(t => {
+                      const tSettings = typeof t.settings === 'string' ? JSON.parse(t.settings || '{}') : (t.settings || {});
+                      return (
+                        <tr key={t.code} style={{ borderBottom: '1px solid #e2e8f0', opacity: tSettings.is_banned ? 0.6 : 1 }}>
+                          <td style={{ padding: '12px', fontWeight: '700' }}>
+                            {t.name}
+                            {tSettings.is_banned && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#dc2626', fontWeight: 'bold' }}>(BANNED)</span>}
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.8rem' }}>
+                              {t.code}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            {t.phone ? (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155', fontWeight: '600' }}>
+                                <PhoneIcon size={13} color="#059669" /> {t.phone}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>Belum diisi</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px' }}>{t.reputation_points || 0} poin</td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            {t.phone ? (
+                              <a
+                                href={`https://wa.me/${t.phone.replace(/^0/, '62')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#25D366', color: 'white',
+                                  border: 'none', padding: '6px 12px', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', textDecoration: 'none'
+                                }}
+                              >
+                                💬 Chat WA
+                              </a>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {items.length === 0 && (
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>Belum ada pelanggan di paket ini</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── MAIN SUPER ADMIN ─────────────────────────────────────────
 export default function SuperAdmin() {
   const [authenticated, setAuthenticated] = useState(isSessionValid());
@@ -500,6 +674,19 @@ export default function SuperAdmin() {
           </button>
 
           <button 
+            onClick={() => setActiveTab('crm')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
+              background: activeTab === 'crm' ? '#0284c7' : '#ffffff', color: activeTab === 'crm' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'crm' ? '0 4px 12px rgba(2, 132, 199, 0.3)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'crm' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <Contact size={18} /> CRM Pelanggan ({stats.tenants.length})
+          </button>
+
+          <button 
             onClick={() => setActiveTab('withdrawals')}
             style={{
               display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
@@ -596,6 +783,7 @@ export default function SuperAdmin() {
                     <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                       <th style={{ padding: '12px' }}>Kode Toko</th>
                       <th style={{ padding: '12px' }}>Nama Toko</th>
+                      <th style={{ padding: '12px' }}>No. WhatsApp</th>
                       <th style={{ padding: '12px' }}>Paket (Tier)</th>
                       <th style={{ padding: '12px' }}>Reputasi</th>
                       <th style={{ padding: '12px' }}>Saldo Dompet</th>
@@ -614,6 +802,15 @@ export default function SuperAdmin() {
                           {tSettings.is_banned && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#dc2626', fontWeight: 'bold' }}>(BANNED)</span>}
                         </td>
                         <td style={{ padding: '12px', fontWeight: '700' }}>{t.name}</td>
+                        <td style={{ padding: '12px', color: '#334155' }}>
+                          {t.phone ? (
+                            <a href={`https://wa.me/${t.phone.replace(/^0/, '62')}`} target="_blank" rel="noreferrer" style={{ color: '#059669', fontWeight: '700', textDecoration: 'none' }}>
+                              📱 {t.phone}
+                            </a>
+                          ) : (
+                            <span style={{ color: '#94a3b8' }}>-</span>
+                          )}
+                        </td>
                         <td style={{ padding: '12px' }}>
                           <select 
                             value={t.tier || 'free'} 
@@ -672,12 +869,17 @@ export default function SuperAdmin() {
                       </tr>
                     );})}
                     {stats.tenants.length === 0 && (
-                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada toko yang mendaftar</td></tr>
+                      <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada toko yang mendaftar</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
+          )}
+
+          {/* 2B. CRM PELANGGAN — dikelompokkan berdasarkan paket */}
+          {activeTab === 'crm' && (
+            <CrmPelangganPanel tenants={stats.tenants} onRefresh={loadStats} />
           )}
 
           {/* 3. WITHDRAWALS MANAGEMENT */}
