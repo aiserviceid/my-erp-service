@@ -117,6 +117,19 @@ export const apiService = {
     try {
       let cleanCode = (tenant_code || '').trim().toUpperCase();
       
+      if (cleanCode === 'DEMO-STORE') {
+        const demoUsers = [
+          { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', tenant_code: 'DEMO-STORE' },
+        ];
+        const user = demoUsers.find(u => u.pin === pin);
+        if (user) return { user, token: 'demo-token-123' };
+        throw new Error('PIN atau Kode Toko Salah!');
+      }
+      
       // Attempt to resolve real tenant_code if they accidentally typed the tenant name
       const { data: tenantSearch } = await supabase
         .from('tenants')
@@ -229,14 +242,30 @@ export const apiService = {
     }
   },
   
-  getAuditLogs: async (tenantCode) => {
+  getTransactions: async (tenantCode) => {
     try {
+      if (tenantCode === 'DEMO-STORE') {
+        const demoTxs = [];
+        for (let i = 1; i <= 25; i++) {
+          demoTxs.push({
+            id: `TRX-POS-${100 + i}`,
+            tenant_code: 'DEMO-STORE',
+            type: i % 4 === 0 ? 'EXPENSE' : i % 3 === 0 ? 'INCOME' : 'POS_SALES',
+            amount: i % 4 === 0 ? 150000 : (i * 85000) + 120000,
+            description: i % 4 === 0 ? 'Beli Kertas Struk & Konsumsi Toko' : `Penjualan Kasir / Servis #${i}`,
+            created_at: new Date(Date.now() - (i * 3600000 * 6)).toISOString()
+          });
+        }
+        return demoTxs;
+      }
+
       const { data, error } = await supabase
-        .from('stock_movements')
-        .select('*, products(name)')
+        .from('transactions')
+        .select('*')
         .eq('tenant_code', tenantCode)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(1000);
+      
       if (error) throw error;
       return data || [];
     } catch (e) {
@@ -258,11 +287,22 @@ export const apiService = {
 
   getUsers: async (tenantCode) => {
     try {
+      if (tenantCode === 'DEMO-STORE') {
+        return [
+          { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', tenant_code: 'DEMO-STORE' },
+        ];
+      }
+
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, role, pin')
-        .eq('tenant_code', tenantCode);
-
+        .select('id, name, role, is_active, created_at, tenant_code, settings')
+        .eq('tenant_code', tenantCode)
+        .order('name');
+      
       if (error) throw error;
       return data || [];
     } catch (e) {
@@ -296,12 +336,23 @@ export const apiService = {
   // 5. Services
   getServices: async (tenantCode) => {
     try {
+      if (tenantCode === 'DEMO-STORE') {
+        return [
+          { resi: 'TRX-1001', customer_name: 'Hendra Saputra', customer_phone: '081234567890', device_name: 'Laptop ASUS ROG Strix GL553', issue: 'Mati total terkena cairan kopi', status: 'DIKERJAKAN', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*24*2).toISOString(), tenant_code: 'DEMO-STORE' },
+          { resi: 'TRX-1002', customer_name: 'Siti Rahma', customer_phone: '085712345678', device_name: 'MacBook Air M1 2020', issue: 'Layar blank hitam, suara nyala', status: 'DICEK', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*24*1).toISOString(), tenant_code: 'DEMO-STORE' },
+          { resi: 'TRX-1003', customer_name: 'Bambang Wijaya', customer_phone: '081987654321', device_name: 'Lenovo ThinkPad T480', issue: 'Upgrade SSD 512GB & RAM 16GB', status: 'SELESAI', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*12).toISOString(), tenant_code: 'DEMO-STORE' },
+          { resi: 'TRX-1004', customer_name: 'Dewi Lestari', customer_phone: '082133445566', device_name: 'Acer Nitro 5 AN515', issue: 'Kipas berisik & panas lemot', status: 'DIAMBIL', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*5).toISOString(), tenant_code: 'DEMO-STORE' },
+          { resi: 'TRX-1005', customer_name: 'Rian Pratama', customer_phone: '087811223344', device_name: 'HP Pavilion Gaming 15', issue: 'Keyboard eror pencet sendiri', status: 'MENUNGGU_PART', technician_id: 'EMP-5', created_at: new Date(Date.now() - 3600000*3).toISOString(), tenant_code: 'DEMO-STORE' },
+          { resi: 'TRX-1006', customer_name: 'Fikri Haikal', customer_phone: '081299887766', device_name: 'Dell XPS 13 9360', issue: 'Baterai kembung mati diisi', status: 'PROSES', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*1).toISOString(), tenant_code: 'DEMO-STORE' }
+        ];
+      }
+
       const { data, error } = await supabase
         .from('services')
         .select('*')
         .eq('tenant_code', tenantCode)
         .order('created_at', { ascending: false });
-
+      
       if (error) throw error;
       return data || [];
     } catch (e) {

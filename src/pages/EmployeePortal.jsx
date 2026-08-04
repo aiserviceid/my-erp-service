@@ -276,6 +276,11 @@ export default function EmployeePortal() {
                 required
               />
             )}
+            {tenant?.code === 'DEMO-STORE' && (
+              <div style={{ background: '#fef2f2', color: '#991b1b', padding: '10px', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                Mode Simulasi Kasir & Teknisi Aktif
+              </div>
+            )}
             <input 
               type="password" 
               className="input-field" 
@@ -288,7 +293,22 @@ export default function EmployeePortal() {
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
               <LogIn size={18} /> Masuk
             </button>
+            
+            {tenant?.code === 'DEMO-STORE' && (
+              <button 
+                type="button"
+                className="btn btn-danger" 
+                style={{ width: '100%', marginTop: '0.8rem', background: '#dc2626', color: 'white' }} 
+                onClick={() => {
+                  useStore.getState().clearTenant();
+                  setTenantCode('');
+                }}
+              >
+                Keluar dari Mode Demo
+              </button>
+            )}
           </form>
+
           <button className="btn btn-ghost" style={{ marginTop: '1rem', width: '100%' }} onClick={() => navigate('/')}>
             Kembali ke Beranda
           </button>
