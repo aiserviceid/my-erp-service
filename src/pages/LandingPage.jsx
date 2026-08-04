@@ -586,6 +586,48 @@ export default function LandingPage() {
           {/* Pricing Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '26px', textAlign: 'left' }}>
             
+            {/* TIER 0: GRATIS (FREE FOREVER) */}
+            <div style={{ 
+              padding: '2.8rem 2rem', borderRadius: '24px', background: '#f8fafc',
+              border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.03)'
+            }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <span style={{ color: '#64748b', fontWeight: '800', fontSize: '0.85rem', textTransform: 'uppercase' }}>Mulai Dari Sini</span>
+                <h3 style={{ fontSize: '1.8rem', fontWeight: '900', marginTop: '4px', color: '#0f172a' }}>Paket Gratis</h3>
+                <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '6px' }}>Coba semua fitur dasar tanpa kartu kredit. Selamanya.</p>
+              </div>
+
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#0f172a' }}>
+                  Rp 0 <span style={{ fontSize: '0.95rem', color: '#64748b', fontWeight: 'normal' }}>/selamanya</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: '700', marginTop: '4px' }}>
+                  ✓ Gratis Selamanya — Tanpa Batas Waktu
+                </div>
+              </div>
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.5rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Manajemen Servis (maks. 50/bln)</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Kasir POS Dasar (maks. 100 transaksi/bln)</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cek Status Resi Publik 24/7</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cetak Nota & Stiker Barcode</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Otomatisasi WA Bot</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Portal Karyawan / PIN</li>
+              </ul>
+
+              <button 
+                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}
+                style={{
+                  width: '100%', padding: '1rem', borderRadius: '12px', fontWeight: '700', fontSize: '0.95rem',
+                  background: 'transparent', color: '#475569', border: '1px dashed #cbd5e1',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                Mulai Gratis Sekarang →
+              </button>
+            </div>
+
             {/* TIER 1: STARTER (RP 79.000 / BLN) */}
             <div style={{ 
               padding: '2.8rem 2rem', borderRadius: '24px', background: '#ffffff',
@@ -609,10 +651,10 @@ export default function LandingPage() {
               </div>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.5rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Semua Fitur Gratis — Tanpa Batas</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Manajemen Servis & QR Barcode</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Kasir POS Penjualan Cepat</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cek Resi Publik 24/7</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Master Barang & Sparepart</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Otomatisasi WA Bot</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Portal Teknisi PIN</li>
               </ul>
