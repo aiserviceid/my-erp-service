@@ -164,30 +164,66 @@ export default function AdminDashboard() {
   };
   
   const exportToExcel = (txs) => {
-    const data = txs.map(t => {
-      const typeStr = t.type === 'INCOME' || t.type.startsWith('INCOME_') ? 'Pendapatan Servis' : t.type === 'POS_SALES' ? 'Penjualan' : t.type === 'BON_KARYAWAN' ? 'Kasbon' : t.type === 'EXPENSE' ? 'Pengeluaran' : 'Lainnya';
+    // 1. Kalkulasi Ringkasan
+    const totalServisJasa = txs.filter(t => t.type === 'INCOME' || t.type === 'INCOME_JASA').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const totalServisSparepart = txs.filter(t => t.type === 'INCOME_SPAREPART').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const totalPOS = txs.filter(t => t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const totalExpense = txs.filter(t => t.type === 'BON_KARYAWAN' || t.type === 'EXPENSE' || t.type === 'WITHDRAWAL').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const netProfit = (totalServisJasa + totalServisSparepart + totalPOS) - totalExpense;
+
+    // 2. Buat Struktur Laporan (Array of Arrays)
+    const aoa = [
+      [`LAPORAN KEUANGAN TOKO - ${(tenant?.name || 'UMUM').toUpperCase()}`],
+      [`Tanggal Ekspor:`, new Date().toLocaleString('id-ID')],
+      [`Filter Rentang:`, timeFilter],
+      [],
+      ['=== RINGKASAN KEUANGAN ==='],
+      ['Pemasukan Servis (Jasa)', totalServisJasa],
+      ['Pemasukan Servis (Sparepart)', totalServisSparepart],
+      ['Penjualan Kasir (POS)', totalPOS],
+      ['Total Pengeluaran / Kasbon', totalExpense],
+      ['LABA BERSIH KAS', netProfit],
+      [],
+      ['=== RINCIAN TRANSAKSI ==='],
+      ['Tanggal & Waktu', 'Kategori', 'Keterangan', 'Nominal (Rp)', 'Tipe Sistem']
+    ];
+
+    // 3. Masukkan Data Transaksi
+    txs.forEach(t => {
+      const typeStr = t.type === 'INCOME' || t.type.startsWith('INCOME_') ? 'Pendapatan Servis' : t.type === 'POS_SALES' ? 'Penjualan Kasir' : t.type === 'BON_KARYAWAN' ? 'Kasbon/Pinjaman' : t.type === 'EXPENSE' ? 'Pengeluaran Lain' : t.type === 'WITHDRAWAL' ? 'Tarik Saldo Laba' : 'Lainnya';
       const amount = (t.type === 'INCOME' || t.type.startsWith('INCOME_') || t.type === 'POS_SALES' ? t.amount : -t.amount);
-      return {
-        "Tanggal": new Date(t.created_at).toLocaleString('id-ID'),
-        "Kategori": typeStr,
-        "Keterangan": t.description || '-',
-        "Nominal (Rp)": amount
-      };
+      aoa.push([
+        new Date(t.created_at).toLocaleString('id-ID'),
+        typeStr,
+        t.description || '-',
+        amount,
+        t.type
+      ]);
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    // 4. Konversi ke Worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     
-    const wscols = [
-      {wch: 20},
-      {wch: 20},
-      {wch: 40},
-      {wch: 15} 
+    // 5. Percantik Tampilan Excel (Lebar Kolom & Merge Cell)
+    worksheet['!cols'] = [
+      {wch: 22}, // Tanggal
+      {wch: 22}, // Kategori
+      {wch: 45}, // Keterangan
+      {wch: 18}, // Nominal
+      {wch: 18}  // Tipe
     ];
-    worksheet['!cols'] = wscols;
 
+    worksheet['!merges'] = [
+      { s: {r:0, c:0}, e: {r:0, c:4} }, // Merge Judul Utama
+      { s: {r:4, c:0}, e: {r:4, c:4} }, // Merge Header Ringkasan
+      { s: {r:11, c:0}, e: {r:11, c:4} } // Merge Header Rincian
+    ];
+
+    // 6. Simpan File
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Keuangan");
-    XLSX.writeFile(workbook, `Laporan_Keuangan_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const safeName = tenant?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Toko';
+    XLSX.writeFile(workbook, `Laporan_Keuangan_${safeName}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const doPrint = (printerType) => {
