@@ -115,8 +115,19 @@ export const apiService = {
   // 2. Login Employee — Express Backend Auth
   loginEmployee: async (tenant_code, pin) => {
     try {
-      const cleanCode = (tenant_code || '').trim().toUpperCase();
+      let cleanCode = (tenant_code || '').trim().toUpperCase();
       
+      // Attempt to resolve real tenant_code if they accidentally typed the tenant name
+      const { data: tenantSearch } = await supabase
+        .from('tenants')
+        .select('code')
+        .or(`code.eq.${cleanCode},name.ilike.${cleanCode}`)
+        .maybeSingle();
+
+      if (tenantSearch && tenantSearch.code) {
+        cleanCode = tenantSearch.code;
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
