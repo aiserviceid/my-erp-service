@@ -1830,26 +1830,51 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2.5rem' }}>
-                    <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid var(--accent)', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Pemasukan Servis (Jasa)</p>
-                      <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.5rem' }}>Rp {totalServisJasa.toLocaleString('id-ID')}</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '2.5rem' }}>
+                    {/* LABA BERSIH - MAIN HIGHLIGHT */}
+                    <div style={{ padding: '2rem', background: 'linear-gradient(135deg, var(--primary) 0%, #1e1b4b 100%)', color: 'white', borderRadius: '16px', boxShadow: '0 8px 20px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.2)', padding: '15px', borderRadius: '50%' }}>
+                        <Wallet size={36} color="white" />
+                      </div>
+                      <div>
+                        <p style={{ margin: '0 0 5px 0', opacity: 0.9, fontSize: '1rem', fontWeight: 'bold', color: 'white' }}>Total Laba Bersih Kas</p>
+                        <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'white', fontWeight: '900', letterSpacing: '-0.5px' }}>Rp {netProfit.toLocaleString('id-ID')}</h2>
+                      </div>
                     </div>
-                    <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid #8b5cf6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Pemasukan Servis (Sparepart)</p>
-                      <h3 style={{ margin: 0, color: '#8b5cf6', fontSize: '1.5rem' }}>Rp {totalServisSparepart.toLocaleString('id-ID')}</h3>
-                    </div>
-                    <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid #3b82f6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Penjualan Kasir (POS)</p>
-                      <h3 style={{ margin: 0, color: '#3b82f6', fontSize: '1.5rem' }}>Rp {totalPOS.toLocaleString('id-ID')}</h3>
-                    </div>
-                    <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', borderLeft: '5px solid #ef4444', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                      <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>Total Pengeluaran/Kasbon</p>
-                      <h3 style={{ margin: 0, color: '#ef4444', fontSize: '1.5rem' }}>Rp {totalExpense.toLocaleString('id-ID')}</h3>
-                    </div>
-                    <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, var(--primary) 0%, #1e1b4b 100%)', color: 'white', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
-                      <p style={{ margin: '0 0 5px 0', opacity: 0.9, fontSize: '0.9rem', fontWeight: 'bold', color: 'white' }}>Laba Bersih Kas</p>
-                      <h2 style={{ margin: 0, fontSize: '1.8rem', color: 'white' }}>Rp {netProfit.toLocaleString('id-ID')}</h2>
+
+                    {/* BREAKDOWN METRICS */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '10px', borderRadius: '10px', color: 'var(--accent)' }}><Wrench size={24} /></div>
+                        <div>
+                          <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Pemasukan Jasa</p>
+                          <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1.2rem' }}>Rp {totalServisJasa.toLocaleString('id-ID')}</h3>
+                        </div>
+                      </div>
+                      
+                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                        <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '10px', borderRadius: '10px', color: '#8b5cf6' }}><Package size={24} /></div>
+                        <div>
+                          <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Pemasukan Sparepart</p>
+                          <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1.2rem' }}>Rp {totalServisSparepart.toLocaleString('id-ID')}</h3>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                        <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '10px', borderRadius: '10px', color: '#3b82f6' }}><ShoppingCart size={24} /></div>
+                        <div>
+                          <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Penjualan Kasir (POS)</p>
+                          <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1.2rem' }}>Rp {totalPOS.toLocaleString('id-ID')}</h3>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '10px', color: '#ef4444' }}><DollarSign size={24} /></div>
+                        <div>
+                          <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Total Pengeluaran</p>
+                          <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1.2rem' }}>Rp {totalExpense.toLocaleString('id-ID')}</h3>
+                        </div>
+                      </div>
                     </div>
                 </div>
 
