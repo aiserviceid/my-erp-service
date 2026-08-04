@@ -1168,7 +1168,45 @@ export default function AdminDashboard() {
             </div>
 
             {/* TABEL DATABASE PELANGGAN */}
-            <h4 style={{ marginBottom: '1rem', color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan Toko:</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+              <h4 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan Toko:</h4>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  className="btn"
+                  style={{ background: '#e2e8f0', color: '#475569', fontWeight: '600', padding: '6px 12px', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    const numbers = [...new Set(services.map(s => s.customer_phone).filter(Boolean))].map(n => n.replace(/^0/, '62')).join(', ');
+                    navigator.clipboard.writeText(numbers);
+                    alert('Berhasil disalin!\n\nSilakan "Paste" nomor-nomor ini di HP Anda untuk membuat Broadcast List WhatsApp.\n\nTotal: ' + [...new Set(services.map(s => s.customer_phone).filter(Boolean))].length + ' Nomor');
+                  }}
+                >
+                  📋 Salin Semua Nomor (Broadcast WA)
+                </button>
+                <button 
+                  className="btn"
+                  style={{ background: '#25D366', color: 'white', fontWeight: 'bold', padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  onClick={() => {
+                    const msgInput = document.getElementById('waBlastMessage');
+                    const msgText = msgInput ? msgInput.value : `Halo Kak, salam dari ${settings.storeName || tenant?.name || 'Toko Servis'}!`;
+                    
+                    // Hilangkan duplikat nomor HP
+                    const uniqueServices = services.filter((v,i,a)=>a.findIndex(t=>(t.customer_phone === v.customer_phone))===i);
+                    
+                    if(!confirm(`PERINGATAN POPUP: Aksi ini akan membuka ${uniqueServices.length} tab WhatsApp secara berurutan.\n\nPastikan fitur "Popup Blocker" di browser Anda sudah DIIZINKAN (Allow Popups) untuk situs ini.\n\nLanjutkan mengirim WA Blast?`)) return;
+                    
+                    uniqueServices.forEach((s, idx) => {
+                      setTimeout(() => {
+                        const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
+                        let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
+                        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(personalizedMsg)}`, '_blank');
+                      }, idx * 800); // jeda 800ms per tab agar browser tidak hang
+                    });
+                  }}
+                >
+                  🚀 Buka Tab Multi-Blast
+                </button>
+              </div>
+            </div>
             <div style={{ overflowX: 'auto' }}>
               <table className="table">
                 <thead>
