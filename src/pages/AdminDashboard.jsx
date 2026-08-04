@@ -745,75 +745,90 @@ export default function AdminDashboard() {
                 background: '#ffffff', border: '2px solid #bae6fd', borderRadius: '20px',
                 padding: '1.8rem 1.5rem', boxShadow: '0 8px 25px rgba(2,132,199,0.08)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>🚀</span>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '900', color: '#0f172a' }}>Mulai Menggunakan AIService</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>Selesaikan 4 langkah setup cepat agar toko Anda berjalan otomatis.</p>
-                    </div>
-                  </div>
-                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 14px', borderRadius: '100px', fontWeight: '900', fontSize: '0.85rem' }}>
-                    Progress Setup: {users.length > 0 ? '40%' : '20%'}
-                  </div>
-                </div>
+                {(() => {
+                  const hasUsers = users.length > 0;
+                  const hasProducts = products.length > 0;
+                  const hasServices = services.length > 0;
+                  const progressCount = 1 + (hasUsers ? 1 : 0) + (hasProducts ? 1 : 0) + (hasServices ? 1 : 0);
+                  const progressPercent = (progressCount / 4) * 100;
 
-                {/* Progress Bar */}
-                <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                  <div style={{ width: users.length > 0 ? '40%' : '20%', height: '100%', background: 'linear-gradient(90deg, #0284c7 0%, #2563eb 100%)', borderRadius: '100px' }} />
-                </div>
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '1.5rem' }}>🚀</span>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '900', color: '#0f172a' }}>Mulai Menggunakan AIService</h4>
+                            <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>Selesaikan 4 langkah setup cepat agar toko Anda berjalan otomatis.</p>
+                          </div>
+                        </div>
+                        <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 14px', borderRadius: '100px', fontWeight: '900', fontSize: '0.85rem' }}>
+                          Progress Setup: {progressPercent}%
+                        </div>
+                      </div>
 
-                {/* Steps Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                  <div 
-                    onClick={() => setActiveTab('settings')}
-                    style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>✅</span>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#166534' }}>1. Profil Toko</div>
-                      <div style={{ fontSize: '0.72rem', color: '#15803d' }}>Nama & WA terkonfigurasi</div>
-                    </div>
-                  </div>
-                  <div 
-                    onClick={() => setActiveTab('users')}
-                    style={{ padding: '12px', borderRadius: '12px', background: users.length > 0 ? '#f0fdf4' : '#fffbeb', border: `1px solid ${users.length > 0 ? '#bbf7d0' : '#fde68a'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>{users.length > 0 ? '✅' : '👨‍🔧'}</span>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: users.length > 0 ? '#166534' : '#b45309' }}>2. Tambah Teknisi</div>
-                      <div style={{ fontSize: '0.72rem', color: users.length > 0 ? '#15803d' : '#d97706' }}>{users.length} Teknisi Terdaftar</div>
-                    </div>
-                  </div>
-                  <div 
-                    onClick={() => setActiveTab('products')}
-                    style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📦</span>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#475569' }}>3. Tambah Barang</div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Master Sparepart</div>
-                    </div>
-                  </div>
-                  <div 
-                    onClick={() => setActiveTab('services')}
-                    style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📝</span>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#475569' }}>4. Buat Servis</div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Input Resi Pertama</div>
-                    </div>
-                  </div>
-                </div>
+                      {/* Progress Bar */}
+                      <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ width: `${progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #0284c7 0%, #2563eb 100%)', borderRadius: '100px' }} />
+                      </div>
+
+                      {/* Steps Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                        <div 
+                          onClick={() => setActiveTab('pengaturan')}
+                          style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                        >
+                          <span style={{ fontSize: '1.2rem' }}>✅</span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#166534' }}>1. Profil Toko</div>
+                            <div style={{ fontSize: '0.72rem', color: '#15803d' }}>Nama & WA terkonfigurasi</div>
+                          </div>
+                        </div>
+                        
+                        <div 
+                          onClick={() => setActiveTab('karyawan')}
+                          style={{ padding: '12px', borderRadius: '12px', background: hasUsers ? '#f0fdf4' : '#fffbeb', border: `1px solid ${hasUsers ? '#bbf7d0' : '#fde68a'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                        >
+                          <span style={{ fontSize: '1.2rem' }}>{hasUsers ? '✅' : '👨‍🔧'}</span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: hasUsers ? '#166534' : '#b45309' }}>2. Tambah Teknisi</div>
+                            <div style={{ fontSize: '0.72rem', color: hasUsers ? '#15803d' : '#d97706' }}>{hasUsers ? `${users.length} Teknisi Terdaftar` : 'Belum ada teknisi'}</div>
+                          </div>
+                        </div>
+
+                        <div 
+                          onClick={() => setActiveTab('master')}
+                          style={{ padding: '12px', borderRadius: '12px', background: hasProducts ? '#f0fdf4' : '#f8fafc', border: `1px solid ${hasProducts ? '#bbf7d0' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                        >
+                          <span style={{ fontSize: '1.2rem' }}>{hasProducts ? '✅' : '📦'}</span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: hasProducts ? '#166534' : '#475569' }}>3. Tambah Barang</div>
+                            <div style={{ fontSize: '0.72rem', color: hasProducts ? '#15803d' : '#64748b' }}>{hasProducts ? `${products.length} Barang` : 'Master Sparepart'}</div>
+                          </div>
+                        </div>
+
+                        <div 
+                          onClick={() => setActiveTab('servis')}
+                          style={{ padding: '12px', borderRadius: '12px', background: hasServices ? '#f0fdf4' : '#f8fafc', border: `1px solid ${hasServices ? '#bbf7d0' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                        >
+                          <span style={{ fontSize: '1.2rem' }}>{hasServices ? '✅' : '📝'}</span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: hasServices ? '#166534' : '#475569' }}>4. Buat Servis</div>
+                            <div style={{ fontSize: '0.72rem', color: hasServices ? '#15803d' : '#64748b' }}>{hasServices ? `${services.length} Servis` : 'Input Resi Pertama'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
