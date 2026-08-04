@@ -69,12 +69,11 @@ export const apiService = {
           name: name || cleanCode, 
           tier: 'free', 
           settings: { storeName: name || cleanCode, store_wa: phone || '' }, 
-          phone: phone || '', 
           pin: pin || '' 
         };
         await supabase.from('tenants').insert(newStore);
         resultToken = `dev_token_${cleanCode}`;
-        resultTenant = newStore;
+        resultTenant = { ...newStore, phone: phone || '' };
       } else {
         resultToken = `dev_token_${cleanCode}`;
         resultTenant = existing;
@@ -98,7 +97,6 @@ export const apiService = {
         const supabaseRecord = {
           code: resultTenant.code,
           name: name || resultTenant.name || resultTenant.code,
-          phone: phone || resultTenant.phone || '',
           tier: resultTenant.tier || 'free',
           settings: settingsToSave
         };
