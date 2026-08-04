@@ -762,6 +762,9 @@ export const apiService = {
       await supabase.from('products').delete().eq('tenant_code', tenantCode);
       await supabase.from('services').delete().eq('tenant_code', tenantCode);
       await supabase.from('transactions').delete().eq('tenant_code', tenantCode);
+      await supabase.from('forum_posts').delete().eq('tenant_code', tenantCode);
+      await supabase.from('forum_threads').delete().eq('tenant_code', tenantCode);
+      await supabase.from('withdrawals').delete().eq('tenant_code', tenantCode);
       
       const { error } = await supabase
         .from('tenants')
