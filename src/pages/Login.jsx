@@ -70,14 +70,15 @@ export default function Login() {
       const res = await apiService.loginTenant(code, name, pin);
       const data = res.tenant || res;
 
-      if (selectedTier !== 'free') {
-        setShowPaymentModal(true);
-      } else {
-        setSuccessMsg('Pendaftaran Toko Berhasil! Sedang mengalihkan ke Dashboard...');
+      if (selectedTier === 'free') {
+        // Paket gratis — langsung masuk, tidak perlu bayar
+        setSuccessMsg('Akun Gratis berhasil dibuat! Mengalihkan ke Dashboard...');
         setTenant(data.code, data.name, '', 'free', res.token || `tenant_${data.code}`);
-        setTimeout(() => {
-          navigate('/admin');
-        }, 1500);
+        setTimeout(() => { navigate('/admin'); }, 1500);
+      } else {
+        // Paket berbayar (Pro / Enterprise) — wajib tampil modal pembayaran dulu
+        setShowPaymentModal(true);
+        setTenant(data.code, data.name, '', selectedTier, res.token || `tenant_${data.code}`);
       }
     } catch (err) {
       setError(err.message || 'Gagal mendaftar. Silakan gunakan Kode Toko lain.');
@@ -89,13 +90,13 @@ export default function Login() {
   const getTierPriceText = () => {
     if (selectedTier === 'enterprise') return 'Rp 299.000';
     if (selectedTier === 'pro') return 'Rp 149.000';
-    return 'Rp 79.000';
+    return 'GRATIS';
   };
 
   const getTierTitle = () => {
     if (selectedTier === 'enterprise') return 'Paket Enterprise (Rp 299.000/bln)';
     if (selectedTier === 'pro') return 'Paket Pro (Rp 149.000/bln)';
-    return 'Paket Starter (Rp 79.000/bln)';
+    return 'Paket Gratis (Rp 0/selamanya)';
   };
 
   const getWaUrl = () => {
@@ -321,13 +322,13 @@ export default function Login() {
               />
             </div>
 
-            {/* Tier Selector (Starter 79k, Pro 149k, Enterprise 299k) */}
+            {/* Tier Selector — 3 paket: Free, Pro, Enterprise */}
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
-                Pilihan Paket Berlangganan (Promo)
+                Pilihan Paket Berlangganan
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                {/* Starter 79k */}
+                {/* Free */}
                 <div 
                   onClick={() => setSelectedTier('free')}
                   style={{
@@ -337,8 +338,8 @@ export default function Login() {
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#059669' : '#0f172a' }}>Starter</div>
-                  <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '700' }}>Rp 79rb/bln</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#059669' : '#0f172a' }}>Gratis</div>
+                  <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '700' }}>Rp 0</div>
                 </div>
 
                 {/* Pro 149k */}
@@ -376,12 +377,14 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%', padding: '12px', borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '0.95rem',
-                background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                background: selectedTier === 'free'
+                  ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                  : 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
                 color: 'white', cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
-              Lanjut Pendaftaran ({getTierPriceText()}) 🚀
+              {loading ? 'Memproses...' : selectedTier === 'free' ? 'Daftar Gratis Sekarang →' : `Lanjut Bayar & Aktifkan (${getTierPriceText()}) 🚀`}
             </button>
           </form>
         )}

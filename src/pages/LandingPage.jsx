@@ -558,35 +558,11 @@ export default function LandingPage() {
             Mulai gratis selamanya atau nikmati fitur terlengkap dengan diskon harga promo coret spesial.
           </p>
 
-          {/* Billing Switch (Bulanan vs Tahunan 20% OFF) */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', padding: '4px', borderRadius: '14px', marginBottom: '3.5rem', border: '1px solid #e2e8f0' }}>
-            <button 
-              onClick={() => setBillingCycle('monthly')}
-              style={{
-                padding: '10px 24px', borderRadius: '10px', border: 'none', fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer',
-                background: billingCycle === 'monthly' ? '#0284c7' : 'transparent', color: billingCycle === 'monthly' ? 'white' : '#64748b',
-                transition: 'all 0.2s', boxShadow: billingCycle === 'monthly' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
-              }}
-            >
-              Tagihan Bulanan
-            </button>
-            <button 
-              onClick={() => setBillingCycle('yearly')}
-              style={{
-                padding: '10px 24px', borderRadius: '10px', border: 'none', fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer',
-                background: billingCycle === 'yearly' ? '#0284c7' : 'transparent', color: billingCycle === 'yearly' ? 'white' : '#64748b',
-                display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
-                boxShadow: billingCycle === 'yearly' ? '0 2px 8px rgba(2, 132, 199, 0.3)' : 'none'
-              }}
-            >
-              Paket Tahunan <span style={{ fontSize: '0.75rem', background: '#059669', color: 'white', padding: '2px 8px', borderRadius: '100px', fontWeight: '800' }}>Diskon 20% 🔥</span>
-            </button>
-          </div>
 
-          {/* Pricing Grid */}
+          {/* Pricing Grid — 3 Paket */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '26px', textAlign: 'left' }}>
             
-            {/* TIER 0: GRATIS (FREE FOREVER) */}
+            {/* KARTU 1: GRATIS */}
             <div style={{ 
               padding: '2.8rem 2rem', borderRadius: '24px', background: '#f8fafc',
               border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column',
@@ -612,7 +588,7 @@ export default function LandingPage() {
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Kasir POS Dasar (maks. 100 transaksi/bln)</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cek Status Resi Publik 24/7</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cetak Nota & Stiker Barcode</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Otomatisasi WA Bot</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> WA Bot Otomatis</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Portal Karyawan / PIN</li>
               </ul>
 
@@ -628,51 +604,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* TIER 1: STARTER (HARGA FLEKSIBEL - HUBUNGI ADMIN) */}
-            <div style={{ 
-              padding: '2.8rem 2rem', borderRadius: '24px', background: '#ffffff',
-              border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column',
-              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.04)'
-            }}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <span style={{ color: '#0284c7', fontWeight: '800', fontSize: '0.85rem', textTransform: 'uppercase' }}>Pro Store</span>
-                <h3 style={{ fontSize: '1.8rem', fontWeight: '900', marginTop: '4px', color: '#0f172a' }}>Paket Pro</h3>
-                <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '6px' }}>Solusi operasional lengkap untuk konter & bengkel.</p>
-              </div>
-
-              {/* No fixed price — Contact Admin */}
-              <div style={{ marginBottom: '2rem' }}>
-                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#0284c7', background: '#e0f2fe', padding: '12px 16px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                  💬 Harga Spesial — Hubungi Admin
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: '700', marginTop: '8px' }}>
-                  ✓ Dapatkan penawaran terbaik via WhatsApp
-                </div>
-              </div>
-
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.5rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Semua Fitur Gratis — Tanpa Batas</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Manajemen Servis & QR Barcode Unlimited</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Kasir POS Penjualan Unlimited</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#334155' }}><Check size={18} color="#059669" /> Cek Resi Publik 24/7</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Otomatisasi WA Bot</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#94a3b8' }}><X size={18} /> <strong>Tanpa</strong> Portal Teknisi PIN</li>
-              </ul>
-
-              <a
-                href="https://wa.me/6285382535050?text=Halo%20Admin%20AIService.ID%2C%20saya%20tertarik%20dengan%20Paket%20Starter.%20Boleh%20info%20harga%20spesialnya%3F"
-                target="_blank" rel="noreferrer"
-                style={{
-                  width: '100%', padding: '1rem', borderRadius: '12px', fontWeight: '700', fontSize: '0.95rem',
-                  background: '#25D366', color: 'white', border: 'none',
-                  cursor: 'pointer', transition: 'all 0.2s', textAlign: 'center', textDecoration: 'none', display: 'block'
-                }}
-              >
-                💬 Tanya Harga via WhatsApp
-              </a>
-            </div>
-
-            {/* TIER 2: PRO TITAN (RP 149.000 / BLN) */}
+            {/* KARTU 2: PRO — dengan toggle Bulanan/Tahunan di dalam */}
             <div style={{ 
               padding: '2.8rem 2rem', borderRadius: '24px', 
               background: '#ffffff',
@@ -683,7 +615,8 @@ export default function LandingPage() {
                 position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', 
                 background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white', 
                 padding: '4px 16px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900', 
-                letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)'
+                letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)',
+                whiteSpace: 'nowrap'
               }}>
                 ⭐ REKOMENDASI UTAMA OWNER
               </div>
@@ -694,10 +627,36 @@ export default function LandingPage() {
                 <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '6px' }}>Sistem operasional terlengkap untuk melipatgandakan omzet.</p>
               </div>
 
-              {/* Price Display — Dinamis berdasarkan billingCycle */}
+              {/* Toggle Bulanan / Tahunan — di dalam kartu Pro */}
+              <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '3px', marginBottom: '1.2rem', border: '1px solid #e2e8f0' }}>
+                <button
+                  onClick={() => setBillingCycle('monthly')}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
+                    background: billingCycle === 'monthly' ? '#0284c7' : 'transparent',
+                    color: billingCycle === 'monthly' ? 'white' : '#64748b',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Bulanan
+                </button>
+                <button
+                  onClick={() => setBillingCycle('yearly')}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
+                    background: billingCycle === 'yearly' ? '#0284c7' : 'transparent',
+                    color: billingCycle === 'yearly' ? 'white' : '#64748b',
+                    transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
+                  }}
+                >
+                  Tahunan <span style={{ fontSize: '0.68rem', background: '#059669', color: 'white', padding: '1px 6px', borderRadius: '100px', fontWeight: '800' }}>-20% 🔥</span>
+                </button>
+              </div>
+
+              {/* Harga dinamis */}
               <div style={{ marginBottom: '1.8rem' }}>
                 {billingCycle === 'yearly' && (
-                  <div style={{ fontSize: '0.88rem', color: '#94a3b8', textDecoration: 'line-through', marginBottom: '2px' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', textDecoration: 'line-through' }}>
                     Rp 149.000/bulan
                   </div>
                 )}
@@ -706,18 +665,13 @@ export default function LandingPage() {
                   <span style={{ fontSize: '0.95rem', color: '#64748b', fontWeight: 'normal' }}>/bulan</span>
                 </div>
                 {billingCycle === 'yearly' && (
-                  <div style={{ fontSize: '0.82rem', background: '#dcfce7', color: '#15803d', fontWeight: '800', padding: '4px 10px', borderRadius: '8px', display: 'inline-block', marginBottom: '4px' }}>
-                    🎉 Hemat Rp 358.800/tahun (Diskon 20%)
+                  <div style={{ fontSize: '0.8rem', background: '#dcfce7', color: '#15803d', fontWeight: '800', padding: '3px 10px', borderRadius: '8px', display: 'inline-block', margin: '4px 0' }}>
+                    🎉 Hemat Rp 358.800/tahun — Ditagih Rp {(119200 * 12).toLocaleString('id-ID')}/thn
                   </div>
                 )}
                 <div style={{ fontSize: '0.82rem', color: '#059669', fontWeight: '700', marginTop: '4px' }}>
                   ✓ Notif WA Otomatis + Portal Teknisi & Export Excel
                 </div>
-                {billingCycle === 'yearly' && (
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
-                    Ditagih Rp {(119200 * 12).toLocaleString('id-ID')}/tahun
-                  </div>
-                )}
               </div>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.2rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
@@ -726,7 +680,7 @@ export default function LandingPage() {
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Portal Teknisi & Upload Foto Progress</strong></li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Laporan Laba Bersih & Arus Kas Lengkap</strong></li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Export/Import Data Excel & CSV</strong></li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Bantuan Support Prioritas 24/7</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Support Prioritas 24/7</li>
               </ul>
 
               <button 
@@ -737,7 +691,7 @@ export default function LandingPage() {
                   cursor: 'pointer', boxShadow: '0 4px 18px rgba(2, 132, 199, 0.4)', transition: 'all 0.2s'
                 }}
               >
-                {billingCycle === 'yearly' ? 'Pilih Pro Titan Tahunan ⭐ (Hemat 20%)' : 'Pilih Paket Pro Titan ⭐'}
+                {billingCycle === 'yearly' ? 'Pilih Paket Pro Tahunan ⭐ (Hemat 20%)' : 'Pilih Paket Pro ⭐ (Rp 149rb/bln)'}
               </button>
             </div>
 
