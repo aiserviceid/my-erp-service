@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
   const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'nota' | 'promo'
   const [previewTab, setPreviewTab] = useState('servis');
+  const [empTab, setEmpTab] = useState('daftar'); // 'daftar' | 'kasbon' | 'absensi'
 
   const handleImageUpload = (file, callback) => {
     if (!file) return;
@@ -1919,167 +1920,188 @@ export default function AdminDashboard() {
           ) :
           <div className="glass-panel" style={{ minHeight: '400px' }}>
              <h3 style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
-             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1, minWidth: '150px' }} />
-                <input type="text" className="input-field" placeholder="PIN (Angka)" id="newEmpPin" style={{ width: '120px' }} />
-                <select className="input-field" id="newEmpRole" style={{ width: '120px' }}>
-                  <option value="TEKNISI">Teknisi</option>
-                  <option value="KASIR">Kasir</option>
-                </select>
-                <input type="number" className="input-field" placeholder="Gaji/Bulan (Rp)" id="newEmpSalary" style={{ width: '150px' }} />
-                <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} />
-                <button className="btn btn-primary" onClick={async () => {
-                  const name = document.getElementById('newEmpName').value;
-                  const pin = document.getElementById('newEmpPin').value;
-                  const role = document.getElementById('newEmpRole').value;
-                  const salary = document.getElementById('newEmpSalary').value || '0';
-                  const comm = document.getElementById('newEmpComm').value || '0';
-                  if (!name || !pin) return alert('Nama dan PIN wajib diisi');
-                  try {
-                    const newUser = await apiService.post('/users', { tenant_code: tenant.code, name, role, pin });
-                    
-                    const currentSettings = tenant.settings || {};
-                    const employee_commissions = currentSettings.employee_commissions || {};
-                    const employee_salaries = currentSettings.employee_salaries || {};
-                    employee_commissions[newUser.id] = parseInt(comm);
-                    employee_salaries[newUser.id] = parseInt(salary);
-                    const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
-                    await apiService.updateTenantSettings(tenant.code, newSettings);
-                    updateTenantSettings(newSettings);
 
-                    setUsers([...users, newUser]);
-                    document.getElementById('newEmpName').value = '';
-                    document.getElementById('newEmpPin').value = '';
-                    document.getElementById('newEmpSalary').value = '';
-                    document.getElementById('newEmpComm').value = '';
-                    alert('Karyawan Berhasil Ditambah!');
-                  } catch (e) { alert('Gagal'); }
-                }}>
-                  <Plus size={18} /> Tambah
-                </button>
+             {/* TABS HEADER */}
+             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
+               <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>👥 Daftar Karyawan</button>
+               <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>💰 Permintaan Kasbon</button>
+               <button onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>📅 Laporan Absensi</button>
              </div>
-             <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
-             <table className="table" style={{ marginTop: '1.5rem' }}>
-               <thead><tr><th>Nama Karyawan</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
-               <tbody>
-                 {users.map(u => (
-                   <tr key={u.id}>
-                     <td>{u.name}</td>
-                     <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
-                     <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
-                     <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
-                     <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
-                     <td>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button className="btn btn-warning" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                            const newName = prompt('Nama Karyawan:', u.name);
-                            if (newName === null) return;
-                            const newPin = prompt('PIN Login:', u.pin);
-                            if (newPin === null) return;
-                            const newSalaryStr = prompt('Gaji Pokok/Bulan (Rp):', tenant.settings?.employee_salaries?.[u.id] || 0);
-                            if (newSalaryStr === null) return;
-                            const newCommStr = prompt('Komisi (%):', tenant.settings?.employee_commissions?.[u.id] || 0);
-                            if (newCommStr === null) return;
 
-                            try {
-                              await apiService.updateUser(u.id, { name: newName, pin: newPin });
-                              
-                              const currentSettings = tenant.settings || {};
-                              const employee_commissions = currentSettings.employee_commissions || {};
-                              const employee_salaries = currentSettings.employee_salaries || {};
-                              employee_commissions[u.id] = parseInt(newCommStr);
-                              employee_salaries[u.id] = parseInt(newSalaryStr);
-                              const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
-                              await apiService.updateTenantSettings(tenant.code, newSettings);
-                              updateTenantSettings(newSettings);
+             {/* TAB CONTENT: DAFTAR KARYAWAN */}
+             {empTab === 'daftar' && (
+               <div className="animate-fade-in">
+                 <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                    <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1, minWidth: '150px' }} />
+                    <input type="text" className="input-field" placeholder="PIN (Angka)" id="newEmpPin" style={{ width: '120px' }} />
+                    <select className="input-field" id="newEmpRole" style={{ width: '120px' }}>
+                      <option value="TEKNISI">Teknisi</option>
+                      <option value="KASIR">Kasir</option>
+                    </select>
+                    <input type="number" className="input-field" placeholder="Gaji/Bulan (Rp)" id="newEmpSalary" style={{ width: '150px' }} />
+                    <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} />
+                    <button className="btn btn-primary" onClick={async () => {
+                      const name = document.getElementById('newEmpName').value;
+                      const pin = document.getElementById('newEmpPin').value;
+                      const role = document.getElementById('newEmpRole').value;
+                      const salary = document.getElementById('newEmpSalary').value || '0';
+                      const comm = document.getElementById('newEmpComm').value || '0';
+                      if (!name || !pin) return alert('Nama dan PIN wajib diisi');
+                      try {
+                        const newUser = await apiService.post('/users', { tenant_code: tenant.code, name, role, pin });
+                        
+                        const currentSettings = tenant.settings || {};
+                        const employee_commissions = currentSettings.employee_commissions || {};
+                        const employee_salaries = currentSettings.employee_salaries || {};
+                        employee_commissions[newUser.id] = parseInt(comm);
+                        employee_salaries[newUser.id] = parseInt(salary);
+                        const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
+                        await apiService.updateTenantSettings(tenant.code, newSettings);
+                        updateTenantSettings(newSettings);
 
-                              setUsers(users.map(x => x.id === u.id ? { ...x, name: newName, pin: newPin } : x));
-                            } catch(e) { alert('Gagal edit karyawan'); }
-                          }}>Edit</button>
-                          <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                            if(confirm('Yakin ingin menghapus karyawan ini?')) {
-                              try {
-                                await apiService.deleteUser(u.id);
-                                setUsers(users.filter(x => x.id !== u.id));
-                              } catch(e) { alert('Gagal hapus karyawan'); }
-                            }
-                          }}>Hapus</button>
-                        </div>
-                     </td>
-                   </tr>
-                 ))}
-                 {users.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan terdaftar.</td></tr>}
-               </tbody>
-             </table>
-             <h4 style={{ marginTop: '2rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>Permintaan Kasbon / Pinjaman</h4>
-             <table className="table">
-               <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Aksi</th></tr></thead>
-               <tbody>
-                 {transactions.filter(t => t.type === 'BON_PENDING').map(t => {
-                   const empId = t.description.replace('EMP_', '');
-                   const emp = users.find(u => u.id === empId);
-                   return (
-                     <tr key={t.id}>
-                       <td>{emp ? emp.name : 'Unknown'}</td>
-                       <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {t.amount?.toLocaleString('id-ID')}</td>
-                       <td>{new Date(t.created_at).toLocaleString('id-ID')}</td>
-                       <td>
-                         <div style={{ display: 'flex', gap: '5px' }}>
-                           <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
-                             if(confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')) {
-                               try {
-                                 await apiService.post('/transactions/update-type', { id: t.id, type: 'BON_KARYAWAN' }); // Need an endpoint for this, wait, the API service has get, post... let's just create a new transaction and delete the old one, or use a custom query. We added /services/update, did we add /transactions/update?
-                                 // Actually, Supabase isn't directly exposed. I will just delete the pending one and create an approved one.
-                                 await apiService.delete(`/transactions/${t.id}`);
-                                 await apiService.post('/transactions', { tenant_code: tenant.code, type: 'BON_KARYAWAN', amount: t.amount, description: t.description });
-                                 apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
-                                 alert('Kasbon disetujui!');
-                               } catch(e) { alert('Gagal update kasbon'); }
-                             }
-                           }}>Setujui</button>
-                           <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                             if(confirm('Tolak kasbon ini?')) {
-                               try {
-                                 await apiService.delete(`/transactions/${t.id}`);
-                                 apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
-                               } catch(e) { alert('Gagal tolak kasbon'); }
-                             }
-                           }}>Tolak</button>
-                         </div>
-                       </td>
-                     </tr>
-                   )
-                 })}
-                 {transactions.filter(t => t.type === 'BON_PENDING').length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada permintaan kasbon.</td></tr>}
-               </tbody>
-             </table>
+                        setUsers([...users, newUser]);
+                        document.getElementById('newEmpName').value = '';
+                        document.getElementById('newEmpPin').value = '';
+                        document.getElementById('newEmpSalary').value = '';
+                        document.getElementById('newEmpComm').value = '';
+                        alert('Karyawan Berhasil Ditambah!');
+                      } catch (e) { alert('Gagal'); }
+                    }}>
+                      <Plus size={18} /> Tambah
+                    </button>
+                 </div>
+                 <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
+                 <table className="table" style={{ marginTop: '1.5rem' }}>
+                   <thead><tr><th>Nama Karyawan</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
+                   <tbody>
+                     {users.map(u => (
+                       <tr key={u.id}>
+                         <td>{u.name}</td>
+                         <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
+                         <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
+                         <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
+                         <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
+                         <td>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <button className="btn btn-warning" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                                const newName = prompt('Nama Karyawan:', u.name);
+                                if (newName === null) return;
+                                const newPin = prompt('PIN Login:', u.pin);
+                                if (newPin === null) return;
+                                const newSalaryStr = prompt('Gaji Pokok/Bulan (Rp):', tenant.settings?.employee_salaries?.[u.id] || 0);
+                                if (newSalaryStr === null) return;
+                                const newCommStr = prompt('Komisi (%):', tenant.settings?.employee_commissions?.[u.id] || 0);
+                                if (newCommStr === null) return;
 
-             <h4 style={{ marginTop: '2rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>Laporan Absensi (Hari Ini)</h4>
-             <table className="table">
-               <thead><tr><th>Nama Karyawan</th><th>Status Absen</th><th>Jam Masuk</th><th>Jam Pulang</th></tr></thead>
-               <tbody>
-                 {users.map(u => {
-                   const todayStr = new Date().toDateString();
-                   const absensi = transactions.filter(t => t.description === `ATTENDANCE_EMP_${u.id}` && new Date(t.created_at).toDateString() === todayStr);
-                   const masuk = absensi.find(t => t.type === 'ATTENDANCE_IN');
-                   const keluar = absensi.find(t => t.type === 'ATTENDANCE_OUT');
-                   
-                   return (
-                     <tr key={u.id}>
-                       <td>{u.name}</td>
-                       <td>
-                         {masuk && keluar ? <span className="badge badge-success">Selesai Shift</span> :
-                          masuk ? <span className="badge badge-warning" style={{ background: '#fef08a', color: '#854d0e' }}>Sedang Bekerja</span> : 
-                          <span className="badge" style={{ background: '#f1f5f9', color: '#64748b' }}>Belum Hadir</span>}
-                       </td>
-                       <td>{masuk ? new Date(masuk.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                       <td>{keluar ? new Date(keluar.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                     </tr>
-                   )
-                 })}
-                 {users.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan.</td></tr>}
-               </tbody>
-             </table>
+                                try {
+                                  await apiService.updateUser(u.id, { name: newName, pin: newPin });
+                                  
+                                  const currentSettings = tenant.settings || {};
+                                  const employee_commissions = currentSettings.employee_commissions || {};
+                                  const employee_salaries = currentSettings.employee_salaries || {};
+                                  employee_commissions[u.id] = parseInt(newCommStr);
+                                  employee_salaries[u.id] = parseInt(newSalaryStr);
+                                  const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
+                                  await apiService.updateTenantSettings(tenant.code, newSettings);
+                                  updateTenantSettings(newSettings);
+
+                                  setUsers(users.map(x => x.id === u.id ? { ...x, name: newName, pin: newPin } : x));
+                                } catch(e) { alert('Gagal edit karyawan'); }
+                              }}>Edit</button>
+                              <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                                if(confirm('Yakin ingin menghapus karyawan ini?')) {
+                                  try {
+                                    await apiService.deleteUser(u.id);
+                                    setUsers(users.filter(x => x.id !== u.id));
+                                  } catch(e) { alert('Gagal hapus karyawan'); }
+                                }
+                              }}>Hapus</button>
+                            </div>
+                         </td>
+                       </tr>
+                     ))}
+                     {users.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan terdaftar.</td></tr>}
+                   </tbody>
+                 </table>
+               </div>
+             )}
+
+             {/* TAB CONTENT: KASBON */}
+             {empTab === 'kasbon' && (
+               <div className="animate-fade-in">
+                 <table className="table">
+                   <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+                   <tbody>
+                     {transactions.filter(t => t.type === 'BON_PENDING').map(t => {
+                       const empId = t.description.replace('EMP_', '');
+                       const emp = users.find(u => u.id === empId);
+                       return (
+                         <tr key={t.id}>
+                           <td>{emp ? emp.name : 'Unknown'}</td>
+                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {t.amount?.toLocaleString('id-ID')}</td>
+                           <td>{new Date(t.created_at).toLocaleString('id-ID')}</td>
+                           <td>
+                             <div style={{ display: 'flex', gap: '5px' }}>
+                               <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
+                                 if(confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')) {
+                                   try {
+                                     await apiService.post('/transactions/update-type', { id: t.id, type: 'BON_KARYAWAN' });
+                                     await apiService.delete(`/transactions/${t.id}`);
+                                     await apiService.post('/transactions', { tenant_code: tenant.code, type: 'BON_KARYAWAN', amount: t.amount, description: t.description });
+                                     apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
+                                     alert('Kasbon disetujui!');
+                                   } catch(e) { alert('Gagal update kasbon'); }
+                                 }
+                               }}>Setujui</button>
+                               <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                                 if(confirm('Tolak kasbon ini?')) {
+                                   try {
+                                     await apiService.delete(`/transactions/${t.id}`);
+                                     apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
+                                   } catch(e) { alert('Gagal tolak kasbon'); }
+                                 }
+                               }}>Tolak</button>
+                             </div>
+                           </td>
+                         </tr>
+                       )
+                     })}
+                     {transactions.filter(t => t.type === 'BON_PENDING').length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada permintaan kasbon.</td></tr>}
+                   </tbody>
+                 </table>
+               </div>
+             )}
+
+             {/* TAB CONTENT: ABSENSI */}
+             {empTab === 'absensi' && (
+               <div className="animate-fade-in">
+                 <table className="table">
+                   <thead><tr><th>Nama Karyawan</th><th>Status Absen</th><th>Jam Masuk</th><th>Jam Pulang</th></tr></thead>
+                   <tbody>
+                     {users.map(u => {
+                       const todayStr = new Date().toDateString();
+                       const absensi = transactions.filter(t => t.description === `ATTENDANCE_EMP_${u.id}` && new Date(t.created_at).toDateString() === todayStr);
+                       const masuk = absensi.find(t => t.type === 'ATTENDANCE_IN');
+                       const keluar = absensi.find(t => t.type === 'ATTENDANCE_OUT');
+                       
+                       return (
+                         <tr key={u.id}>
+                           <td>{u.name}</td>
+                           <td>
+                             {masuk && keluar ? <span className="badge badge-success">Selesai Shift</span> :
+                              masuk ? <span className="badge badge-warning" style={{ background: '#fef08a', color: '#854d0e' }}>Sedang Bekerja</span> : 
+                              <span className="badge" style={{ background: '#f1f5f9', color: '#64748b' }}>Belum Hadir</span>}
+                           </td>
+                           <td>{masuk ? new Date(masuk.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                           <td>{keluar ? new Date(keluar.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                         </tr>
+                       )
+                     })}
+                     {users.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan.</td></tr>}
+                   </tbody>
+                 </table>
+               </div>
+             )}
           </div>
         ) : null}
       </div>
