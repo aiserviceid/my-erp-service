@@ -247,21 +247,13 @@ export default function ForumCommunity() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
                   {!activeThread.is_solved && activeThread.tenant_code === tenant.code && (
                     <>
-                      {post.tenant_code !== tenant.code && (
-                        <button className="btn btn-ghost" style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '100px' }} onClick={() => { setSawerTarget(post); setShowSawerModal(true); }}>
-                          <Gift size={14} style={{ marginRight: '4px' }} /> Tip
-                        </button>
-                      )}
+                      {/* Tip button removed per roadmap */}
                       <button className="btn btn-ghost" style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '100px', color: '#16a34a', background: '#f0fdf4' }} onClick={() => handleSolve(post.id, post.tenant_code)}>
                         <CheckCircle size={14} style={{ marginRight: '4px' }} /> Pilih Solusi
                       </button>
                     </>
                   )}
-                  {activeThread.is_solved && post.tenant_code !== tenant.code && post.is_solution && (
-                    <button className="btn btn-ghost" style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#059669', background: '#dcfce7', borderRadius: '100px' }} onClick={() => { setSawerTarget(post); setShowSawerModal(true); }}>
-                      <Gift size={14} style={{ marginRight: '4px' }} /> Beri Tip (Sawer)
-                    </button>
-                  )}
+                  {/* Sawer button removed per roadmap */}
                 </div>
               </div>
             ))}

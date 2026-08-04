@@ -1,128 +1,427 @@
 import React, { useState } from 'react';
-import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Search, Package, Clock, CheckCircle, AlertTriangle, ArrowLeft, Sparkles, Phone } from 'lucide-react';
 import { apiService } from '../services/api';
+import { SERVICE_STATUSES, getStatusInfo } from '../config/tierLimits';
 
 export default function PublicTracking() {
   const navigate = useNavigate();
-  const tenant = useStore((state) => state.tenant);
-  const settings = tenant?.settings || { storeName: 'AI SERVICE' };
-  const tier = tenant?.tier || 'free';
-
   const [resi, setResi] = useState('');
   const [result, setResult] = useState(null);
+  const [tenantInfo, setTenantInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!resi) return;
+    if (!resi.trim()) return;
     
     setLoading(true);
     setError('');
     setResult(null);
 
     try {
-      const data = await apiService.trackService(resi);
+      const data = await apiService.trackService(resi.trim());
       setResult(data);
+      // Try to load tenant info for branding
+      if (data.tenant_code) {
+        apiService.getTenantPublic(data.tenant_code).then(info => {
+          if (info) setTenantInfo(info);
+        }).catch(() => {});
+      }
     } catch (e) {
-      setError('Nomor Resi tidak ditemukan atau terjadi kesalahan.');
+      setError('Nomor Resi tidak ditemukan. Pastikan nomor resi sudah benar.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Get status index for timeline
+  const getStatusIndex = (status) => {
+    // Map legacy statuses
+    const statusMap = {
+      'DITERIMA': 0, 'DICEK': 1, 'SEDANG_DICEK': 1,
+      'DIKERJAKAN': 2, 'SEDANG_DIKERJAKAN': 2,
+      'MENUNGGU_PART': 3, 'MENUNGGU PART': 3,
+      'SELESAI': 4, 'DIAMBIL': 5, 'DI AMBIL': 5, 'DI_AMBIL': 5,
+      'DIBATALKAN': 6, 'BATAL': 6,
+    };
+    return statusMap[status] ?? 0;
+  };
+
+  const currentStatusIdx = result ? getStatusIndex(result.status) : -1;
+  const isCancelled = result && (result.status === 'DIBATALKAN' || result.status === 'BATAL');
+  const isCompleted = result && (result.status === 'SELESAI' || result.status === 'DIAMBIL' || result.status === 'DI AMBIL' || result.status === 'DI_AMBIL');
+
+  // Timeline statuses (excluding DIBATALKAN from normal flow)
+  const timelineStatuses = SERVICE_STATUSES.filter(s => s.id !== 'DIBATALKAN');
+
+  const tenantSettings = tenantInfo?.settings 
+    ? (typeof tenantInfo.settings === 'string' ? JSON.parse(tenantInfo.settings) : tenantInfo.settings)
+    : {};
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)' }}>
-      {/* HEADER */}
-      <header style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
-        <h2 style={{ margin: 0, color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          {settings.storeName}
-        </h2>
-        <button onClick={() => navigate('/')} className="btn btn-ghost">Kembali</button>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(180deg, #f0f9ff 0%, #f8fafc 30%, #ffffff 100%)',
+      fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif",
+    }}>
+      {/* ── HEADER ── */}
+      <header style={{
+        padding: '16px 20px',
+        background: 'white',
+        borderBottom: '1px solid #e2e8f0',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        position: 'sticky', top: 0, zIndex: 50,
+        backdropFilter: 'blur(12px)', backgroundColor: 'rgba(255,255,255,0.92)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {tenantSettings.logoUrl ? (
+            <img src={tenantSettings.logoUrl} alt="Logo" style={{ height: '36px', borderRadius: '8px' }} />
+          ) : (
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Sparkles size={18} color="white" />
+            </div>
+          )}
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+              {tenantSettings.storeName || tenantInfo?.name || 'AISERVICE.ID'}
+            </h2>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>
+              Lacak Status Servis
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            background: '#f1f5f9', border: 'none', borderRadius: '10px',
+            padding: '8px 14px', cursor: 'pointer', color: '#475569',
+            fontWeight: '600', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px',
+          }}
+        >
+          <ArrowLeft size={16} /> Kembali
+        </button>
       </header>
 
-      <main style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div className="glass-panel animate-slide-in" style={{ width: '100%', maxWidth: '600px', textAlign: 'center' }}>
-          <Package size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
-          <h2 style={{ marginBottom: '0.5rem' }}>Lacak Status Servis</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Masukkan nomor resi yang Anda dapatkan saat menyerahkan barang.</p>
-          
+      <main style={{ padding: '24px 16px', maxWidth: '600px', margin: '0 auto' }}>
+        {/* ── SEARCH CARD ── */}
+        <div style={{
+          background: 'white', borderRadius: '20px', padding: '28px 24px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0',
+          marginBottom: '24px', textAlign: 'center',
+        }}>
+          <div style={{
+            width: '56px', height: '56px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}>
+            <Package size={28} color="#0284c7" />
+          </div>
+          <h1 style={{ margin: '0 0 6px', fontSize: '1.5rem', fontWeight: '900', color: '#0f172a' }}>
+            Lacak Status Servis
+          </h1>
+          <p style={{ color: '#64748b', margin: '0 0 24px', fontSize: '0.9rem', lineHeight: '1.5' }}>
+            Masukkan nomor resi yang tertera pada tanda terima servis Anda.
+          </p>
+
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px' }}>
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="Contoh: SRV-001" 
-              value={resi}
-              onChange={(e) => setResi(e.target.value.toUpperCase())}
-              style={{ flex: 1, fontSize: '1.2rem', textAlign: 'center', letterSpacing: '2px' }}
-            />
-            <button type="submit" className="btn btn-primary" style={{ padding: '0 2rem' }} disabled={loading}>
-              {loading ? 'Mencari...' : <Search size={20} />}
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Contoh: TRX-1722790000000"
+                value={resi}
+                onChange={(e) => setResi(e.target.value.toUpperCase())}
+                style={{
+                  width: '100%', padding: '14px 16px', borderRadius: '14px',
+                  border: '2px solid #e2e8f0', fontSize: '1rem', fontWeight: '600',
+                  textAlign: 'center', letterSpacing: '1px', outline: 'none',
+                  background: '#f8fafc', transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#0284c7'}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                color: 'white', border: 'none', borderRadius: '14px',
+                padding: '0 20px', cursor: loading ? 'wait' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(2,132,199,0.3)',
+                minWidth: '52px',
+              }}
+            >
+              {loading ? (
+                <div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              ) : (
+                <Search size={22} />
+              )}
             </button>
           </form>
-
-          {error && (
-            <div style={{ marginTop: '2rem', padding: '1rem', background: '#fee2e2', color: '#ef4444', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-              <AlertTriangle size={20} /> {error}
-            </div>
-          )}
-
-          {result && (
-            <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--border-light)', borderRadius: '12px', textAlign: 'left' }}>
-              <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Resi: <span style={{ color: 'var(--primary)' }}>{result.resi}</span></h3>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Pelanggan</div>
-                  <div style={{ fontWeight: 'bold' }}>{result.customer_name}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Perangkat</div>
-                  <div style={{ fontWeight: 'bold' }}>{result.device_name}</div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Keluhan</div>
-                  <div>{result.issue}</div>
-                </div>
-              </div>
-
-              <div style={{ background: result.status === 'SELESAI' || result.status === 'DI_AMBIL' ? '#dcfce7' : '#fef9c3', padding: '1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {result.status === 'SELESAI' || result.status === 'DI_AMBIL' ? <CheckCircle color="#16a34a" /> : <Clock color="#ca8a04" />}
-                <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: result.status === 'SELESAI' || result.status === 'DI_AMBIL' ? '#16a34a' : '#ca8a04' }}>
-                    Status: {result.status.replace('_', ' ')}
-                  </div>
-                  {result.status === 'SELESAI' && (
-                    <div style={{ fontSize: '0.8rem', marginTop: '5px' }}>
-                      Silakan ambil perangkat Anda di toko. Total Biaya: Rp {(result.jasa_fee + result.part_fee).toLocaleString('id-ID')}
-                    </div>
-                  )}
-                  {result.status === 'DI_AMBIL' && (
-                    <div style={{ fontSize: '0.8rem', marginTop: '5px' }}>
-                      Perangkat telah diambil.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      </main>
 
-      {/* FOOTER */}
-      <footer style={{ padding: '2rem', textAlign: 'center', background: 'var(--primary)', color: 'white' }}>
-        <p style={{ margin: 0, opacity: 0.8 }}>&copy; {new Date().getFullYear()} {settings.storeName}. All rights reserved.</p>
-        
-        {tier === 'free' && (
-          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-            <p style={{ fontSize: '0.85rem', color: '#fbbf24', margin: 0 }}>
-              ⚡ Powered by <strong>AI SERVICE</strong> - Buat Aplikasi Tokomu Sekarang!
-            </p>
+        {/* ── ERROR ── */}
+        {error && (
+          <div style={{
+            padding: '16px 20px', borderRadius: '14px',
+            background: '#fef2f2', border: '1px solid #fecaca',
+            display: 'flex', alignItems: 'center', gap: '12px',
+            marginBottom: '24px', animation: 'fadeIn 0.3s ease-out',
+          }}>
+            <AlertTriangle size={22} color="#ef4444" style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: '700', color: '#dc2626', fontSize: '0.9rem' }}>Resi Tidak Ditemukan</div>
+              <div style={{ color: '#991b1b', fontSize: '0.82rem', marginTop: '2px' }}>{error}</div>
+            </div>
           </div>
         )}
+
+        {/* ── RESULT ── */}
+        {result && (
+          <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+            
+            {/* Status Hero Card */}
+            <div style={{
+              borderRadius: '20px', overflow: 'hidden', marginBottom: '16px',
+              background: isCancelled ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
+                : isCompleted ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
+                : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+              border: `1px solid ${isCancelled ? '#fecaca' : isCompleted ? '#bbf7d0' : '#fde68a'}`,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            }}>
+              <div style={{ padding: '24px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>
+                  {getStatusInfo(result.status)?.icon || '📦'}
+                </div>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 16px', borderRadius: '100px',
+                  background: getStatusInfo(result.status)?.bg || '#f1f5f9',
+                  color: getStatusInfo(result.status)?.color || '#64748b',
+                  fontWeight: '800', fontSize: '0.9rem', textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}>
+                  {!isCancelled && !isCompleted && (
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'currentColor', animation: 'pulse 2s infinite' }} />
+                  )}
+                  {getStatusInfo(result.status)?.label || result.status.replace(/_/g, ' ')}
+                </div>
+                <p style={{ margin: '10px 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+                  {getStatusInfo(result.status)?.description || ''}
+                </p>
+                {isCompleted && result.jasa_fee !== undefined && (
+                  <div style={{
+                    marginTop: '14px', padding: '12px', borderRadius: '12px',
+                    background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.06)',
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '4px' }}>Total Biaya Servis</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0f172a' }}>
+                      Rp {((result.jasa_fee || 0) + (result.part_fee || 0)).toLocaleString('id-ID')}
+                    </div>
+                    {result.jasa_fee > 0 && result.part_fee > 0 && (
+                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
+                        Jasa: Rp {result.jasa_fee.toLocaleString('id-ID')} | Part: Rp {result.part_fee.toLocaleString('id-ID')}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── TIMELINE ── */}
+            {!isCancelled && (
+              <div style={{
+                background: 'white', borderRadius: '20px', padding: '24px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ margin: '0 0 20px', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>
+                  📍 Progress Servis
+                </h3>
+                <div style={{ position: 'relative', paddingLeft: '32px' }}>
+                  {timelineStatuses.map((status, idx) => {
+                    const isPast = idx <= currentStatusIdx;
+                    const isCurrent = idx === currentStatusIdx;
+                    const isFuture = idx > currentStatusIdx;
+                    const isLast = idx === timelineStatuses.length - 1;
+
+                    return (
+                      <div key={status.id} style={{ 
+                        position: 'relative', paddingBottom: isLast ? 0 : '24px',
+                        opacity: isFuture ? 0.4 : 1,
+                      }}>
+                        {/* Vertical line */}
+                        {!isLast && (
+                          <div style={{
+                            position: 'absolute', left: '-20px', top: '24px',
+                            width: '2px', height: 'calc(100% - 8px)',
+                            background: isPast && idx < currentStatusIdx ? status.color : '#e2e8f0',
+                            transition: 'background 0.5s',
+                          }} />
+                        )}
+                        {/* Circle indicator */}
+                        <div style={{
+                          position: 'absolute', left: '-27px', top: '2px',
+                          width: isCurrent ? '18px' : '14px',
+                          height: isCurrent ? '18px' : '14px',
+                          borderRadius: '50%',
+                          background: isPast ? status.color : '#e2e8f0',
+                          border: isCurrent ? `3px solid ${status.color}40` : 'none',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 0.3s',
+                          boxShadow: isCurrent ? `0 0 0 4px ${status.color}15` : 'none',
+                        }}>
+                          {isPast && !isCurrent && (
+                            <CheckCircle size={10} color="white" />
+                          )}
+                          {isCurrent && (
+                            <div style={{
+                              width: '6px', height: '6px', borderRadius: '50%',
+                              background: 'white',
+                            }} />
+                          )}
+                        </div>
+                        {/* Content */}
+                        <div>
+                          <div style={{
+                            fontSize: '0.88rem',
+                            fontWeight: isCurrent ? '800' : isPast ? '600' : '500',
+                            color: isCurrent ? status.color : isPast ? '#0f172a' : '#94a3b8',
+                          }}>
+                            {status.icon} {status.label}
+                          </div>
+                          {isCurrent && (
+                            <div style={{
+                              fontSize: '0.78rem', color: '#64748b', marginTop: '4px',
+                              lineHeight: '1.4',
+                            }}>
+                              {status.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── DETAIL INFO ── */}
+            <div style={{
+              background: 'white', borderRadius: '20px', padding: '24px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0',
+              marginBottom: '16px',
+            }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>
+                📋 Detail Servis
+              </h3>
+              <div style={{ display: 'grid', gap: '14px' }}>
+                {[
+                  { label: 'No. Resi', value: result.resi, bold: true, color: '#0284c7' },
+                  { label: 'Pelanggan', value: result.customer_name },
+                  { label: 'Perangkat', value: result.device_name },
+                  { label: 'Keluhan', value: (result.issue || '').replace(/\[.*?\]/g, '').replace(/\| Kelengkapan:.*/, '').trim() },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600', flexShrink: 0, minWidth: '90px' }}>
+                      {item.label}
+                    </span>
+                    <span style={{
+                      fontSize: '0.85rem', fontWeight: item.bold ? '800' : '500',
+                      color: item.color || '#0f172a', textAlign: 'right',
+                      wordBreak: 'break-word',
+                    }}>
+                      {item.value || '-'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── CONTACT STORE ── */}
+            {tenantInfo && (
+              <div style={{
+                background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                borderRadius: '16px', padding: '16px 20px', border: '1px solid #bae6fd',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: '12px', flexWrap: 'wrap',
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0369a1' }}>
+                    Ada pertanyaan?
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                    Hubungi {tenantSettings.storeName || tenantInfo.name}
+                  </div>
+                </div>
+                {tenantSettings.store_wa && (
+                  <a
+                    href={`https://wa.me/${tenantSettings.store_wa.replace(/^0/, '62')}?text=Halo, saya ingin menanyakan status servis resi ${result.resi}`}
+                    target="_blank" rel="noreferrer"
+                    style={{
+                      padding: '10px 18px', borderRadius: '10px',
+                      background: '#25D366', color: 'white', textDecoration: 'none',
+                      fontWeight: '700', fontSize: '0.85rem',
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                    }}
+                  >
+                    <Phone size={16} /> WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── EMPTY STATE ── */}
+        {!result && !error && !loading && (
+          <div style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8' }}>
+            <Package size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>Masukkan nomor resi untuk melihat status servis Anda</p>
+          </div>
+        )}
+      </main>
+
+      {/* ── FOOTER ── */}
+      <footer style={{
+        padding: '24px 16px', textAlign: 'center',
+        borderTop: '1px solid #e2e8f0', marginTop: '40px',
+      }}>
+        <p style={{ margin: '0 0 8px', fontSize: '0.82rem', color: '#94a3b8' }}>
+          &copy; {new Date().getFullYear()} {tenantSettings.storeName || tenantInfo?.name || 'AISERVICE.ID'}
+        </p>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          padding: '4px 12px', borderRadius: '100px', background: '#f1f5f9',
+          fontSize: '0.72rem', color: '#64748b', fontWeight: '600',
+        }}>
+          <Sparkles size={12} /> Powered by AISERVICE.ID
+        </div>
       </footer>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

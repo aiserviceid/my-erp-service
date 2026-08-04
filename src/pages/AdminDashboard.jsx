@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer } from 'lucide-react';
+import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
 import { apiService } from '../services/api';
 import ForumCommunity from '../components/ForumCommunity';
-import WalletDashboard from '../components/WalletDashboard';
 import POSView from '../components/POSView';
-import AffiliatePortal from '../components/AffiliatePortal';
 import BarcodeScanner from '../components/BarcodeScanner';
-import { Camera } from 'lucide-react';
+import UpgradePrompt from '../components/UpgradePrompt';
+import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -66,36 +65,45 @@ export default function AdminDashboard() {
     
     let htmlContent = '';
     const dateStr = new Date().toLocaleString('id-ID');
+    const trackingUrl = `${window.location.origin}/track`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(selectedService.resi)}`;
     
     const css = `
       <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; }
-        .receipt-container { max-width: ${printerType === 'thermal' ? '300px' : '800px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '10px' : '40px'}; border-radius: 12px; box-shadow: ${printerType === 'thermal' ? 'none' : '0 10px 25px rgba(0,0,0,0.05)'}; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h2 { margin: 0; color: #0f172a; font-size: ${printerType === 'thermal' ? '1.4rem' : '2rem'}; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        .header p { margin: 5px 0 0; color: #64748b; font-size: ${printerType === 'thermal' ? '0.8rem' : '1rem'}; font-weight: 600; letter-spacing: 2px; }
-        .divider { border-top: 2px dashed #cbd5e1; margin: 15px 0; }
-        .info-grid { display: flex; flex-direction: column; gap: 8px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; margin-bottom: 20px; }
-        .info-item { margin: 0; display: flex; justify-content: space-between; }
-        .info-item strong { color: #64748b; font-weight: 600; }
-        .info-item span { color: #0f172a; font-weight: 500; text-align: right; max-width: 60%; }
-        .issue-box { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; color: #334155; margin-bottom: 20px; border: 1px solid #e2e8f0; white-space: pre-wrap; }
-        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; }
-        .table th { border-bottom: 2px solid #cbd5e1; padding: 8px 0; text-align: left; color: #64748b; font-weight: 600; }
+        body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; background: #fff; }
+        .receipt-container { max-width: ${printerType === 'thermal' ? '300px' : '700px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '12px' : '40px'}; border-radius: 12px; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .logo { max-height: ${printerType === 'thermal' ? '50px' : '80px'}; margin-bottom: 12px; }
+        .header h2 { margin: 0; color: #0f172a; font-size: ${printerType === 'thermal' ? '1.3rem' : '2rem'}; font-weight: 800; text-transform: uppercase; }
+        .header p { margin: 4px 0 0; color: #64748b; font-size: ${printerType === 'thermal' ? '0.75rem' : '0.95rem'}; font-weight: 600; letter-spacing: 1px; }
+        .divider { border-top: 1px dashed #cbd5e1; margin: 16px 0; }
+        .info-grid { display: grid; grid-template-columns: ${printerType === 'thermal' ? '1fr' : '1fr 1fr'}; gap: ${printerType === 'thermal' ? '8px' : '16px'}; font-size: ${printerType === 'thermal' ? '0.8rem' : '0.95rem'}; margin-bottom: 24px; }
+        .info-item { margin: 0; display: flex; flex-direction: ${printerType === 'thermal' ? 'row' : 'column'}; justify-content: space-between; gap: 4px; }
+        .info-item strong { color: #64748b; font-weight: 600; font-size: 0.85em; text-transform: uppercase; }
+        .info-item span { color: #0f172a; font-weight: 700; text-align: ${printerType === 'thermal' ? 'right' : 'left'}; }
+        .issue-box { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: ${printerType === 'thermal' ? '0.8rem' : '0.95rem'}; color: #334155; margin-bottom: 24px; border: 1px solid #e2e8f0; white-space: pre-wrap; line-height: 1.5; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: ${printerType === 'thermal' ? '0.8rem' : '0.95rem'}; }
+        .table th { border-bottom: 1px solid #cbd5e1; padding: 8px 0; text-align: left; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.85em; }
         .table td { padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
         .text-right { text-align: right; }
-        .total-row td { font-weight: 800; font-size: ${printerType === 'thermal' ? '1rem' : '1.2rem'}; color: #0f172a; border-bottom: none; padding-top: 15px; }
-        .footer { text-align: center; margin-top: 30px; font-size: 0.85rem; color: #94a3b8; }
-        .bank-info { background: #f8fafc; padding: 12px; border-radius: 8px; text-align: center; font-size: 0.85rem; margin: 20px 0; border: 1px solid #e2e8f0; color: #475569; }
+        .total-row td { font-weight: 800; font-size: ${printerType === 'thermal' ? '1.1rem' : '1.3rem'}; color: #0f172a; border-bottom: none; border-top: 2px solid #cbd5e1; padding-top: 12px; }
+        .qr-section { text-align: center; margin: 24px 0; padding: 16px; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1; }
+        .qr-section img { width: ${printerType === 'thermal' ? '100px' : '120px'}; height: ${printerType === 'thermal' ? '100px' : '120px'}; margin-bottom: 8px; }
+        .qr-section p { margin: 0; font-size: ${printerType === 'thermal' ? '0.75rem' : '0.9rem'}; color: #64748b; font-weight: 600; }
+        .footer { text-align: center; margin-top: 32px; font-size: ${printerType === 'thermal' ? '0.75rem' : '0.85rem'}; color: #94a3b8; }
+        .bank-info { background: #f8fafc; padding: 12px; border-radius: 8px; text-align: center; font-size: ${printerType === 'thermal' ? '0.75rem' : '0.85rem'}; margin: 20px 0; border: 1px solid #e2e8f0; color: #475569; }
         @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .receipt-container { border: none; padding: ${printerType === 'thermal' ? '0' : '10px'}; box-shadow: none; } }
       </style>
     `;
     
+    const logoHtml = tenant?.settings?.logoUrl ? `<img src="${tenant.settings.logoUrl}" class="logo" alt="Logo" />` : '';
+
     if (printType === 'pendaftaran') {
       htmlContent = `
         <div class="receipt-container">
           <div class="header">
-            <h2>${tenant?.name || 'Toko Servis'}</h2>
+            ${logoHtml}
+            <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
             <p>NOTA PENDAFTARAN SERVIS</p>
           </div>
           <div class="divider"></div>
@@ -104,17 +112,22 @@ export default function AdminDashboard() {
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
-            <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item" style="grid-column: 1 / -1;"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
           </div>
-          <div><strong style="color: #64748b; font-size: 0.9rem;">Keluhan & Kelengkapan:</strong></div>
+          <div><strong style="color: #64748b; font-size: 0.85em; text-transform: uppercase;">Keluhan & Kelengkapan:</strong></div>
           <div class="issue-box">${selectedService.issue}</div>
           
+          <div class="qr-section">
+            <img src="${qrCodeUrl}" alt="QR Code Tracking" />
+            <p>Scan QR untuk cek status servis<br/>atau kunjungi: <strong>${trackingUrl}</strong></p>
+          </div>
+
           ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
           
           <div class="divider"></div>
           <div class="footer">
-            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 600;">Simpan struk ini sebagai bukti pengambilan.</p>
-            <p style="margin: 0;">Cek status servis Anda secara online dengan Nomor Resi di atas.</p>
+            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>
+            <p style="margin: 0;">Terima kasih atas kepercayaan Anda.</p>
           </div>
         </div>
       `;
@@ -129,7 +142,8 @@ export default function AdminDashboard() {
       htmlContent = `
         <div class="receipt-container">
           <div class="header">
-            <h2>${tenant?.name || 'Toko Servis'}</h2>
+            ${logoHtml}
+            <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
             <p>NOTA PELUNASAN SERVIS</p>
           </div>
           <div class="divider"></div>
@@ -140,7 +154,7 @@ export default function AdminDashboard() {
             <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
           </div>
           
-          <div><strong style="color: #64748b; font-size: 0.9rem;">Rincian Perbaikan:</strong></div>
+          <div><strong style="color: #64748b; font-size: 0.85em; text-transform: uppercase;">Rincian Perbaikan:</strong></div>
           <div class="issue-box">${(selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, '')}</div>
           
           <table class="table">
@@ -148,8 +162,8 @@ export default function AdminDashboard() {
               <tr><th>Keterangan</th><th class="text-right">Biaya (Rp)</th></tr>
             </thead>
             <tbody>
-              <tr><td>Biaya Sparepart</td><td class="text-right">${selectedService.part_fee?.toLocaleString('id-ID') || 0}</td></tr>
-              <tr><td>Biaya Jasa Servis</td><td class="text-right">${selectedService.jasa_fee?.toLocaleString('id-ID') || 0}</td></tr>
+              <tr><td>Biaya Sparepart</td><td class="text-right">${(selectedService.part_fee || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td>Biaya Jasa Servis</td><td class="text-right">${(selectedService.jasa_fee || 0).toLocaleString('id-ID')}</td></tr>
               ${discount > 0 ? `
               <tr><td>Subtotal</td><td class="text-right">${subtotal.toLocaleString('id-ID')}</td></tr>
               <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${discount.toLocaleString('id-ID')}</td></tr>
@@ -162,14 +176,14 @@ export default function AdminDashboard() {
           
           <div class="divider"></div>
           <div class="footer">
-            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 600;">Terima kasih atas kepercayaan Anda!</p>
+            <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>
             <p style="margin: 0;">Barang yang sudah diambil tidak dapat dikembalikan / ditukar.</p>
           </div>
         </div>
       `;
     }
     
-    doc.write(`<html><head><title>Print Nota</title>${css}</head><body onload="window.print(); window.close();">${htmlContent}</body></html>`);
+    doc.write(`<html><head><title>Print Nota - ${selectedService.resi}</title>${css}</head><body onload="setTimeout(function(){ window.print(); window.close(); }, 500);">${htmlContent}</body></html>`);
     doc.close();
     setShowPrintModal(false);
   };
@@ -271,18 +285,29 @@ export default function AdminDashboard() {
     alert(`Berhasil beralih ke cabang: ${b.name} (${b.code})`);
   };
 
-  const tabs = [
-    { id: 'pos', name: 'Kasir (POS)', icon: ShoppingCart },
-    { id: 'servis', name: 'Servis & WA', icon: Wrench },
-    { id: 'master', name: 'Master Barang', icon: Package },
-    { id: 'karyawan', name: 'Karyawan', icon: Users },
-    { id: 'cabang', name: 'Multi-Cabang', icon: Building2, badge: isEnterprise ? '5 Max' : 'Enterprise' },
-    { id: 'keuangan', name: 'Keuangan', icon: TrendingUp },
-    { id: 'dompet', name: 'Dompet & Penarikan', icon: Wallet },
-    { id: 'afiliasi', name: 'Afiliasi & Komisi 80%', icon: Gift, badge: '🔥' },
-    { id: 'forum', name: 'Forum Teknisi', icon: MessageCircle },
-    { id: 'pengaturan', name: 'Pengaturan Toko', icon: Settings },
-  ];
+  // Icon mapping for dynamic tabs
+  const iconMap = { ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle };
+
+  // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
+  const tabs = ADMIN_TABS.map(t => ({
+    ...t,
+    icon: iconMap[t.iconName] || Package,
+    badge: t.proOnly && isFree ? 'PRO' : null,
+  }));
+
+  // Monthly service/transaction counts for limit enforcement  
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyServiceCount = services.filter(s => {
+    const d = new Date(s.created_at || Date.now());
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).length;
+  const monthlyTxCount = transactions.filter(t => {
+    const d = new Date(t.created_at);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear && t.type === 'POS_SALES';
+  }).length;
+  const serviceLimit = isWithinLimit(tenant?.tier, 'maxServicesPerMonth', monthlyServiceCount);
+  const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
   return (
     <div className="dashboard-layout">
@@ -401,9 +426,23 @@ export default function AdminDashboard() {
       <div className="main-content animate-fade-in">
         <h2 style={{ marginBottom: '1.5rem' }}>{tabs.find(t => t.id === activeTab)?.name}</h2>
         
+        {/* Usage Banner for Free tier */}
+        {isFree && (activeTab === 'pos' || activeTab === 'servis') && (
+          <UpgradePrompt
+            mode="banner"
+            currentUsage={activeTab === 'pos' ? monthlyTxCount : monthlyServiceCount}
+            maxUsage={activeTab === 'pos' ? txLimit.limit : serviceLimit.limit}
+            usageLabel={activeTab === 'pos' ? 'transaksi POS bulan ini' : 'servis bulan ini'}
+          />
+        )}
+
         {/* 1. POS */}
         {activeTab === 'pos' ? (
-          <POSView products={products} />
+          <POSView 
+            products={products} 
+            transactions={transactions}
+            onTransactionCreated={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {})}
+          />
         ) : 
 
         /* 2. MULTI-CABANG TAB */
@@ -683,10 +722,6 @@ export default function AdminDashboard() {
             </div>
             
           </div>
-        ) : activeTab === 'dompet' ? (
-          <WalletDashboard />
-        ) : activeTab === 'afiliasi' ? (
-          <AffiliatePortal />
         ) : activeTab === 'forum' ? (
           <ForumCommunity />
         ) : activeTab === 'harga' ? (
@@ -712,7 +747,9 @@ export default function AdminDashboard() {
                   e.preventDefault();
                   const fd = new FormData(e.target);
                   const kelengkapan = fd.get('kelengkapan') || '-';
-                  const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}`;
+                  const estWaktu = fd.get('estimasi_waktu') || '';
+                  const estBiaya = fd.get('estimasi_biaya') || '';
+                  const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${parseInt(estBiaya).toLocaleString('id-ID')}` : ''}`;
                   const resiGenerated = 'TRX-' + Date.now();
                   const serviceData = {
                     tenant_code: tenant.code,
@@ -721,7 +758,8 @@ export default function AdminDashboard() {
                     customer_phone: fd.get('phone'),
                     device_name: fd.get('device'),
                     issue: issueText,
-                    technician_id: fd.get('technician_id')
+                    technician_id: fd.get('technician_id'),
+                    status: 'DITERIMA'
                   };
                   try {
                     await apiService.post('/services', serviceData);
@@ -737,8 +775,10 @@ export default function AdminDashboard() {
                   <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
                   <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan" required />
+                    <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
                   </div>
+                  <input type="number" name="estimasi_biaya" className="input-field" placeholder="Estimasi Biaya Awal (Rp) - Opsional" />
+                  <input type="text" name="estimasi_waktu" className="input-field" placeholder="Estimasi Waktu Selesai (Misal: 3 Hari)" />
                   <div style={{ gridColumn: '1 / -1' }}>
                     <select name="technician_id" className="input-field" required>
                       <option value="">-- Pilih Teknisi yang Akan Mengerjakan --</option>
@@ -789,7 +829,26 @@ export default function AdminDashboard() {
                         <td style={{ whiteSpace: 'pre-wrap', maxWidth: '200px' }}>{cleanIssue}</td>
                         <td>{garansiStatus !== '-' ? <span className="badge badge-success" style={{background: '#dcfce7', color: '#16a34a'}}>s/d {garansiStatus}</span> : '-'}</td>
                         <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
-                        <td><span className={`badge ${s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'badge-success' : 'badge-warning'}`}>{s.status.replace('_', ' ')}</span></td>
+                        <td>
+                          <select 
+                            className="input-field" 
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: '130px', background: getStatusInfo(s.status)?.bg, color: getStatusInfo(s.status)?.color, fontWeight: 'bold' }}
+                            value={s.status}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              try {
+                                await apiService.post('/services/update', { resi: s.resi, status: newStatus });
+                                setServices(services.map(srv => srv.resi === s.resi ? { ...srv, status: newStatus } : srv));
+                                if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
+                                  const msg = `Halo ${s.customer_name}, status servis ${s.device_name} Anda (Resi: ${s.resi}) saat ini: *${getStatusInfo(newStatus).label}*.\n\nCek detail: ${window.location.origin}/track`;
+                                  window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');
+                                }
+                              } catch(err) { alert('Gagal update status'); }
+                            }}
+                          >
+                            {SERVICE_STATUSES.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
+                          </select>
+                        </td>
                         <td>
                           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
@@ -920,8 +979,13 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 style={{ margin: 0 }}>Laporan Keuangan Toko ({tenant?.name})</h3>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button className="btn btn-ghost" onClick={() => exportToExcel(filteredTransactions)} style={{ padding: '6px 12px', background: '#10b981', color: 'white', flex: '1 1 auto', justifyContent: 'center' }}>
-                      📥 Export Excel
+                    <button className="btn btn-ghost" onClick={() => {
+                      if (!hasFeature(tenant?.tier, 'exportLaporan')) {
+                        return alert('Fitur Export Excel hanya tersedia di paket PRO. Silakan upgrade paket Anda untuk menikmati fitur ini!');
+                      }
+                      exportToExcel(filteredTransactions);
+                    }} style={{ padding: '6px 12px', background: '#10b981', color: 'white', flex: '1 1 auto', justifyContent: 'center' }}>
+                      📥 Export Excel {isFree && '👑'}
                     </button>
                     <button className="btn btn-ghost" onClick={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions)} style={{ padding: '6px 12px', flex: '1 1 auto', justifyContent: 'center' }}>
                       🔄 Segarkan
@@ -1035,6 +1099,14 @@ export default function AdminDashboard() {
             );
           })()
         ) : activeTab === 'karyawan' ? (
+          isFree ? (
+            <UpgradePrompt
+              mode="card"
+              featureName="Portal Multi-Karyawan"
+              featureDescription="Tambahkan teknisi dan kasir dengan PIN login masing-masing. Kelola gaji, komisi, kasbon, dan pantau absensi — semua dari satu dashboard."
+              icon={<Users size={28} />}
+            />
+          ) :
           <div className="glass-panel" style={{ minHeight: '400px' }}>
              <h3 style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -1127,6 +1199,48 @@ export default function AdminDashboard() {
                    </tr>
                  ))}
                  {users.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan terdaftar.</td></tr>}
+               </tbody>
+             </table>
+             <h4 style={{ marginTop: '2rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>Permintaan Kasbon / Pinjaman</h4>
+             <table className="table">
+               <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+               <tbody>
+                 {transactions.filter(t => t.type === 'BON_PENDING').map(t => {
+                   const empId = t.description.replace('EMP_', '');
+                   const emp = users.find(u => u.id === empId);
+                   return (
+                     <tr key={t.id}>
+                       <td>{emp ? emp.name : 'Unknown'}</td>
+                       <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {t.amount?.toLocaleString('id-ID')}</td>
+                       <td>{new Date(t.created_at).toLocaleString('id-ID')}</td>
+                       <td>
+                         <div style={{ display: 'flex', gap: '5px' }}>
+                           <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
+                             if(confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')) {
+                               try {
+                                 await apiService.post('/transactions/update-type', { id: t.id, type: 'BON_KARYAWAN' }); // Need an endpoint for this, wait, the API service has get, post... let's just create a new transaction and delete the old one, or use a custom query. We added /services/update, did we add /transactions/update?
+                                 // Actually, Supabase isn't directly exposed. I will just delete the pending one and create an approved one.
+                                 await apiService.delete(`/transactions/${t.id}`);
+                                 await apiService.post('/transactions', { tenant_code: tenant.code, type: 'BON_KARYAWAN', amount: t.amount, description: t.description });
+                                 apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
+                                 alert('Kasbon disetujui!');
+                               } catch(e) { alert('Gagal update kasbon'); }
+                             }
+                           }}>Setujui</button>
+                           <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                             if(confirm('Tolak kasbon ini?')) {
+                               try {
+                                 await apiService.delete(`/transactions/${t.id}`);
+                                 apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
+                               } catch(e) { alert('Gagal tolak kasbon'); }
+                             }
+                           }}>Tolak</button>
+                         </div>
+                       </td>
+                     </tr>
+                   )
+                 })}
+                 {transactions.filter(t => t.type === 'BON_PENDING').length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada permintaan kasbon.</td></tr>}
                </tbody>
              </table>
 

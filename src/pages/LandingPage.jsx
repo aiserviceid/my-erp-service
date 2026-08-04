@@ -478,57 +478,54 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* TIER 3: ENTERPRISE (RP 79.000 / BLN) */}
+            {/* TIER 3: ENTERPRISE — COMING SOON */}
             <div style={{ 
-              padding: '2.8rem 2rem', borderRadius: '24px', background: '#ffffff',
-              border: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column',
-              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.04)'
+              padding: '2.8rem 2rem', borderRadius: '24px', background: 'linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%)',
+              border: '1px dashed #c4b5fd', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.04)', position: 'relative', opacity: 0.85,
             }}>
+              <div style={{ 
+                position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', 
+                background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', color: 'white', 
+                padding: '4px 16px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '900', 
+                letterSpacing: '1px', textTransform: 'uppercase'
+              }}>
+                🚀 SEGERA HADIR
+              </div>
+
               <div style={{ marginBottom: '1.2rem' }}>
                 <span style={{ color: '#7c3aed', fontWeight: '800', fontSize: '0.85rem', textTransform: 'uppercase' }}>Multi-Branch Network</span>
                 <h3 style={{ fontSize: '1.8rem', fontWeight: '900', marginTop: '4px', color: '#0f172a' }}>Enterprise Cabang</h3>
                 <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '6px' }}>Untuk franchise atau pemilik dengan banyak cabang toko.</p>
               </div>
 
-              {/* Strikethrough Price Display */}
               <div style={{ marginBottom: '1.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '1.2rem', fontWeight: '700' }}>
-                    {billingCycle === 'monthly' ? 'Rp 149.000' : 'Rp 79.000'}
-                  </span>
-                  <span style={{ background: '#f3e8ff', color: '#7c3aed', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
-                    {billingCycle === 'monthly' ? 'HEMAT 47%' : 'DISKON 20%'}
-                  </span>
+                <div style={{ fontSize: '2rem', fontWeight: '900', color: '#7c3aed', margin: '2px 0' }}>
+                  Segera Hadir
                 </div>
-
-                <div style={{ fontSize: '2.6rem', fontWeight: '900', color: '#7c3aed', margin: '2px 0' }}>
-                  {billingCycle === 'monthly' ? 'Rp 79.000' : 'Rp 63.000'} 
-                  <span style={{ fontSize: '0.95rem', color: '#64748b', fontWeight: 'normal' }}>/bulan</span>
-                </div>
-
-                <div style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: '700' }}>
-                  {billingCycle === 'monthly' ? '✓ Promo spesial Rp 79rb/bulan' : '✓ Ditagih tahunan Rp 756.000 (Hemat 20%)'}
+                <div style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: '700', marginTop: '4px' }}>
+                  Sedang dalam tahap pengembangan
                 </div>
               </div>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.2rem 0', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> <strong>Semua Fitur Paket Pro Titan</strong></li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Hingga 5 Cabang Toko Terpusat</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Transfer Stok Antar Cabang</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Custom Domain Pribadi (.com/.id)</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#1e293b' }}><Check size={18} color="#059669" /> Dedicated Account Manager Pribadi</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#64748b' }}><Clock size={18} color="#7c3aed" /> Hingga 5 Cabang Toko Terpusat</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#64748b' }}><Clock size={18} color="#7c3aed" /> Transfer Stok Antar Cabang</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#64748b' }}><Clock size={18} color="#7c3aed" /> Laporan Konsolidasi Multi-Outlet</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.92rem', color: '#64748b' }}><Clock size={18} color="#7c3aed" /> Dedicated Account Manager</li>
               </ul>
 
-              <button 
-                onClick={() => navigate('/login', { state: { tab: 'register', tier: 'enterprise' } })}
+              <a 
+                href="https://wa.me/6285382535050?text=Halo%20Admin%20AISERVICE,%20saya%20tertarik%20dengan%20Paket%20Enterprise%20Multi-Cabang.%20Tolong%20kabari%20saya%20jika%20sudah%20tersedia."
+                target="_blank" rel="noreferrer"
                 style={{
                   width: '100%', padding: '1.05rem', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', color: 'white', border: 'none',
-                  cursor: 'pointer', boxShadow: '0 4px 18px rgba(124, 58, 237, 0.35)', transition: 'all 0.2s'
+                  background: '#f1f5f9', color: '#7c3aed', border: '1px solid #c4b5fd',
+                  textAlign: 'center', textDecoration: 'none', display: 'block', transition: 'all 0.2s'
                 }}
               >
-                Pilih Enterprise (Rp 79rb) 🏢
-              </button>
+                📩 Daftar Waiting List
+              </a>
             </div>
 
           </div>

@@ -1,18 +1,66 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
+import { supabase } from '../services/supabase';
 import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ============================================================
 // KONFIGURASI KEAMANAN SUPER ADMIN
-// Untuk mengubah password: ganti nilai MASTER_PASSWORD di bawah ini
+// Password TIDAK LAGI disimpan di client-side.
+// Autentikasi melalui Supabase RPC (server-side hash comparison).
+// Untuk mengubah password: update di Supabase RPC function atau 
+// tabel app_config (key='super_admin_hash').
 // ============================================================
-const MASTER_PASSWORD = 'AISERVICE@Syaifudin2026!';
 const SESSION_KEY = 'SA_SESSION';
 const FAIL_KEY = 'SA_FAIL';
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 jam
 const MAX_ATTEMPTS = 5;                          // maks percobaan salah
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;     // lockout 15 menit
+
+// Server-side password verification
+async function verifyAdminPassword(inputPassword) {
+  try {
+    // Method 1: Try Supabase RPC function (most secure)
+    const { data, error } = await supabase.rpc('verify_super_admin', {
+      input_password: inputPassword
+    });
+    if (!error && data === true) return true;
+    
+    // Method 2: Fallback — check hashed config from app_config table
+    const { data: configData } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'super_admin_hash')
+      .maybeSingle();
+    
+    if (configData?.value) {
+      // Simple hash comparison (SHA-256 of password)
+      const encoder = new TextEncoder();
+      const dataBytes = encoder.encode(inputPassword);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBytes);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex === configData.value;
+    }
+    
+    // Method 3: Final fallback for initial setup — environment variable via API
+    const resp = await fetch('/api/verify-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: inputPassword })
+    }).catch(() => null);
+    
+    if (resp?.ok) {
+      const result = await resp.json();
+      return result.valid === true;
+    }
+    
+    return false;
+  } catch (e) {
+    console.error('Admin verification error:', e);
+    return false;
+  }
+}
 
 function isSessionValid() {
   try {
@@ -78,11 +126,14 @@ function SuperAdminLoginGate({ onSuccess }) {
     return () => clearInterval(interval);
   }, [locked]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (locked) return;
 
-    if (input === MASTER_PASSWORD) {
+    setError('');
+    const isValid = await verifyAdminPassword(input);
+    
+    if (isValid) {
       setFailData({ count: 0, lockedUntil: 0 });
       createSession();
       onSuccess();

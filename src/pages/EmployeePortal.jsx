@@ -297,13 +297,14 @@ export default function EmployeePortal() {
 
   // calculations for finances
   const myCommissionRate = tenant?.settings?.employee_commissions?.[employee.id] || 0;
+  const mySalary = tenant?.settings?.employee_salaries?.[employee.id] || 0;
   const myCompletedServices = services.filter(s => (s.status === 'SELESAI' || s.status === 'DI AMBIL') && s.technician_id === employee.id);
   const totalJasaFee = myCompletedServices.reduce((sum, s) => sum + (s.jasa_fee || 0), 0);
   const totalKomisi = Math.floor(totalJasaFee * (myCommissionRate / 100));
 
   const myBonTransactions = transactions.filter(t => t.type === 'BON_KARYAWAN' && t.description === `EMP_${employee.id}`);
   const totalBon = myBonTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-  const sisaBersih = totalKomisi - totalBon;
+  const sisaBersih = mySalary + totalKomisi - totalBon;
 
   const isKasir = employee.role === 'Kasir' || employee.role === 'KASIR';
 
@@ -543,24 +544,28 @@ export default function EmployeePortal() {
 
           {activeTab === 'keuangan' && (
             <div className="glass-panel">
-              <h3 style={{ marginBottom: '1rem' }}>Laporan Keuangan ({myCommissionRate}% Komisi)</h3>
+              <h3 style={{ marginBottom: '1rem' }}>Laporan Keuangan & Gaji</h3>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2rem' }}>
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Komisi Anda</p>
+                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Gaji Pokok</p>
+                  <h2 style={{ margin: 0, color: 'var(--primary)' }}>Rp {mySalary.toLocaleString('id-ID')}</h2>
+                </div>
+                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
+                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Komisi ({myCommissionRate}%)</p>
                   <h2 style={{ margin: 0, color: 'var(--accent)' }}>Rp {totalKomisi.toLocaleString('id-ID')}</h2>
                   <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Dari {myCompletedServices.length} Servis</p>
                 </div>
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Bon / Kasbon</p>
+                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Kasbon / Pinjaman</p>
                   <h2 style={{ margin: 0, color: '#ef4444' }}>Rp {totalBon.toLocaleString('id-ID')}</h2>
                   <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Dari {myBonTransactions.length} Transaksi</p>
                 </div>
                 <div style={{ padding: '1.5rem', background: 'var(--primary)', color: 'white', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', opacity: 0.9 }}>Sisa Bersih (Belum Dibayar)</p>
+                  <p style={{ margin: '0 0 10px 0', opacity: 0.9 }}>Take Home Pay (THP)</p>
                   <h2 style={{ margin: 0 }}>Rp {sisaBersih.toLocaleString('id-ID')}</h2>
                   <button className="btn" style={{ background: 'white', color: 'var(--primary)', marginTop: '10px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={handleBon}>
-                    <Wallet size={14} style={{ marginRight: '5px', display: 'inline' }}/> Ajukan Bon
+                    <Wallet size={14} style={{ marginRight: '5px', display: 'inline' }}/> Ajukan Kasbon
                   </button>
                 </div>
               </div>

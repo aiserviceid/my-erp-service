@@ -235,6 +235,12 @@ export const apiService = {
         if (error) throw error;
         return data;
       }
+      if (endpoint === '/services/update') {
+        const { resi, ...updates } = body;
+        const { data, error } = await supabase.from('services').update(updates).eq('resi', resi).select().single();
+        if (error) throw error;
+        return data;
+      }
       if (endpoint.startsWith('/services/') && endpoint.endsWith('/status')) {
         const resi = endpoint.split('/')[2];
         const { data, error } = await supabase.from('services').update({ status: body.status }).eq('resi', resi).select().single();
