@@ -552,6 +552,45 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* 🔥 CTA UPGRADE BANNER — hanya untuk tier Free */}
+            {isFree && (
+              <div style={{
+                background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                borderRadius: '20px', padding: '1.5rem 1.8rem',
+                boxShadow: '0 10px 30px rgba(2, 132, 199, 0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                flexWrap: 'wrap', gap: '16px', position: 'relative', overflow: 'hidden'
+              }}>
+                <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '150px', height: '150px', background: 'rgba(255,255,255,0.07)', borderRadius: '50%' }} />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '1.4rem' }}>⚡</span>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '900', color: 'white' }}>Anda menggunakan Paket Gratis</h3>
+                    <span style={{ background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: '800' }}>FREE</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {['🤖 WA Bot Otomatis', '👷 Portal Teknisi', '📊 Laporan Laba', '📤 Export Excel', '♾️ Unlimited Servis'].map(f => (
+                      <span key={f} style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', padding: '3px 9px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>🔒 {f}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '190px' }}>
+                  <a
+                    href={`https://wa.me/6285382535050?text=Halo%20Admin%20AISERVICE%2C%20saya%20ingin%20upgrade%20ke%20Paket%20Pro%20(Rp%20149.000%2Fbln).%0AID%20Toko%3A%20${tenant?.code}%0ANama%3A%20${tenant?.name}`}
+                    target="_blank" rel="noreferrer"
+                    style={{
+                      padding: '11px 18px', borderRadius: '12px', fontWeight: '900', fontSize: '0.92rem',
+                      background: 'white', color: '#0284c7', textDecoration: 'none', textAlign: 'center',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.12)', display: 'block'
+                    }}
+                  >
+                    ⭐ Upgrade ke Pro — Rp 149rb/bln
+                  </a>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.65)', fontSize: '0.72rem', textAlign: 'center' }}>Aktivasi cepat 1 menit via WhatsApp</p>
+                </div>
+              </div>
+            )}
+
             {/* INTERACTIVE EMPTY STATE PROGRESS BAR (If no data) */}
             {services.length === 0 && products.length === 0 && (
               <div style={{
