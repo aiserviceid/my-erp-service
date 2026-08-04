@@ -494,13 +494,7 @@ export default function AdminDashboard() {
       {/* SIDEBAR (Desktop only) */}
       <div className="sidebar animate-slide-in">
         <div style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid var(--border-light)', marginBottom: '1rem' }}>
-          {settings.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" style={{ height: '40px', borderRadius: '8px', marginBottom: '0.5rem' }} />
-          ) : (
-            <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', margin: '0 auto 0.5rem' }}>
-              {settings.storeName?.charAt(0) || 'A'}
-            </div>
-          )}
+          <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ height: '45px', borderRadius: '8px', display: 'block', margin: '0 auto 0.5rem auto' }} />
           <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.05rem' }}>{settings.storeName || 'AISERVICE.ID'}</h3>
           
           {/* Active Branch Badge */}
