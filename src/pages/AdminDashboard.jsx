@@ -204,8 +204,9 @@ export default function AdminDashboard() {
         body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; background: #fff; }
         .receipt-container { max-width: ${printerType === 'thermal' ? '300px' : '700px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '12px' : '40px'}; border-radius: 12px; }
         .header { text-align: center; margin-bottom: 24px; }
-        .logo { max-height: ${printerType === 'thermal' ? '50px' : '80px'}; margin-bottom: 12px; }
-        .header h2 { margin: 0; color: #0f172a; font-size: ${printerType === 'thermal' ? '1.3rem' : '2rem'}; font-weight: 800; text-transform: uppercase; }
+        .header-title-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
+        .logo { max-height: ${printerType === 'thermal' ? '35px' : '50px'}; }
+        .header h2 { margin: 0; color: #0f172a; font-size: ${printerType === 'thermal' ? '1.2rem' : '1.8rem'}; font-weight: 800; text-transform: uppercase; }
         .header p { margin: 4px 0 0; color: #64748b; font-size: ${printerType === 'thermal' ? '0.75rem' : '0.95rem'}; font-weight: 600; letter-spacing: 1px; }
         .divider { border-top: 1px dashed #cbd5e1; margin: 16px 0; }
         .info-grid { display: grid; grid-template-columns: ${printerType === 'thermal' ? '1fr' : '1fr 1fr'}; gap: ${printerType === 'thermal' ? '8px' : '16px'}; font-size: ${printerType === 'thermal' ? '0.8rem' : '0.95rem'}; margin-bottom: 24px; }
@@ -234,8 +235,10 @@ export default function AdminDashboard() {
       htmlContent = `
         <div class="receipt-container">
           <div class="header">
-            ${logoHtml}
-            <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
+            <div class="header-title-row">
+              ${logoHtml}
+              <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
+            </div>
             <p>NOTA PENDAFTARAN SERVIS</p>
           </div>
           <div class="divider"></div>
@@ -274,8 +277,10 @@ export default function AdminDashboard() {
       htmlContent = `
         <div class="receipt-container">
           <div class="header">
-            ${logoHtml}
-            <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
+            <div class="header-title-row">
+              ${logoHtml}
+              <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
+            </div>
             <p>NOTA PELUNASAN SERVIS</p>
           </div>
           <div class="divider"></div>
@@ -1324,8 +1329,10 @@ export default function AdminDashboard() {
                             {previewTab === 'servis' ? (
                               <>
                                 <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
-                                  <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '50px', marginBottom: '8px' }} />
-                                  <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '35px' }} />
+                                    <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  </div>
                                   <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
@@ -1357,8 +1364,10 @@ export default function AdminDashboard() {
                             ) : (
                               <>
                                 <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
-                                  <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '50px', marginBottom: '8px' }} />
-                                  <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '35px' }} />
+                                    <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  </div>
                                   <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>STRUK PENJUALAN</div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>

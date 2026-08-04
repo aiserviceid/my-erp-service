@@ -198,8 +198,10 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     const html = `
       <div class="receipt">
         <div class="header">
-          <img src="${activeLogoUrl}" alt="Logo" style="max-height: ${isThermal ? '40px' : '60px'}; margin-bottom: 8px;" />
-          <h2>${lastReceipt.storeName}</h2>
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
+            <img src="${activeLogoUrl}" alt="Logo" style="max-height: ${isThermal ? '30px' : '45px'};" />
+            <h2 style="margin: 0; font-size: ${isThermal ? '1.2rem' : '1.6rem'}; font-weight: 900; text-transform: uppercase;">${lastReceipt.storeName}</h2>
+          </div>
           <p>STRUK PENJUALAN</p>
         </div>
         <div class="meta">
