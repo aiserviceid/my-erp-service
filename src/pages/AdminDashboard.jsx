@@ -525,12 +525,22 @@ export default function AdminDashboard() {
   // Icon mapping for dynamic tabs
   const iconMap = { LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle };
 
+  const todayStr = new Date().toDateString();
+  const newServiceCount = services.filter(s => new Date(s.created_at || Date.now()).toDateString() === todayStr && s.status === 'PROSES').length;
+  const newAttendanceCount = transactions.filter(t => t.type === 'ATTENDANCE_IN' && new Date(t.created_at).toDateString() === todayStr).length;
+  const pendingKasbonCount = transactions.filter(t => t.type === 'BON_PENDING').length;
+
   // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
-  const tabs = ADMIN_TABS.map(t => ({
-    ...t,
-    icon: iconMap[t.iconName] || Package,
-    badge: t.proOnly && isFree ? 'PRO' : null,
-  }));
+  const tabs = ADMIN_TABS.map(t => {
+    let badge = t.proOnly && isFree ? 'PRO' : null;
+    if (t.id === 'servis' && newServiceCount > 0) badge = newServiceCount;
+    if (t.id === 'karyawan' && (newAttendanceCount + pendingKasbonCount) > 0) badge = newAttendanceCount + pendingKasbonCount;
+    return {
+      ...t,
+      icon: iconMap[t.iconName] || Package,
+      badge: badge,
+    };
+  });
 
   // Monthly service/transaction counts for limit enforcement  
   const currentMonth = new Date().getMonth();
@@ -2216,8 +2226,12 @@ export default function AdminDashboard() {
              {/* TABS HEADER */}
              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
                <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>👥 Daftar Karyawan</button>
-               <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>💰 Permintaan Kasbon</button>
-               <button onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>📅 Laporan Absensi</button>
+               <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>
+                 💰 Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
+               </button>
+               <button onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>
+                 📅 Laporan Absensi {newAttendanceCount > 0 && <span className="badge badge-success" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{newAttendanceCount}</span>}
+               </button>
              </div>
 
              {/* TAB CONTENT: DAFTAR KARYAWAN */}
