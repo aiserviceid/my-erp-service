@@ -40,6 +40,7 @@ export default function AdminDashboard() {
   const [obEmpPin, setObEmpPin] = useState('');
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
   const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'nota' | 'promo'
+  const [previewTab, setPreviewTab] = useState('servis');
 
   const handleImageUpload = (file, callback) => {
     if (!file) return;
@@ -1319,38 +1320,78 @@ export default function AdminDashboard() {
                       {/* LIVE PREVIEW SECTION */}
                       <div style={{ flex: 1, minWidth: '300px' }}>
                         <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
-                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota (Servis)</h4>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota</h4>
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '1rem', justifyContent: 'center' }}>
+                            <button onClick={() => setPreviewTab('servis')} className={`btn ${previewTab === 'servis' ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.8rem', background: previewTab === 'servis' ? '#0ea5e9' : '#e2e8f0', color: previewTab === 'servis' ? 'white' : '#475569', border: 'none', borderRadius: '6px' }}>Servis</button>
+                            <button onClick={() => setPreviewTab('pos')} className={`btn ${previewTab === 'pos' ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.8rem', background: previewTab === 'pos' ? '#0ea5e9' : '#e2e8f0', color: previewTab === 'pos' ? 'white' : '#475569', border: 'none', borderRadius: '6px' }}>Kasir (POS)</button>
+                          </div>
                           <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
-                            <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
-                              <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '50px', marginBottom: '8px' }} />
-                              <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
-                              <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
-                              <div><strong>No. Resi</strong><br/>SRV-12345</div>
-                              <div><strong>Tanggal</strong><br/>{new Date().toLocaleDateString('id-ID')}</div>
-                            </div>
-                            <div style={{ marginBottom: '15px' }}>
-                              <strong>Rincian Perbaikan:</strong><br/>
-                              Ganti LCD (Part) - Rp 350.000<br/>
-                              Jasa Pasang - Rp 100.000<br/>
-                              <strong>TOTAL: Rp 450.000</strong>
-                            </div>
                             
-                            <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontFamily: 'sans-serif' }}>
-                              <strong>INFO REKENING PEMBAYARAN:</strong><br/>
-                              {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
-                            </div>
+                            {previewTab === 'servis' ? (
+                              <>
+                                <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
+                                  <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '50px', marginBottom: '8px' }} />
+                                  <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                                  <div><strong>No. Resi</strong><br/>SRV-12345</div>
+                                  <div><strong>Tanggal</strong><br/>{new Date().toLocaleDateString('id-ID')}</div>
+                                </div>
+                                <div style={{ marginBottom: '15px' }}>
+                                  <strong>Rincian Perbaikan:</strong><br/>
+                                  Ganti LCD (Part) - Rp 350.000<br/>
+                                  Jasa Pasang - Rp 100.000<br/>
+                                  <strong>TOTAL: Rp 450.000</strong>
+                                </div>
+                                
+                                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontFamily: 'sans-serif' }}>
+                                  <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                                  {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
+                                </div>
 
-                            <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
-                              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SRV-12345`} alt="QR Code Tracking" style={{ width: '80px', height: '80px', marginBottom: '5px' }} />
-                              <p style={{ margin: '0', fontSize: '0.7rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>{window.location.host}/track</strong></p>
-                            </div>
+                                <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SRV-12345`} alt="QR Code Tracking" style={{ width: '80px', height: '80px', marginBottom: '5px' }} />
+                                  <p style={{ margin: '0', fontSize: '0.7rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>{window.location.host}/track</strong></p>
+                                </div>
 
-                            <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
-                              <strong style={{ color: '#0f172a' }}>{settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
-                              Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
-                            </div>
+                                <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
+                                  <strong style={{ color: '#0f172a' }}>{settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
+                                  Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
+                                  <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '50px', marginBottom: '8px' }} />
+                                  <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>STRUK PENJUALAN</div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                                  <div><strong>No. Transaksi</strong><br/>POS-12345</div>
+                                  <div><strong>Tanggal</strong><br/>{new Date().toLocaleDateString('id-ID')}</div>
+                                </div>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+                                  <thead>
+                                    <tr><th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>Item</th><th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>Qty</th><th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>Total</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td style={{ padding: '6px 0', borderBottom: '1px dotted #eee' }}>Charger Laptop</td><td style={{ textAlign: 'right', padding: '6px 0', borderBottom: '1px dotted #eee' }}>1x</td><td style={{ textAlign: 'right', padding: '6px 0', borderBottom: '1px dotted #eee' }}>Rp 175.000</td></tr>
+                                  </tbody>
+                                </table>
+                                <div style={{ borderTop: '2px dashed #ccc', paddingTop: '10px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Subtotal</span><span>Rp 175.000</span></div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '1.1rem', margin: '10px 0', borderTop: '2px solid #333', borderBottom: '2px solid #333', padding: '8px 0' }}><span>TOTAL</span><span>Rp 175.000</span></div>
+                                </div>
+                                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', margin: '15px 0', fontFamily: 'sans-serif', textAlign: 'center' }}>
+                                  <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                                  {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
+                                </div>
+                                <div style={{ textAlign: 'center', color: '#64748b', fontFamily: 'sans-serif' }}>
+                                  {settings.receipt_note_pos ? <><strong style={{ color: '#0f172a' }}>{settings.receipt_note_pos}</strong></> : <><strong style={{ color: '#0f172a' }}>Terima kasih atas pembelian Anda!</strong><br/>Barang yang sudah dibeli tidak dapat dikembalikan.</>}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
