@@ -19,6 +19,7 @@ export default function Login() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingReg, setPendingReg] = useState(null); // simpan data sementara
 
   const setTenant = useStore(state => state.setTenant);
   const navigate = useNavigate();
@@ -55,53 +56,71 @@ export default function Login() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     const code = tenantCode.toUpperCase().trim().replace(/[^A-Z0-9_-]/g, '');
     const name = tenantName.trim();
 
     if (!code || !name || !pin) {
       setError('Nama Toko, Kode ID, dan PIN wajib diisi');
-      setLoading(false);
       return;
     }
 
-    try {
-      const res = await apiService.loginTenant(code, name, pin);
-      const data = res.tenant || res;
-
-      if (selectedTier === 'free') {
-        // Paket gratis — langsung masuk, tidak perlu bayar
+    if (selectedTier === 'free') {
+      // Paket gratis — langsung daftar dan masuk
+      setLoading(true);
+      try {
+        const res = await apiService.loginTenant(code, name, pin);
+        const data = res.tenant || res;
         setSuccessMsg('Akun Gratis berhasil dibuat! Mengalihkan ke Dashboard...');
         setTenant(data.code, data.name, '', 'free', res.token || `tenant_${data.code}`);
         setTimeout(() => { navigate('/admin'); }, 1500);
-      } else {
-        // Paket berbayar (Pro / Enterprise) — wajib tampil modal pembayaran dulu
-        setShowPaymentModal(true);
-        setTenant(data.code, data.name, '', selectedTier, res.token || `tenant_${data.code}`);
+      } catch (err) {
+        setError(err.message || 'Gagal mendaftar. Silakan gunakan Kode Toko lain.');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      // Paket berbayar — tampilkan payment modal DULU, belum simpan ke DB
+      // Simpan data form di pendingReg untuk diproses setelah konfirmasi
+      setPendingReg({ code, name, pin, tier: selectedTier });
+      setShowPaymentModal(true);
+    }
+  };
+
+  // Dipanggil setelah user klik tombol WA konfirmasi — baru simpan ke DB
+  const handleConfirmPayment = async () => {
+    if (!pendingReg) return;
+    setLoading(true);
+    try {
+      const res = await apiService.loginTenant(pendingReg.code, pendingReg.name, pendingReg.pin);
+      const data = res.tenant || res;
+      setTenant(data.code, data.name, '', pendingReg.tier, res.token || `tenant_${data.code}`);
     } catch (err) {
-      setError(err.message || 'Gagal mendaftar. Silakan gunakan Kode Toko lain.');
+      console.error('Register after payment confirm failed:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const getTierPriceText = () => {
-    if (selectedTier === 'enterprise') return 'Rp 299.000';
-    if (selectedTier === 'pro') return 'Rp 149.000';
+    const tier = pendingReg?.tier || selectedTier;
+    if (tier === 'enterprise') return 'Rp 299.000';
+    if (tier === 'pro') return 'Rp 149.000';
     return 'GRATIS';
   };
 
   const getTierTitle = () => {
-    if (selectedTier === 'enterprise') return 'Paket Enterprise (Rp 299.000/bln)';
-    if (selectedTier === 'pro') return 'Paket Pro (Rp 149.000/bln)';
+    const tier = pendingReg?.tier || selectedTier;
+    if (tier === 'enterprise') return 'Paket Enterprise (Rp 299.000/bln)';
+    if (tier === 'pro') return 'Paket Pro (Rp 149.000/bln)';
     return 'Paket Gratis (Rp 0/selamanya)';
   };
 
   const getWaUrl = () => {
     const amount = getTierPriceText();
-    const text = `Halo Admin AISERVICE, saya ingin konfirmasi pembayaran aktivasi toko:%0A%0A🏪 *Nama Toko:* ${tenantName || tenantCode}%0A🔑 *Kode ID:* ${tenantCode.toUpperCase()}%0A📱 *No. WhatsApp:* ${phone}%0A📦 *Paket:* ${getTierTitle()}%0A💰 *Nominal Transfer:* ${amount}%0A%0ASaya telah melakukan transfer ke rekening BRI / DANA a/n Syaifudin. Mohon segera diaktifkan akun saya. Terima kasih!`;
+    const nama = pendingReg?.name || tenantName || tenantCode;
+    const kode = pendingReg?.code || tenantCode.toUpperCase();
+    const text = `Halo Admin AISERVICE, saya ingin konfirmasi pembayaran aktivasi toko:%0A%0A%F0%9F%8F%AA *Nama Toko:* ${nama}%0A%F0%9F%94%91 *Kode ID:* ${kode}%0A%F0%9F%93%B1 *No. WhatsApp:* ${phone}%0A%F0%9F%93%A6 *Paket:* ${getTierTitle()}%0A%F0%9F%92%B0 *Nominal Transfer:* ${amount}%0A%0ASaya telah melakukan transfer ke rekening BRI / DANA a%2Fn Syaifudin. Mohon segera diaktifkan akun saya. Terima kasih!`;
     return `https://wa.me/6285382535050?text=${text}`;
   };
 
@@ -446,22 +465,23 @@ export default function Login() {
             {/* Action Konfirmasi WhatsApp */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: '10px', padding: '10px 14px', fontSize: '0.82rem', color: '#854d0e', fontWeight: '600', textAlign: 'center' }}>
-                ⚠️ Akun sudah terdaftar. Setelah transfer, konfirmasi via WhatsApp untuk aktivasi oleh Admin.
+                ⚠️ Transfer dulu, lalu klik tombol di bawah untuk kirim konfirmasi ke Admin. Akun akan diaktifkan dalam 1–5 menit.
               </div>
               <a 
                 href={getWaUrl()}
                 target="_blank"
                 rel="noreferrer"
+                onClick={handleConfirmPayment}
                 style={{
                   width: '100%', padding: '14px', borderRadius: '12px', background: '#25D366', color: 'white',
                   fontWeight: '800', fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(37, 211, 102, 0.3)'
+                  justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(37, 211, 102, 0.3)', boxSizing: 'border-box'
                 }}
               >
                 💬 Konfirmasi Pembayaran via WhatsApp
               </a>
               <p style={{ textAlign: 'center', fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
-                Setelah Admin konfirmasi, akun Anda akan diaktifkan dalam 1–5 menit.
+                Setelah klik tombol di atas, Admin akan aktifkan akun Anda segera.
               </p>
             </div>
 
