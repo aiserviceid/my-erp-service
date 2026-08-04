@@ -158,12 +158,12 @@ export default function LandingPage() {
             fontSize: 'clamp(2.4rem, 5.2vw, 4.2rem)', fontWeight: '900', lineHeight: '1.16', 
             letterSpacing: '-1.5px', marginBottom: '1.4rem', color: '#0f172a'
           }}>
-            Tingkatkan Omzet Servis & Kendalikan Toko Anda Secara Otomatis.
+            Revolusi Manajemen Bengkel & Konter Servis. Tinggalkan Cara Manual!
           </h1>
 
           {/* Subtitle */}
-          <p style={{ fontSize: 'clamp(1.05rem, 2vw, 1.25rem)', color: '#475569', lineHeight: '1.65', maxWidth: '780px', margin: '0 auto 2.8rem auto' }}>
-            Solusi All-in-One: Kasir POS Cepat, Pelacakan Resi Realtime untuk Konsumen, Cetak Nota Barcode Thermal, dan Komunitas Teknisi Berbagi Solusi.
+          <p style={{ fontSize: 'clamp(1.05rem, 2vw, 1.25rem)', color: '#475569', lineHeight: '1.65', maxWidth: '800px', margin: '0 auto 2.8rem auto' }}>
+            Satu Aplikasi untuk Semua: Kasir POS Cepat, Lacak Servis via WA, Kelola Gaji & Kasbon Teknisi, hingga Cetak Nota Barcode. Didesain khusus untuk Konter HP, Servis Komputer, dan Bengkel Elektronik/Motor.
           </p>
 
           {/* CTA Buttons */}
