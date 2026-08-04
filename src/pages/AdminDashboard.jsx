@@ -1740,42 +1740,62 @@ export default function AdminDashboard() {
              <h3 style={{ marginBottom: '0.5rem' }}>Master Barang & Sparepart ({tenant?.name})</h3>
              
              {/* FORM TAMBAH BARANG DENGAN UPLOAD GAMBAR */}
-             <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  <input type="text" className="input-field" placeholder="Nama Barang / Sparepart..." id="newProductName" style={{ flex: 2, minWidth: '200px' }} />
-                  <select className="input-field" id="newProductCat" style={{ width: '130px' }}>
-                    <option value="SPAREPART">Sparepart</option>
-                    <option value="AKSESORIS">Aksesoris</option>
-                    <option value="JASA">Jasa Servis</option>
-                    <option value="UNIT">Unit/Laptop</option>
-                  </select>
-                  <input type="number" className="input-field" placeholder="Harga (Rp)" id="newProductPrice" style={{ width: '130px' }} />
-                  <input type="number" className="input-field" placeholder="Stok" id="newProductStock" style={{ width: '90px' }} />
+             <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
+                <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={18} color="var(--accent)" /> Tambah Barang Baru</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
+                  <div>
+                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Nama Barang/Jasa <span style={{color: 'red'}}>*</span></label>
+                    <input type="text" className="input-field" placeholder="Ketik nama barang..." id="newProductName" />
+                  </div>
+                  <div>
+                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Kategori</label>
+                    <select className="input-field" id="newProductCat">
+                      <option value="SPAREPART">Sparepart</option>
+                      <option value="AKSESORIS">Aksesoris</option>
+                      <option value="JASA">Jasa Servis</option>
+                      <option value="UNIT">Unit/Laptop</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Harga Jual (Rp) <span style={{color: 'red'}}>*</span></label>
+                    <input type="number" className="input-field" placeholder="0" id="newProductPrice" />
+                  </div>
+                  <div>
+                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Stok Awal</label>
+                    <input type="number" className="input-field" placeholder="0" id="newProductStock" />
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input type="text" className="input-field" placeholder="URL / Link Foto Produk (https://...)" id="newProductImage" style={{ flex: 1, minWidth: '220px' }} />
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '8px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer', border: '1px solid #bae6fd' }}>
-                    📷 Upload Gambar
-                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          document.getElementById('newProductImage').value = reader.result;
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }} />
-                  </label>
-
-                  <button className="btn btn-primary" style={{ padding: '8px 20px', fontWeight: '800' }} onClick={async () => {
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '250px' }}>
+                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>URL / Link Foto Produk (Opsional)</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input type="text" className="input-field" placeholder="https://... atau klik tombol dikanan" id="newProductImage" style={{ flex: 1 }} />
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '0 15px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #bae6fd', whiteSpace: 'nowrap' }}>
+                        📷 Upload Foto
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => { document.getElementById('newProductImage').value = reader.result; };
+                            reader.readAsDataURL(file);
+                          }
+                        }} />
+                      </label>
+                    </div>
+                  </div>
+                  <button className="btn btn-primary" style={{ padding: '0 25px', fontWeight: 'bold', height: '45px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={async () => {
                     const name = document.getElementById('newProductName').value;
-                    const price = parseInt(document.getElementById('newProductPrice').value);
+                    const priceStr = document.getElementById('newProductPrice').value;
+                    const price = parseInt(priceStr);
                     const stock = parseInt(document.getElementById('newProductStock').value);
                     const category = document.getElementById('newProductCat').value;
                     const imageUrl = document.getElementById('newProductImage').value;
-                    if (!name || !price) return alert('Nama dan Harga wajib diisi');
+                    
+                    if (!name || !priceStr) return alert('Nama dan Harga wajib diisi!');
+                    
+                    const isDuplicate = products.some(p => p.name.toLowerCase() === name.toLowerCase());
+                    if (isDuplicate) return alert(`⚠️ Peringatan: Barang dengan nama "${name}" sudah ada di data stok Anda! Silakan gunakan nama lain atau edit barang yang sudah ada.`);
                     
                     try {
                       const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl });
@@ -1788,7 +1808,7 @@ export default function AdminDashboard() {
                       alert('Gagal menambah barang');
                     }
                   }}>
-                    <Plus size={18} /> Tambah Barang
+                    <Plus size={18} /> Simpan Barang
                   </button>
                 </div>
              </div>
