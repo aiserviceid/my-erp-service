@@ -1169,15 +1169,25 @@ export default function AdminDashboard() {
                       )}
                     </div>
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <label className="label">Pilih Tema Bisnis</label>
+                      <label className="label">Tema</label>
                       <select className="input-field" 
-                        value={settings.theme || 'laptop'} 
+                        value={settings.theme || 'default'} 
                         onChange={(e) => updateTenantSettings({ theme: e.target.value })}
                       >
-                        <option value="laptop">Servis Laptop & Komputer</option>
-                        <option value="hp">Servis Smartphone (HP)</option>
-                        <option value="motor">Bengkel Motor</option>
+                        <option value="default">Default (Mode Terang)</option>
+                        <option value="dark">Dark (Mode Gelap)</option>
                       </select>
+                    </div>
+
+                    <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-primary" onClick={async () => {
+                        try {
+                          await apiService.updateTenantSettings(tenant.code, settings);
+                          alert('Tema & Branding berhasil disimpan!');
+                        } catch(e) {
+                          alert('Gagal menyimpan');
+                        }
+                      }}>💾 Simpan Perubahan</button>
                     </div>
                   </div>
                 )}
