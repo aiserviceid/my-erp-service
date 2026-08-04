@@ -1191,47 +1191,88 @@ export default function AdminDashboard() {
             <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
               <h4>Pengaturan Kontak Toko, Rekening Bank & Nota</h4>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                Nomor WhatsApp khusus penerima pesanan dari Katalog, Info Rekening Bank, dan Catatan Kaki yang akan dicetak di Nota.
+                Lengkapi data ini agar pelanggan mudah menghubungi dan melakukan pembayaran kepada Anda.
               </p>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="label">Nomor WhatsApp Penerima Order (Dari Katalog)</label>
                 <input 
                   type="text" 
                   className="input-field" 
-                  placeholder="Nomor WA Toko (Misal: 08123456789)..."
+                  placeholder="Contoh: 08123456789"
                   defaultValue={tenant?.settings?.store_wa || ''}
                   id="storeWaInput"
-                  style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
+                  style={{ width: '100%', maxWidth: '500px' }}
                   disabled={isFree}
                 />
-                <textarea 
-                  className="input-field" 
-                  placeholder="Info Rekening (Misal: BCA 12345678 a/n Budi)..."
-                  defaultValue={tenant?.settings?.store_bank || ''}
-                  id="storeBankInput"
-                  style={{ width: '100%', maxWidth: '400px', marginBottom: '10px', minHeight: '60px', resize: 'vertical' }}
-                  disabled={isFree}
-                />
-                <textarea 
-                  className="input-field" 
-                  placeholder="Catatan Kaki Nota (Misal: Garansi servis 1 minggu dari tanggal pengambilan)..."
-                  defaultValue={tenant?.settings?.receipt_note || ''}
-                  id="receiptNoteInput"
-                  style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem', minHeight: '60px', resize: 'vertical' }}
-                  disabled={isFree}
-                />
-                <div>
-                  <button className="btn btn-primary" disabled={isFree} onClick={async () => {
-                    const storeWa = document.getElementById('storeWaInput').value;
-                    const storeBank = document.getElementById('storeBankInput').value;
-                    const receiptNote = document.getElementById('receiptNoteInput').value;
-                    try {
-                      const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, receipt_note: receiptNote };
-                      await apiService.updateTenantSettings(tenant.code, newSettings);
-                      updateTenantSettings(newSettings);
-                      alert('Informasi Kontak, Bank & Nota berhasil disimpan!');
-                    } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                  }}>Simpan Kontak, Bank & Nota</button>
+              </div>
+
+              <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1rem', maxWidth: '500px' }}>
+                <h5 style={{ margin: '0 0 12px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>💳 Info Rekening Pembayaran</h5>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                  <select id="bankNameSelect" className="input-field" disabled={isFree} defaultValue={tenant?.settings?.bank_name || ''}>
+                    <option value="">-- Pilih Bank / E-Wallet --</option>
+                    <optgroup label="Bank Nasional">
+                      <option value="BCA">BCA</option>
+                      <option value="Mandiri">Mandiri</option>
+                      <option value="BNI">BNI</option>
+                      <option value="BRI">BRI</option>
+                      <option value="BSI">BSI (Bank Syariah Indonesia)</option>
+                      <option value="CIMB Niaga">CIMB Niaga</option>
+                    </optgroup>
+                    <optgroup label="Bank Digital">
+                      <option value="Seabank">Seabank</option>
+                      <option value="Bank Jago">Bank Jago</option>
+                      <option value="Blu BCA">Blu by BCA</option>
+                      <option value="Neo Bank">Neo Bank</option>
+                    </optgroup>
+                    <optgroup label="E-Wallet">
+                      <option value="DANA">DANA</option>
+                      <option value="GoPay">GoPay</option>
+                      <option value="OVO">OVO</option>
+                      <option value="ShopeePay">ShopeePay</option>
+                      <option value="LinkAja">LinkAja</option>
+                    </optgroup>
+                  </select>
+                  <input type="text" id="accNumberInput" className="input-field" placeholder="Nomor Rekening / No. HP E-Wallet" disabled={isFree} defaultValue={tenant?.settings?.bank_account || ''} />
+                  <input type="text" id="accNameInput" className="input-field" placeholder="Atas Nama (A/N)" disabled={isFree} defaultValue={tenant?.settings?.bank_holder || ''} />
                 </div>
               </div>
+
+              <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', maxWidth: '500px' }}>
+                <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota (Struk)</h5>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>
+                  Contoh: <i>"Garansi servis 1 minggu dari tanggal pengambilan. Barang yang tidak diambil lebih dari 1 bulan bukan tanggung jawab kami."</i>
+                </p>
+                <textarea 
+                  className="input-field" 
+                  placeholder="Ketik aturan garansi / ucapan terima kasih di sini..."
+                  defaultValue={tenant?.settings?.receipt_note || ''}
+                  id="receiptNoteInput"
+                  style={{ width: '100%', minHeight: '70px', resize: 'vertical' }}
+                  disabled={isFree}
+                />
+              </div>
+
+              <div>
+                <button className="btn btn-primary" disabled={isFree} onClick={async () => {
+                  const storeWa = document.getElementById('storeWaInput').value;
+                  const bankName = document.getElementById('bankNameSelect').value;
+                  const accNumber = document.getElementById('accNumberInput').value;
+                  const accName = document.getElementById('accNameInput').value;
+                  const receiptNote = document.getElementById('receiptNoteInput').value;
+                  
+                  const storeBank = bankName && accNumber ? `${bankName} ${accNumber} a/n ${accName}` : '';
+                  
+                  try {
+                    const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, receipt_note: receiptNote };
+                    await apiService.updateTenantSettings(tenant.code, newSettings);
+                    updateTenantSettings(newSettings);
+                    alert('Informasi Kontak, Bank & Nota berhasil disimpan!');
+                  } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                }}>💾 Simpan Kontak, Bank & Nota</button>
+              </div>
+            </div>
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '2rem 0' }} />
