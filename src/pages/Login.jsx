@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 export default function Login() {
   const location = useLocation();
   const initialTab = location.state?.tab || 'login'; // 'login' | 'register'
-  const initialTier = location.state?.tier || 'free';
+  const initialTier = location.state?.tier || 'pro'; // default Pro agar user selalu lihat payment
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [tenantCode, setTenantCode] = useState('');
@@ -445,6 +445,9 @@ export default function Login() {
 
             {/* Action Konfirmasi WhatsApp */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: '10px', padding: '10px 14px', fontSize: '0.82rem', color: '#854d0e', fontWeight: '600', textAlign: 'center' }}>
+                ⚠️ Akun sudah terdaftar. Setelah transfer, konfirmasi via WhatsApp untuk aktivasi oleh Admin.
+              </div>
               <a 
                 href={getWaUrl()}
                 target="_blank"
@@ -455,21 +458,11 @@ export default function Login() {
                   justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(37, 211, 102, 0.3)'
                 }}
               >
-                Konfirmasi Otomatis via WhatsApp 💬
+                💬 Konfirmasi Pembayaran via WhatsApp
               </a>
-
-              <button 
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  navigate('/admin');
-                }}
-                style={{
-                  width: '100%', padding: '11px', borderRadius: '12px', background: 'transparent',
-                  color: '#64748b', border: '1px solid #cbd5e1', cursor: 'pointer', fontSize: '0.88rem', fontWeight: '600'
-                }}
-              >
-                Masuk ke Dashboard Dulu (Uji Coba)
-              </button>
+              <p style={{ textAlign: 'center', fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                Setelah Admin konfirmasi, akun Anda akan diaktifkan dalam 1–5 menit.
+              </p>
             </div>
 
           </div>
