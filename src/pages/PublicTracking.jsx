@@ -1,29 +1,29 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Package, Clock, CheckCircle, AlertTriangle, ArrowLeft, Sparkles, Phone } from 'lucide-react';
 import { apiService } from '../services/api';
 import { SERVICE_STATUSES, getStatusInfo } from '../config/tierLimits';
 
 export default function PublicTracking() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [resi, setResi] = useState('');
   const [result, setResult] = useState(null);
   const [tenantInfo, setTenantInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!resi.trim()) return;
-    
+  const executeSearch = async (targetResi) => {
+    const cleanResi = (targetResi || '').trim();
+    if (!cleanResi) return;
+
     setLoading(true);
     setError('');
     setResult(null);
 
     try {
-      const data = await apiService.trackService(resi.trim());
+      const data = await apiService.trackService(cleanResi);
       setResult(data);
-      // Try to load tenant info for branding
       if (data.tenant_code) {
         apiService.getTenantPublic(data.tenant_code).then(info => {
           if (info) setTenantInfo(info);
@@ -35,6 +35,20 @@ export default function PublicTracking() {
       setLoading(false);
     }
   };
+
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
+    executeSearch(resi);
+  };
+
+  // Auto-search if ?resi=TRX-XXXXX query parameter exists in URL!
+  useEffect(() => {
+    const resiFromUrl = searchParams.get('resi');
+    if (resiFromUrl) {
+      setResi(resiFromUrl);
+      executeSearch(resiFromUrl);
+    }
+  }, [searchParams]);
 
   // Get status index for timeline
   const getStatusIndex = (status) => {
@@ -390,20 +404,25 @@ export default function PublicTracking() {
         )}
       </main>
 
-      {/* ── FOOTER ── */}
+      {/* ── VIRAL GROWTH LOOP FOOTER ── */}
       <footer style={{
-        padding: '24px 16px', textAlign: 'center',
-        borderTop: '1px solid #e2e8f0', marginTop: '40px',
+        padding: '28px 16px', textAlign: 'center',
+        borderTop: '1px solid #e2e8f0', marginTop: '40px', background: '#ffffff'
       }}>
-        <p style={{ margin: '0 0 8px', fontSize: '0.82rem', color: '#94a3b8' }}>
-          &copy; {new Date().getFullYear()} {tenantSettings.storeName || tenantInfo?.name || 'AISERVICE.ID'}
+        <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#64748b' }}>
+          &copy; {new Date().getFullYear()} {tenantSettings.storeName || tenantInfo?.name || 'AISERVICE.ID'} • Dilayani dengan Sistem Operasional Digital
         </p>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '6px',
-          padding: '4px 12px', borderRadius: '100px', background: '#f1f5f9',
-          fontSize: '0.72rem', color: '#64748b', fontWeight: '600',
-        }}>
-          <Sparkles size={12} /> Powered by AISERVICE.ID
+        <div 
+          onClick={() => navigate('/login', { state: { tab: 'register' } })}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            padding: '8px 18px', borderRadius: '100px', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+            border: '1px solid #bae6fd', fontSize: '0.82rem', color: '#0369a1', fontWeight: '800',
+            boxShadow: '0 2px 10px rgba(2, 132, 199, 0.1)', cursor: 'pointer', transition: 'all 0.2s ease'
+          }}
+        >
+          <Sparkles size={14} color="#0284c7" />
+          <span>Mau toko servis Anda punya tracking digital kayak gini? <strong>Daftar Gratis ➔</strong></span>
         </div>
       </footer>
 

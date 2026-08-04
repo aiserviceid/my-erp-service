@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
@@ -15,7 +15,7 @@ import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit,
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('pos');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [selectedResi, setSelectedResi] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -30,6 +30,87 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('Bulan Ini');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(!tenant?.settings?.storeName || tenant?.settings?.storeName === 'AISERVICE.ID Toko');
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [obStoreName, setObStoreName] = useState(tenant?.settings?.storeName || tenant?.name || '');
+  const [obStoreWa, setObStoreWa] = useState(tenant?.settings?.store_wa || '');
+  const [obTheme, setObTheme] = useState(tenant?.settings?.theme || 'hp');
+  const [obEmpName, setObEmpName] = useState('');
+  const [obEmpPin, setObEmpPin] = useState('');
+  const [obEmpRole, setObEmpRole] = useState('TEKNISI');
+
+  // Generator Demo Data Instan (40 Barang, 25 Transaksi, 10 Servis, 5 Teknisi)
+  const loadDemoData = () => {
+    const demoProducts = [
+      { id: 'PROD-001', name: 'LCD iPhone 11 Original', price: 450000, stock: 12, category: 'SPAREPART', imageUrl: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-002', name: 'Baterai MacBook Pro Retina 13"', price: 650000, stock: 5, category: 'SPAREPART', imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-003', name: 'RAM DDR4 8GB 3200MHz Laptop', price: 320000, stock: 18, category: 'SPAREPART', imageUrl: 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-004', name: 'SSD NVMe 512GB Kingston', price: 580000, stock: 14, category: 'SPAREPART', imageUrl: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-005', name: 'Thermal Paste Arctic MX-4 4g', price: 85000, stock: 25, category: 'AKSESORIS', imageUrl: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-006', name: 'Charger Laptop Universal 90W', price: 175000, stock: 8, category: 'AKSESORIS', imageUrl: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-007', name: 'Flexible Keyboard Asus TUF FX505', price: 195000, stock: 3, category: 'SPAREPART', imageUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-008', name: 'Kipas Fan Cooler CPU Laptop Lenovo', price: 140000, stock: 2, category: 'SPAREPART', imageUrl: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-009', name: 'Jasa Servis Cleaning & Thermal Paste', price: 150000, stock: 999, category: 'JASA', imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80' },
+      { id: 'PROD-010', name: 'Jasa Flash BIOS & Install Windows 11', price: 100000, stock: 999, category: 'JASA', imageUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&auto=format&fit=crop&q=80' },
+    ];
+    const demoImages = [
+      'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1562976540-1502c2145186?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&auto=format&fit=crop&q=80'
+    ];
+    for (let i = 11; i <= 40; i++) {
+      demoProducts.push({
+        id: `PROD-${100 + i}`,
+        name: `Sparepart / Aksesoris Komputer Grade A #${i}`,
+        price: (i * 25000) + 50000,
+        stock: (i % 7) + 1,
+        category: i % 2 === 0 ? 'SPAREPART' : 'AKSESORIS',
+        imageUrl: demoImages[i % demoImages.length]
+      });
+    }
+
+    const demoUsers = [
+      { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234' },
+      { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678' },
+      { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111' },
+      { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222' },
+      { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333' },
+    ];
+
+    const demoServices = [
+      { resi: 'TRX-1001', customer_name: 'Hendra Saputra', customer_phone: '081234567890', device_name: 'Laptop ASUS ROG Strix GL553', issue: 'Mati total terkena cairan kopi', status: 'DIKERJAKAN', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*24*2).toISOString() },
+      { resi: 'TRX-1002', customer_name: 'Siti Rahma', customer_phone: '085712345678', device_name: 'MacBook Air M1 2020', issue: 'Layar blank hitam, suara nyala', status: 'DICEK', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*24*1).toISOString() },
+      { resi: 'TRX-1003', customer_name: 'Bambang Wijaya', customer_phone: '081987654321', device_name: 'Lenovo ThinkPad T480', issue: 'Upgrade SSD 512GB & RAM 16GB', status: 'SELESAI', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*12).toISOString() },
+      { resi: 'TRX-1004', customer_name: 'Dewi Lestari', customer_phone: '082133445566', device_name: 'Acer Nitro 5 AN515', issue: 'Kipas berisik & panas lemot', status: 'DIAMBIL', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*5).toISOString() },
+      { resi: 'TRX-1005', customer_name: 'Rian Pratama', customer_phone: '087811223344', device_name: 'HP Pavilion Gaming 15', issue: 'Keyboard eror pencet sendiri', status: 'MENUNGGU_PART', technician_id: 'EMP-5', created_at: new Date(Date.now() - 3600000*3).toISOString() },
+      { resi: 'TRX-1006', customer_name: 'Fikri Haikal', customer_phone: '081299887766', device_name: 'Dell XPS 13 9360', issue: 'Baterai kembung mati diisi', status: 'DITERIMA', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*1).toISOString() },
+      { resi: 'TRX-1007', customer_name: 'Maya Indah', customer_phone: '085244556677', device_name: 'Asus Vivobook A412F', issue: 'Engsel patah & casing pecah', status: 'DIKERJAKAN', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*4).toISOString() },
+      { resi: 'TRX-1008', customer_name: 'Guntur Pamungkas', customer_phone: '081377889900', device_name: 'PC Desktop Gaming i5-12400F', issue: 'No display vga tidak terbaca', status: 'DICEK', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*8).toISOString() },
+      { resi: 'TRX-1009', customer_name: 'Tania Putri', customer_phone: '089655443322', device_name: 'Lenovo Ideapad Slim 3', issue: 'Install ulang Windows 11 Original', status: 'SELESAI', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*2).toISOString() },
+      { resi: 'TRX-1010', customer_name: 'Eka Kurniawan', customer_phone: '081266778899', device_name: 'MacBook Pro 15" 2017', issue: 'Ganti baterai & cleaning pasta', status: 'SELESAI', technician_id: 'EMP-5', created_at: new Date(Date.now() - 3600000*6).toISOString() }
+    ];
+
+    const demoTransactions = [];
+    for (let i = 1; i <= 25; i++) {
+      demoTransactions.push({
+        id: `TRX-POS-${100 + i}`,
+        tenant_code: tenant.code,
+        type: i % 4 === 0 ? 'EXPENSE' : i % 3 === 0 ? 'INCOME' : 'POS_SALES',
+        amount: i % 4 === 0 ? 150000 : (i * 85000) + 120000,
+        description: i % 4 === 0 ? 'Beli Kertas Struk & Konsumsi Toko' : `Penjualan Kasir / Servis #${i}`,
+        created_at: new Date(Date.now() - (i * 3600000 * 6)).toISOString()
+      });
+    }
+
+    setProducts(demoProducts);
+    setUsers(demoUsers);
+    setServices(demoServices);
+    setTransactions(demoTransactions);
+    alert('✨ Demo Data Instan Berhasil Dimuat!\n\n40 Barang, 25 Transaksi, 10 Servis, & 5 Teknisi aktif sekarang.');
+  };
   
   const exportToExcel = (txs) => {
     const data = txs.map(t => {
@@ -202,7 +283,9 @@ export default function AdminDashboard() {
     : null;
 
   useEffect(() => {
-    if (tenant?.code) {
+    if (tenant?.code === 'DEMO-STORE') {
+      loadDemoData();
+    } else if (tenant?.code) {
       apiService.getProducts(tenant.code).then(setProducts);
       apiService.getServices(tenant.code).then(setServices);
       apiService.getUsers(tenant.code).then(setUsers);
@@ -286,7 +369,7 @@ export default function AdminDashboard() {
   };
 
   // Icon mapping for dynamic tabs
-  const iconMap = { ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle };
+  const iconMap = { LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle };
 
   // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
   const tabs = ADMIN_TABS.map(t => ({
@@ -436,8 +519,253 @@ export default function AdminDashboard() {
           />
         )}
 
-        {/* 1. POS */}
-        {activeTab === 'pos' ? (
+        {/* 0. EXECUTIVE DASHBOARD (FASE 1 ROADMAP) */}
+        {activeTab === 'dashboard' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-in-out' }}>
+            
+            {/* TOP BAR / MAGIC DEMO BUTTON BAR */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              padding: '1.2rem 1.6rem', borderRadius: '18px', color: 'white', flexWrap: 'wrap', gap: '12px'
+            }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>
+                  Sistem Operasional Toko: {tenant?.settings?.storeName || tenant?.name}
+                </h3>
+                <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+                  Mode: <span style={{ color: '#38bdf8', fontWeight: '800' }}>Paket {tenant?.tier === 'pro' ? 'Pro Titan' : tenant?.tier === 'enterprise' ? 'Enterprise' : 'Starter'}</span> • ID Toko: <span style={{ fontFamily: 'monospace', color: '#f1f5f9' }}>{tenant?.code}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={loadDemoData}
+                  style={{
+                    background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white',
+                    border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: '800',
+                    fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)'
+                  }}
+                >
+                  ✨ Muat Demo Data Instan
+                </button>
+              </div>
+            </div>
+
+            {/* INTERACTIVE EMPTY STATE PROGRESS BAR (If no data) */}
+            {services.length === 0 && products.length === 0 && (
+              <div style={{
+                background: '#ffffff', border: '2px solid #bae6fd', borderRadius: '20px',
+                padding: '1.8rem 1.5rem', boxShadow: '0 8px 25px rgba(2,132,199,0.08)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>🚀</span>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '900', color: '#0f172a' }}>Mulai Menggunakan AIService</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>Selesaikan 4 langkah setup cepat agar toko Anda berjalan otomatis.</p>
+                    </div>
+                  </div>
+                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 14px', borderRadius: '100px', fontWeight: '900', fontSize: '0.85rem' }}>
+                    Progress Setup: {users.length > 0 ? '40%' : '20%'}
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                  <div style={{ width: users.length > 0 ? '40%' : '20%', height: '100%', background: 'linear-gradient(90deg, #0284c7 0%, #2563eb 100%)', borderRadius: '100px' }} />
+                </div>
+
+                {/* Steps Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  <div style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>✅</span>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#166534' }}>1. Profil Toko</div>
+                      <div style={{ fontSize: '0.72rem', color: '#15803d' }}>Nama & WA terkonfigurasi</div>
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '12px', background: users.length > 0 ? '#f0fdf4' : '#fffbeb', border: `1px solid ${users.length > 0 ? '#bbf7d0' : '#fde68a'}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>{users.length > 0 ? '✅' : '👨‍🔧'}</span>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: users.length > 0 ? '#166534' : '#b45309' }}>2. Tambah Teknisi</div>
+                      <div style={{ fontSize: '0.72rem', color: users.length > 0 ? '#15803d' : '#d97706' }}>{users.length} Teknisi Terdaftar</div>
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>📦</span>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#475569' }}>3. Tambah Barang</div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Master Sparepart</div>
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>📝</span>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#475569' }}>4. Buat Servis</div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Input Resi Pertama</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* METRICS CARDS: HARI INI */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+              
+              {/* Card 1: Omzet Hari Ini */}
+              <div style={{
+                background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
+                border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+                borderLeft: '4px solid #10b981'
+              }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Pendapatan Hari Ini</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#10b981', margin: '4px 0' }}>
+                  Rp {transactions.filter(t => new Date(t.created_at).toDateString() === new Date().toDateString() && (t.type === 'POS_SALES' || t.type.startsWith('INCOME'))).reduce((sum, t) => sum + (t.amount || 0), 0).toLocaleString('id-ID')}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: '600' }}>✓ Kasir & Jasa Servis</div>
+              </div>
+
+              {/* Card 2: Servis Masuk */}
+              <div style={{
+                background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
+                border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+                borderLeft: '4px solid #0284c7'
+              }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Servis Masuk</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#0284c7', margin: '4px 0' }}>
+                  {services.filter(s => new Date(s.created_at || Date.now()).toDateString() === new Date().toDateString()).length} Unit
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: '600' }}>Total Aktif: {services.filter(s => s.status !== 'DIAMBIL' && s.status !== 'DIBATALKAN').length} Unit</div>
+              </div>
+
+              {/* Card 3: Servis Selesai */}
+              <div style={{
+                background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
+                border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+                borderLeft: '4px solid #16a34a'
+              }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Servis Selesai</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#16a34a', margin: '4px 0' }}>
+                  {services.filter(s => s.status === 'SELESAI').length} Unit
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: '600' }}>Siap Diambil Pelanggan</div>
+              </div>
+
+              {/* Card 4: Teknisi Aktif */}
+              <div style={{
+                background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
+                border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+                borderLeft: '4px solid #7c3aed'
+              }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Teknisi Aktif</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#7c3aed', margin: '4px 0' }}>
+                  {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').length} Orang
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#6d28d9', fontWeight: '600' }}>Siap Terima Tugas</div>
+              </div>
+
+              {/* Card 5: Stok Hampir Habis */}
+              <div style={{
+                background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
+                border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+                borderLeft: '4px solid #f59e0b'
+              }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Stok Hampir Habis</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f59e0b', margin: '4px 0' }}>
+                  {products.filter(p => p.stock > 0 && p.stock <= 3).length} Barang
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: '600' }}>Perlu Re-Order Sparepart</div>
+              </div>
+
+            </div>
+
+            {/* GRAPH & 5 RECENT SERVICES GRID */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+              
+              {/* Grafik Pemasukan */}
+              <div style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                <h4 style={{ margin: '0 0 1.2rem 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
+                  Grafik Omzet & Arus Kas 7 Hari Terakhir
+                </h4>
+                <div style={{ height: '260px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={
+                      Array.from({length: 7}).map((_, i) => {
+                        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+                        const dStr = d.toDateString();
+                        const txs = transactions.filter(t => new Date(t.created_at).toDateString() === dStr);
+                        const masuk = txs.filter(t => t.type === 'INCOME' || t.type.startsWith('INCOME_') || t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount||0), 0);
+                        const keluar = txs.filter(t => t.type === 'BON_KARYAWAN' || t.type === 'EXPENSE').reduce((sum, t) => sum + (t.amount||0), 0);
+                        return { name: dStr.substring(0,3) + ' ' + d.getDate(), Pendapatan: masuk, Pengeluaran: keluar };
+                      })
+                    }>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" />
+                      <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={(v) => `Rp ${v/1000}k`} width={60} />
+                      <Tooltip formatter={(v) => `Rp ${v.toLocaleString('id-ID')}`} />
+                      <Bar dataKey="Pendapatan" fill="#0284c7" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 5 Servis Terbaru */}
+              <div style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
+                    📋 5 Servis Terbaru Toko
+                  </h4>
+                  <button onClick={() => setActiveTab('servis')} style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer' }}>
+                    Lihat Semua →
+                  </button>
+                </div>
+                {services.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.88rem' }}>
+                    Belum ada servis terdaftar. Klik "+ Buat Servis" di menu Servis.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {services.slice(0, 5).map(s => {
+                      const st = getStatusInfo(s.status);
+                      return (
+                        <div key={s.resi} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #f1f5f9'
+                        }}>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{s.customer_name} •</span>
+                              <a 
+                                href={`${window.location.origin}/tracking?resi=${s.resi}`} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
+                                title="Klik untuk cek status otomatis"
+                              >
+                                {s.resi} 🔗
+                              </a>
+                            </div>
+                          <span style={{
+                            padding: '4px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800',
+                            background: st.bg, color: st.color
+                          }}>
+                            {st.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        ) : 
+
+        /* 1. POS */
+        activeTab === 'pos' ? (
           <POSView 
             products={products} 
             transactions={transactions}
@@ -547,6 +875,136 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+        ) : activeTab === 'pelanggan' ? (
+          /* MODUL CRM DATABASE PELANGGAN & WA BLAST */
+          <div className="glass-panel" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', color: '#0f172a' }}>
+                  👥 Database Pelanggan & WhatsApp Blast CRM
+                </h3>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                  Kelola database seluruh pelanggan toko dan kirim pesan promosi / pengingat via WhatsApp massal.
+                </p>
+              </div>
+            </div>
+
+            {/* CRM Metrics Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '2rem' }}>
+              <div style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #0284c7' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>TOTAL DATABASE PELANGGAN</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0284c7', margin: '2px 0' }}>
+                  {Array.from(new Set(services.map(s => s.customer_phone).concat(transactions.map(t => t.description?.match(/08\d+/)?.[0]).filter(Boolean)))).length} Orang
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: '600' }}>✓ Tersimpan Otomatis di CRM</div>
+              </div>
+
+              <div style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #16a34a' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>SIAP DI-BLAST WHATSAPP</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#16a34a', margin: '2px 0' }}>
+                  {services.filter(s => s.customer_phone).length} Nomor
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: '600' }}>✓ Nomor WA Terverifikasi</div>
+              </div>
+
+              <div style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #7c3aed' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>PELANGGAN REPEAT ORDER</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#7c3aed', margin: '2px 0' }}>
+                  {services.filter(s => s.status === 'SELESAI' || s.status === 'DIAMBIL').length} Unit
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#6d28d9', fontWeight: '600' }}>✓ Riwayat Servis Sukses</div>
+              </div>
+            </div>
+
+            {/* WA BLAST CAMPAIGN GENERATOR BOX */}
+            <div style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', padding: '1.5rem', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>💬</span>
+                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#166534' }}>
+                  Kirim Broadcast WA Blast Promo / Reminder
+                </h4>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '1rem' }}>
+                <div>
+                  <label className="label">Pilih Template Broadcast Promo:</label>
+                  <select 
+                    id="waBlastTemplate"
+                    className="input-field"
+                    onChange={(e) => {
+                      const txtArea = document.getElementById('waBlastMessage');
+                      if (txtArea && e.target.value) {
+                        txtArea.value = e.target.value.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
+                      }
+                    }}
+                  >
+                    <option value="">-- Pilih Template Pesan Promo --</option>
+                    <option value="Halo Kak, terima kasih sudah menjadi pelanggan setia {STORE_NAME}! Khusus bulan ini dapatkan DISKON 20% Pembersihan Fan & Ganti Thermal Paste Laptop agar laptop tidak lemot/overheat. Hubungi kami sekarang!">📢 Diskon 20% Maintenance Laptop / HP</option>
+                    <option value="Halo Kak, pengingat dari {STORE_NAME}: Servis perangkat Anda sudah selesai & siap diambil di toko kami. Terima kasih!">⚠️ Pengingat Unit Servis Selesai Belum Diambil</option>
+                    <option value="Halo Kak, ada PROMO SPESIAL dari {STORE_NAME} untuk aksesoris & charger ori minggu ini! Kunjungi toko kami atau reply pesan ini untuk pemesanan.">🎁 Promo Aksesoris & Charger Ori Toko</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="label">Pesan Broadcast WhatsApp:</label>
+                  <textarea 
+                    id="waBlastMessage"
+                    className="input-field" 
+                    rows={3} 
+                    defaultValue={`Halo Kak, terima kasih sudah menjadi pelanggan setia ${settings.storeName || tenant?.name || 'Toko Servis'}! Dapatkan promo spesial servis & sparepart minggu ini di toko kami.`}
+                  />
+                </div>
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: '#15803d', margin: 0, fontWeight: '600' }}>
+                💡 Klik tombol <strong>Kirim WA Blast 📲</strong> pada daftar pelanggan di bawah untuk mengirimkan pesan promo ke nomor WA masing-masing pelanggan.
+              </p>
+            </div>
+
+            {/* TABEL DATABASE PELANGGAN */}
+            <h4 style={{ marginBottom: '1rem', color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan Toko:</h4>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nama Pelanggan</th>
+                    <th>Nomor WhatsApp</th>
+                    <th>Terakhir Servis / Transaksi</th>
+                    <th>Aksi Broadcast WA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {services.length === 0 ? (
+                    <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>Belum ada data pelanggan terdaftar. Data otomatis terkumpul dari menu Servis & Kasir.</td></tr>
+                  ) : (
+                    services.map(s => {
+                      const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
+                      return (
+                        <tr key={s.resi}>
+                          <td><strong>{s.customer_name}</strong> <br/><small style={{ color: '#64748b' }}>Perangkat: {s.device_name}</small></td>
+                          <td><span className="badge badge-info">{s.customer_phone || '-'}</span></td>
+                          <td>{new Date(s.created_at || Date.now()).toLocaleDateString('id-ID')} ({s.status})</td>
+                          <td>
+                            <button 
+                              className="btn btn-accent"
+                              style={{ padding: '4px 12px', fontSize: '0.78rem', background: '#25D366', color: 'white', border: 'none' }}
+                              onClick={() => {
+                                const msgInput = document.getElementById('waBlastMessage');
+                                const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
+                                window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}`, '_blank');
+                              }}
+                            >
+                              Kirim WA Blast 📲
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         ) : 
 
         /* 3. PENGATURAN */
@@ -587,39 +1045,70 @@ export default function AdminDashboard() {
             <div style={{ opacity: isFree ? 0.6 : 1 }}>
               <h3 style={{ marginBottom: '1.5rem' }}>Otomatisasi WhatsApp & Kontak {isFree && <span className="badge badge-warning">Premium</span>}</h3>
               <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
-                <h4>Otomatisasi WhatsApp (API Fonnte)</h4>
+                <h4>Otomatisasi WhatsApp Gateway</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                Pilih metode pengiriman WA saat servis selesai. Jika memilih Otomatis, sistem membutuhkan Token API Fonnte.
-              </p>
-                <select 
-                  className="input-field" 
-                  id="waMethodInput" 
-                  defaultValue={tenant?.settings?.wa_method || 'auto'} 
-                  style={{ width: '100%', maxWidth: '400px', marginBottom: '10px' }}
-                  disabled={isFree}
+                  Pilih metode pengiriman notifikasi WhatsApp. Anda dapat menggunakan server terpusat sistem kami atau nomor WA toko Anda sendiri.
+                </p>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label className="label">Mode Pengiriman WA:</label>
+                  <select 
+                    className="input-field" 
+                    id="waSenderModeInput"
+                    value={tenant?.settings?.wa_sender_mode || 'SYSTEM'} 
+                    style={{ width: '100%', maxWidth: '400px' }}
+                    disabled={isFree}
+                    onChange={async (e) => {
+                      const mode = e.target.value;
+                      const newSettings = { ...tenant?.settings, wa_sender_mode: mode };
+                      try {
+                        await apiService.updateTenantSettings(tenant.code, newSettings);
+                        updateTenantSettings(newSettings);
+                      } catch(err) { alert('Gagal mengubah mode'); }
+                    }}
+                  >
+                    <option value="SYSTEM">🟢 Server Terpusat AIService.ID (Sistem Global)</option>
+                    <option value="CUSTOM">⚙️ Custom API Key Mandiri (Toko Sendiri)</option>
+                  </select>
+                </div>
+
+                {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label className="label">Token API Fonnte / Wablas Toko Anda:</label>
+                    <input 
+                      type="password" 
+                      className="input-field" 
+                      placeholder="Masukkan Token Fonnte/Wablas Toko Anda..."
+                      defaultValue={tenant?.settings?.fonnte_token || ''}
+                      id="fonnteTokenInput"
+                      style={{ width: '100%', maxWidth: '400px' }}
+                      disabled={isFree}
+                    />
+                    <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '6px' }}>
+                      🔑 Pesan notifikasi akan dikirimkan langsung menggunakan nomor server WhatsApp Anda sendiri.
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '10px 14px', borderRadius: '10px', color: '#15803d', fontSize: '0.82rem', fontWeight: '800', marginBottom: '1rem', maxWidth: '400px' }}>
+                    ✓ Layanan WA otomatis aktif menggunakan Server Gateway AIService.ID. Tidak perlu konfigurasi API Key tambahan.
+                  </div>
+                )}
+
+                <button 
+                  className="btn btn-primary" 
+                  disabled={isFree} 
+                  onClick={async () => {
+                    const token = tenant?.settings?.wa_sender_mode === 'CUSTOM' ? document.getElementById('fonnteTokenInput')?.value : '';
+                    try {
+                      const newSettings = { ...tenant?.settings, fonnte_token: token };
+                      await apiService.updateTenantSettings(tenant.code, newSettings);
+                      updateTenantSettings(newSettings);
+                      alert('Pengaturan WhatsApp berhasil disimpan!');
+                    } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                  }}
                 >
-                  <option value="auto">Otomatis (API Fonnte)</option>
-                  <option value="manual">Manual (WhatsApp Web / Aplikasi)</option>
-                </select>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  placeholder="Token API Fonnte (Abaikan jika Manual)..."
-                  defaultValue={tenant?.settings?.fonnte_token || ''}
-                  id="fonnteTokenInput"
-                  style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem' }}
-                  disabled={isFree}
-                />
-                <button className="btn btn-primary" disabled={isFree} onClick={async () => {
-                  const token = document.getElementById('fonnteTokenInput').value;
-                  const method = document.getElementById('waMethodInput').value;
-                  try {
-                    const newSettings = { ...tenant?.settings, fonnte_token: token, wa_method: method };
-                    await apiService.updateTenantSettings(tenant.code, newSettings);
-                    updateTenantSettings(newSettings);
-                    alert('Pengaturan WhatsApp berhasil disimpan!');
-                  } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                }}>Simpan Pengaturan WA</button>
+                  💾 Simpan Pengaturan WA
+                </button>
               </div>
 
             <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
@@ -775,6 +1264,9 @@ export default function AdminDashboard() {
                   <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
                   <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
                   <div style={{ gridColumn: '1 / -1' }}>
+                    <input type="text" name="address" className="input-field" placeholder="Alamat Pelanggan (Opsional - Khusus Servis Panggilan / Antar-Jemput)" />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
                     <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
                   </div>
                   <input type="number" name="estimasi_biaya" className="input-field" placeholder="Estimasi Biaya Awal (Rp) - Opsional" />
@@ -822,8 +1314,18 @@ export default function AdminDashboard() {
                      const garansiStatus = garansiMatch ? garansiMatch[1] : '-';
                      const cleanIssue = (s.issue || '').replace(/\[Masa Garansi Servis: s\/d .*?\]/, '').trim();
                      return (
-                     <tr key={s.resi}>
-                        <td>{s.resi}</td>
+                      <tr key={s.resi}>
+                        <td>
+                          <a 
+                            href={`${window.location.origin}/tracking?resi=${s.resi}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
+                            title="Klik untuk membuka link tracking otomatis"
+                          >
+                            {s.resi} 🔗
+                          </a>
+                        </td>
                         <td>{s.customer_name} <br/><small style={{color: 'var(--text-muted)'}}>{s.customer_phone}</small></td>
                         <td>{s.device_name}</td>
                         <td style={{ whiteSpace: 'pre-wrap', maxWidth: '200px' }}>{cleanIssue}</td>
@@ -840,7 +1342,9 @@ export default function AdminDashboard() {
                                 await apiService.post('/services/update', { resi: s.resi, status: newStatus });
                                 setServices(services.map(srv => srv.resi === s.resi ? { ...srv, status: newStatus } : srv));
                                 if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
-                                  const msg = `Halo ${s.customer_name}, status servis ${s.device_name} Anda (Resi: ${s.resi}) saat ini: *${getStatusInfo(newStatus).label}*.\n\nCek detail: ${window.location.origin}/track`;
+                                  const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
+                                  const trackingUrl = `${window.location.origin}/tracking?resi=${s.resi}`;
+                                  const msg = `Halo Kak ${s.customer_name}, ini update status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${storeName}* saat ini: *${getStatusInfo(newStatus).label}*.\n\nKlik link ini untuk cek status langsung dari HP:\n${trackingUrl}`;
                                   window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');
                                 }
                               } catch(err) { alert('Gagal update status'); }
@@ -853,10 +1357,18 @@ export default function AdminDashboard() {
                           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
                             <button className="btn btn-primary" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', background: '#0ea5e9' }}>Cetak Nota</button>
-                            <a href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=Halo ${s.customer_name}, servis ${s.device_name} Anda (Resi: ${s.resi}) status: ${s.status.replace('_', ' ')}.`} target="_blank" rel="noreferrer" className="btn btn-accent" style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}>Kirim WA</a>
+                            <a 
+                              href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${s.resi}`)}`} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="btn btn-accent" 
+                              style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}
+                            >
+                              Kirim WA 📲
+                            </a>
                           </div>
                         </td>
-                     </tr>
+                      </tr>
                    )}) : (
                      <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{serviceSearchQuery ? 'Tidak ada hasil pencarian.' : 'Belum ada data servis.'}</td></tr>
                    )}
@@ -868,56 +1380,100 @@ export default function AdminDashboard() {
           <div className="glass-panel" style={{ minHeight: '400px' }}>
              <h3 style={{ marginBottom: '0.5rem' }}>Master Barang & Sparepart ({tenant?.name})</h3>
              
-             {/* Fitur Bagikan Tautan Katalog Digital disembunyikan sementara */}
-             
-             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
-                <input type="text" className="input-field" placeholder="Nama Barang..." id="newProductName" style={{ flex: 1 }} />
-                <input type="number" className="input-field" placeholder="Harga (Rp)" id="newProductPrice" style={{ width: '150px' }} />
-                <input type="number" className="input-field" placeholder="Stok" id="newProductStock" style={{ width: '100px' }} />
-                <button className="btn btn-primary" onClick={async () => {
-                  const name = document.getElementById('newProductName').value;
-                  const price = parseInt(document.getElementById('newProductPrice').value);
-                  const stock = parseInt(document.getElementById('newProductStock').value);
-                  if (!name || !price) return alert('Nama dan Harga wajib diisi');
-                  
-                  try {
-                    const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0 });
-                    setProducts([...products, newProd]);
-                    document.getElementById('newProductName').value = '';
-                    document.getElementById('newProductPrice').value = '';
-                    document.getElementById('newProductStock').value = '';
-                  } catch (e) {
-                    alert('Gagal menambah barang');
-                  }
-                }}>
-                  <Plus size={18} /> Tambah
-                </button>
+             {/* FORM TAMBAH BARANG DENGAN UPLOAD GAMBAR */}
+             <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <input type="text" className="input-field" placeholder="Nama Barang / Sparepart..." id="newProductName" style={{ flex: 2, minWidth: '200px' }} />
+                  <select className="input-field" id="newProductCat" style={{ width: '130px' }}>
+                    <option value="SPAREPART">Sparepart</option>
+                    <option value="AKSESORIS">Aksesoris</option>
+                    <option value="JASA">Jasa Servis</option>
+                    <option value="UNIT">Unit/Laptop</option>
+                  </select>
+                  <input type="number" className="input-field" placeholder="Harga (Rp)" id="newProductPrice" style={{ width: '130px' }} />
+                  <input type="number" className="input-field" placeholder="Stok" id="newProductStock" style={{ width: '90px' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="text" className="input-field" placeholder="URL / Link Foto Produk (https://...)" id="newProductImage" style={{ flex: 1, minWidth: '220px' }} />
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '8px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer', border: '1px solid #bae6fd' }}>
+                    📷 Upload Gambar
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          document.getElementById('newProductImage').value = reader.result;
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }} />
+                  </label>
+
+                  <button className="btn btn-primary" style={{ padding: '8px 20px', fontWeight: '800' }} onClick={async () => {
+                    const name = document.getElementById('newProductName').value;
+                    const price = parseInt(document.getElementById('newProductPrice').value);
+                    const stock = parseInt(document.getElementById('newProductStock').value);
+                    const category = document.getElementById('newProductCat').value;
+                    const imageUrl = document.getElementById('newProductImage').value;
+                    if (!name || !price) return alert('Nama dan Harga wajib diisi');
+                    
+                    try {
+                      const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl });
+                      setProducts([...products, { ...newProd, imageUrl }]);
+                      document.getElementById('newProductName').value = '';
+                      document.getElementById('newProductPrice').value = '';
+                      document.getElementById('newProductStock').value = '';
+                      document.getElementById('newProductImage').value = '';
+                    } catch (e) {
+                      alert('Gagal menambah barang');
+                    }
+                  }}>
+                    <Plus size={18} /> Tambah Barang
+                  </button>
+                </div>
              </div>
 
              <table className="table">
-               <thead><tr><th>ID</th><th>Nama Barang</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr></thead>
+               <thead><tr><th>Foto</th><th>ID</th><th>Nama Barang</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr></thead>
                <tbody>
                  {products.map(p => (
                    <tr key={p.id}>
-                     <td>{p.id}</td>
-                     <td>{p.name}</td>
-                     <td>Rp {p.price.toLocaleString('id-ID')}</td>
-                     <td>{p.stock}</td>
+                     <td>
+                       {p.imageUrl ? (
+                         <img src={p.imageUrl} alt={p.name} style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }} />
+                       ) : (
+                         <div style={{ width: '45px', height: '45px', borderRadius: '10px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.75rem', fontWeight: '800' }}>
+                           NO IMG
+                         </div>
+                       )}
+                     </td>
+                     <td><small style={{ fontFamily: 'monospace' }}>{p.id}</small></td>
+                     <td style={{ fontWeight: '800' }}>{p.name}</td>
+                     <td><span className="badge" style={{ background: '#f1f5f9', color: '#475569', fontSize: '0.72rem' }}>{p.category || 'SPAREPART'}</span></td>
+                     <td style={{ fontWeight: '800', color: '#0284c7' }}>Rp {p.price.toLocaleString('id-ID')}</td>
+                     <td>
+                       <span className={`badge ${p.stock <= 3 ? 'badge-danger' : 'badge-success'}`}>
+                         {p.stock} pcs
+                       </span>
+                     </td>
                      <td>
                         <div style={{ display: 'flex', gap: '5px' }}>
-                          <button className="btn btn-warning" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                          <button className="btn btn-warning" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={async () => {
                             const newName = prompt('Nama Barang:', p.name);
                             if (newName === null) return;
                             const newPrice = prompt('Harga (Rp):', p.price);
                             if (newPrice === null) return;
                             const newStock = prompt('Stok:', p.stock);
                             if (newStock === null) return;
+                            const newImg = prompt('URL Gambar:', p.imageUrl || '');
+                            if (newImg === null) return;
                             try {
-                              await apiService.updateProduct(p.id, { name: newName, price: parseInt(newPrice), stock: parseInt(newStock) });
-                              setProducts(products.map(x => x.id === p.id ? { ...x, name: newName, price: parseInt(newPrice), stock: parseInt(newStock) } : x));
+                              await apiService.updateProduct(p.id, { name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg });
+                              setProducts(products.map(x => x.id === p.id ? { ...x, name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg } : x));
                             } catch(e) { alert('Gagal edit barang'); }
                           }}>Edit</button>
-                          <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                          <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={async () => {
                             if(confirm('Yakin ingin menghapus barang ini?')) {
                               try {
                                 await apiService.deleteProduct(p.id);
@@ -929,7 +1485,7 @@ export default function AdminDashboard() {
                      </td>
                    </tr>
                  ))}
-                 {products.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data barang.</td></tr>}
+                 {products.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data barang.</td></tr>}
                </tbody>
              </table>
           </div>
@@ -962,12 +1518,12 @@ export default function AdminDashboard() {
                   <h3 style={{ margin: 0 }}>Laporan Keuangan Toko ({tenant?.name})</h3>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button className="btn btn-ghost" onClick={() => {
-                      if (!hasFeature(tenant?.tier, 'exportLaporan')) {
-                        return alert('Fitur Export Excel hanya tersedia di paket PRO. Silakan upgrade paket Anda untuk menikmati fitur ini!');
+                      if (isFree || !hasFeature(tenant?.tier, 'exportExcel')) {
+                        return setShowUpgradeModal(true);
                       }
                       exportToExcel(filteredTransactions);
-                    }} style={{ padding: '6px 12px', background: '#10b981', color: 'white', flex: '1 1 auto', justifyContent: 'center' }}>
-                      📥 Export Excel {isFree && '👑'}
+                    }} style={{ padding: '6px 12px', background: isFree ? '#64748b' : '#10b981', color: 'white', flex: '1 1 auto', justifyContent: 'center' }}>
+                      📥 Export Excel {isFree && '👑 (PRO)'}
                     </button>
                     <button className="btn btn-ghost" onClick={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions)} style={{ padding: '6px 12px', flex: '1 1 auto', justifyContent: 'center' }}>
                       🔄 Segarkan
@@ -1339,6 +1895,213 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ONBOARDING WIZARD 5 MENIT */}
+      {showOnboardingModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(5, 8, 17, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: '24px', padding: '2.5rem 2rem',
+            maxWidth: '540px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+            border: '1px solid #e2e8f0', animation: 'fadeIn 0.3s ease-out'
+          }}>
+            {/* Header Badge */}
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <span style={{
+                padding: '4px 14px', borderRadius: '100px', background: '#e0f2fe', color: '#0284c7',
+                fontWeight: '800', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '1px'
+              }}>
+                ⚡ SETUP CEPAT 5 MENIT
+              </span>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: '#0f172a', margin: '10px 0 4px 0' }}>
+                Selamat Datang di AISERVICE.ID 👋
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+                Lengkapi setup dasar agar toko Anda langsung siap bertransaksi.
+              </p>
+            </div>
+
+            {/* Progress Bar Dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '2rem' }}>
+              {[1, 2, 3].map(step => (
+                <div key={step} style={{
+                  width: onboardingStep === step ? '32px' : '10px', height: '10px',
+                  borderRadius: '100px', background: onboardingStep === step ? '#0284c7' : '#cbd5e1',
+                  transition: 'all 0.3s ease'
+                }} />
+              ))}
+            </div>
+
+            {/* STEP 1: PROFIL TOKO */}
+            {onboardingStep === 1 && (
+              <div>
+                <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a', fontSize: '1.05rem', fontWeight: '800' }}>
+                  Langkah 1: Identitas & Bidang Usaha Toko
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Nama Toko / Usaha</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Misal: Budi Cell & Service" 
+                      value={obStoreName}
+                      onChange={(e) => setObStoreName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>No. WhatsApp Toko</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Misal: 081234567890" 
+                      value={obStoreWa}
+                      onChange={(e) => setObStoreWa(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Kategori Bidang Usaha</label>
+                    <select 
+                      className="input-field"
+                      value={obTheme}
+                      onChange={(e) => setObTheme(e.target.value)}
+                    >
+                      <option value="hp">📱 Servis Smartphone & Tablet (HP)</option>
+                      <option value="laptop">💻 Servis Laptop & Komputer (PC)</option>
+                      <option value="motor">🏍️ Bengkel Motor & Mobil</option>
+                      <option value="electronics">🔌 Servis Elektronik & General Repair</option>
+                    </select>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (!obStoreName.trim()) return alert('Nama Toko wajib diisi!');
+                    setOnboardingStep(2);
+                  }}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: '12px', marginTop: '1.5rem',
+                    background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white',
+                    border: 'none', fontWeight: '800', fontSize: '0.95rem', cursor: 'pointer'
+                  }}
+                >
+                  Lanjut ke Langkah 2 →
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2: KARYAWAN / TEKNISI PRIMER */}
+            {onboardingStep === 2 && (
+              <div>
+                <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a', fontSize: '1.05rem', fontWeight: '800' }}>
+                  Langkah 2: Tambah Karyawan / Teknisi Pertama
+                </h4>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
+                  Karyawan ini dapat login ke Portal Karyawan menggunakan PIN login.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Nama Karyawan (Misal: Rudi - Teknisi Utama)" 
+                    value={obEmpName}
+                    onChange={(e) => setObEmpName(e.target.value)}
+                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="PIN Login (Angka)" 
+                      value={obEmpPin}
+                      onChange={(e) => setObEmpPin(e.target.value)}
+                    />
+                    <select 
+                      className="input-field"
+                      value={obEmpRole}
+                      onChange={(e) => setObEmpRole(e.target.value)}
+                    >
+                      <option value="TEKNISI">Teknisi</option>
+                      <option value="KASIR">Kasir</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '1.5rem' }}>
+                  <button 
+                    onClick={() => setOnboardingStep(1)}
+                    style={{ padding: '12px 18px', borderRadius: '12px', background: '#f1f5f9', border: 'none', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    ← Kembali
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        if (obEmpName && obEmpPin) {
+                          await apiService.post('/users', { tenant_code: tenant.code, name: obEmpName, role: obEmpRole, pin: obEmpPin });
+                          const uList = await apiService.getUsers(tenant.code);
+                          setUsers(uList);
+                        }
+                        setOnboardingStep(3);
+                      } catch(e) { setOnboardingStep(3); }
+                    }}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white',
+                      border: 'none', fontWeight: '800', fontSize: '0.95rem', cursor: 'pointer'
+                    }}
+                  >
+                    Lanjut ke Langkah Akhir →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: SIAP PAKAI! */}
+            {onboardingStep === 3 && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                <h4 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.3rem', fontWeight: '900' }}>
+                  Toko Anda Siap Digunakan!
+                </h4>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                  Selamat! Toko <strong>{obStoreName || tenant?.name}</strong> telah berhasil dikonfigurasi. Anda siap mencetak nota, mengelola servis, dan mencatat transaksi kasir POS dalam waktu kurang dari 5 menit.
+                </p>
+                <button 
+                  onClick={async () => {
+                    try {
+                      const newSet = { ...tenant.settings, storeName: obStoreName, store_wa: obStoreWa, theme: obTheme };
+                      await apiService.updateTenantSettings(tenant.code, newSet);
+                      updateTenantSettings(newSet);
+                    } catch(e) {}
+                    setShowOnboardingModal(false);
+                  }}
+                  style={{
+                    width: '100%', padding: '14px', borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white',
+                    border: 'none', fontWeight: '900', fontSize: '1.05rem', cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(16,185,129,0.4)'
+                  }}
+                >
+                  Mulai Bertransaksi Sekarang 🚀
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* UPGRADE PROMPT MODAL (FOR EXCEL EXPORT & PRO FEATURES) */}
+      {showUpgradeModal && (
+        <UpgradePrompt
+          mode="modal"
+          featureName="Export / Import Excel & Fitur Pro"
+          featureDescription="Fitur Export/Import Excel, WhatsApp Gateway Notifikasi Otomatis, & Laporan Arus Kas Lengkap eksklusif untuk pengguna Paket Pro Titan."
+          usageLabel="Fitur Eksklusif Paket Pro Titan"
+          onClose={() => setShowUpgradeModal(false)}
+        />
       )}
 
       {/* Hidden iframe for printing nota */}

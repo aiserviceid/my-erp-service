@@ -7,6 +7,9 @@ import { PAYMENT_METHODS, isWithinLimit } from '../config/tierLimits';
 
 export default function POSView({ products, transactions = [], onTransactionCreated }) {
   const { tenant, cart, addToCart, removeFromCart, clearCart, updateCartQty } = useStore();
+  const [selectedCategory, setSelectedCategory] = useState('SEMUA');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -26,13 +29,18 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
   // Filtered & sorted products
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products;
-    const q = searchQuery.toLowerCase();
-    return products.filter(p => 
-      p.name.toLowerCase().includes(q) || 
-      (p.id && p.id.toLowerCase().includes(q))
-    );
-  }, [products, searchQuery]);
+    return products.filter(p => {
+      const matchCat = selectedCategory === 'SEMUA' || (p.category && p.category.toUpperCase() === selectedCategory.toUpperCase());
+      if (!matchCat) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        p.name.toLowerCase().includes(q) || 
+        (p.id && p.id.toLowerCase().includes(q)) ||
+        (p.code && p.code.toLowerCase().includes(q))
+      );
+    });
+  }, [products, searchQuery, selectedCategory]);
 
   // Cart calculations
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -297,6 +305,31 @@ export default function POSView({ products, transactions = [], onTransactionCrea
         </button>
       </div>
 
+      {/* ── CATEGORY FILTER PILLS ── */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {['SEMUA', 'SPAREPART', 'AKSESORIS', 'JASA', 'UNIT'].map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '100px',
+              border: selectedCategory === cat ? 'none' : '1px solid #cbd5e1',
+              background: selectedCategory === cat ? 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' : 'white',
+              color: selectedCategory === cat ? 'white' : '#475569',
+              fontWeight: '800',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: selectedCategory === cat ? '0 2px 8px rgba(2,132,199,0.3)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {/* ── PRODUCT GRID ── */}
       <div style={{
         display: 'grid',
@@ -363,6 +396,11 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                   fontWeight: '900',
                 }}>{inCart.qty}</div>
               )}
+
+              {/* Product Image Thumbnail */}
+              {p.imageUrl ? (
+                <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '75px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', background: '#f8fafc' }} />
+              ) : null}
 
               <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a', lineHeight: '1.3', marginBottom: '8px', marginTop: inCart ? '4px' : 0, wordBreak: 'break-word' }}>
                 {p.name}

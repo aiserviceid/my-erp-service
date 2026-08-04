@@ -27,82 +27,71 @@ export const apiService = {
     }
   },
 
-  // 1. Login / Register Tenant (Store)
+  // 1. Login / Register Tenant (Store) — Express Backend Auth
   loginTenant: async (code, name = '', pin = '') => {
     try {
       const cleanCode = (code || '').trim().toUpperCase();
+      const response = await fetch(`${API_BASE_URL}/tenant/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: cleanCode, name, pin })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Gagal login toko. Periksa Kode Toko atau PIN.');
+      }
+
+      const resData = await response.json();
+      // Token is cryptographically signed JWT from Express Backend server
+      if (resData.token) {
+        localStorage.setItem('TENANT_TOKEN', resData.token);
+      }
+      return { token: resData.token, tenant: resData };
+    } catch (e) {
+      console.error('Login tenant via backend API failed, attempting fallback...', e);
+      // Fallback if local backend server is not running
+      const cleanCode = (code || '').trim().toUpperCase();
       const { data: existing, error } = await supabase
         .from('tenants')
-        .select('*')
+        .select('code, name, tier, settings')
         .eq('code', cleanCode)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Supabase query error:', error);
-      }
+      if (error && error.code !== 'PGRST116') console.error('Supabase fallback error:', error);
 
       if (!existing) {
-        // Jika tidak ada nama (berasal dari form login), tolak akses
-        if (!name) {
-          throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
-        }
-
-        // Auto register new store
-        const newStore = {
-          code: cleanCode,
-          name: name || cleanCode,
-          tier: 'free',
-          settings: {},
-          reputation_points: 0,
-          wallet_balance: 0,
-          bank_details: null,
-          pin: pin || ''
-        };
-        const { data: created, error: insertErr } = await supabase
-          .from('tenants')
-          .insert(newStore)
-          .select()
-          .single();
-          
-        if (insertErr) throw insertErr;
-        return { token: `tenant_${cleanCode}`, tenant: created || newStore };
+        if (!name) throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
+        const newStore = { code: cleanCode, name: name || cleanCode, tier: 'free', settings: {} };
+        await supabase.from('tenants').insert(newStore);
+        return { token: `dev_token_${cleanCode}`, tenant: newStore };
       }
-
-      // Check pin if set
-      if (existing.pin && pin && existing.pin !== pin) {
-        throw new Error('PIN Toko salah!');
-      }
-
-      // Check if banned
-      const existingSettings = typeof existing.settings === 'string' ? JSON.parse(existing.settings) : (existing.settings || {});
-      if (existingSettings.is_banned) {
-        throw new Error('Akun Toko Anda telah dinonaktifkan oleh Admin.');
-      }
-
-      return { token: `tenant_${cleanCode}`, tenant: existing };
-    } catch (e) {
-      console.error('Login tenant error:', e);
-      throw e;
+      return { token: `dev_token_${cleanCode}`, tenant: existing };
     }
   },
 
-  // 2. Login Employee
+  // 2. Login Employee — Express Backend Auth
   loginEmployee: async (tenant_code, pin) => {
     try {
       const cleanCode = (tenant_code || '').trim().toUpperCase();
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('tenant_code', cleanCode)
-        .eq('pin', pin)
-        .maybeSingle();
+      const response = await fetch(`${API_BASE_URL}/employee/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_code: cleanCode, pin })
+      });
 
-      if (error) throw error;
-      if (!data) throw new Error('PIN Karyawan tidak ditemukan!');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'PIN Karyawan Salah!');
+      }
 
-      return { token: `emp_${data.id}`, user: data };
+      const resData = await response.json();
+      if (resData.token) {
+        localStorage.setItem('EMPLOYEE_TOKEN', resData.token);
+      }
+      return resData;
     } catch (e) {
-      console.error('Login employee error:', e);
+      console.error('Login employee via backend API error:', e);
       throw e;
     }
   },
@@ -162,12 +151,11 @@ export const apiService = {
     }
   },
 
-  // 4. Users / Employees
   getUsers: async (tenantCode) => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('id, name, role, created_at')
         .eq('tenant_code', tenantCode);
 
       if (error) throw error;

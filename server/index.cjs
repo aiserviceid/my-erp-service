@@ -36,22 +36,38 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-const JWT_SECRET = 'rahasia-negara-erp-saas-2026';
+// Strict Production Environment Check
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is missing in production!');
+  console.error('The server refuses to start to prevent predictable secret token vulnerabilities.');
+  process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_local_testing_secret_key_2026';
 
 // Serve uploads folder statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Middleware to verify JWT
+// Middleware to verify JWT (Header: Authorization: Bearer <token>)
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.sendStatus(401);
+  if (!token) return res.status(401).json({ error: 'Akses ditolak: Token autentikasi tidak ditemukan' });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.status(401).json({ error: 'Akses ditolak: Token tidak valid atau kadaluarsa' });
     req.user = user;
     next();
   });
+};
+
+// Middleware to enforce premium feature limits & tiers on the backend server-side
+const requirePremiumFeature = (req, res, next) => {
+  const tier = req.user?.tier || 'free';
+  if (tier === 'free') {
+    return res.status(403).json({ error: 'Fitur Premium Terkunci: Harap upgrade ke paket Pro Titan untuk menggunakan fitur ini.' });
+  }
+  next();
 };
 
 // API: Register / Login Tenant
@@ -73,7 +89,7 @@ app.post('/api/tenant/login', async (req, res) => {
         db.run('UPDATE tenants SET pin = ? WHERE code = ?', [hashedPin, code]);
       }
       
-      const token = jwt.sign({ code: row.code, role: 'tenant' }, JWT_SECRET, { expiresIn: '24h' });
+      const token = jwt.sign({ code: row.code, role: 'tenant', tier: row.tier || 'free' }, JWT_SECRET, { expiresIn: '24h' });
       res.json({ ...row, token });
     } else {
       // Create new tenant if not exists
@@ -81,7 +97,7 @@ app.post('/api/tenant/login', async (req, res) => {
       const defaultSettings = JSON.stringify({ theme: 'laptop', storeName: name || 'Toko Baru', ads: [] });
       db.run('INSERT INTO tenants (code, name, settings, pin) VALUES (?, ?, ?, ?)', [code, name || 'Toko Baru', defaultSettings, hashedPin], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        const token = jwt.sign({ code, role: 'tenant' }, JWT_SECRET, { expiresIn: '24h' });
+        const token = jwt.sign({ code, role: 'tenant', tier: 'free' }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ code, name: name || 'Toko Baru', tier: 'free', settings: defaultSettings, token });
       });
     }
@@ -130,7 +146,7 @@ app.get('/api/users/:tenant', (req, res) => {
   });
 });
 
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', authenticateToken, requirePremiumFeature, async (req, res) => {
   const { tenant_code, name, role, pin } = req.body;
   const hashedPin = await bcrypt.hash(pin, 10);
   db.run('INSERT INTO users (tenant_code, name, role, pin) VALUES (?, ?, ?, ?)', [tenant_code, name, role, hashedPin], function(err) {

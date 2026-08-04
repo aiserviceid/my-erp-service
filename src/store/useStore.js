@@ -98,4 +98,8 @@ export const useStore = create((set) => ({
       } 
     });
   },
+
+  showOnboarding: false,
+  setShowOnboarding: (val) => set({ showOnboarding: val }),
 }));
+

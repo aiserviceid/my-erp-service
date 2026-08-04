@@ -23,7 +23,7 @@ export default function UpgradePrompt({
   const navigate = useNavigate();
 
   const waLink = "https://wa.me/6285382535050?text=" + 
-    encodeURIComponent(`Halo Admin AISERVICE, saya ingin upgrade ke Paket Pro Titan (Rp 49.000/bln). Kode Toko saya: `);
+    encodeURIComponent(`Halo Admin AISERVICE, saya ingin upgrade ke Paket Pro (Rp 149.000/bln). Kode Toko saya: `);
 
   // ── BANNER MODE ──
   if (mode === 'banner') {
@@ -202,7 +202,7 @@ export default function UpgradePrompt({
             textDecoration: 'none', textAlign: 'center',
             boxShadow: '0 4px 18px rgba(2,132,199,0.4)', marginBottom: '10px',
           }}>
-            Upgrade Pro — Rp 49.000/bln ⚡
+            Upgrade Pro — Rp 149.000/bln ⚡
           </a>
 
           {onClose && (

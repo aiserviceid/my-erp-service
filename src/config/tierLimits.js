@@ -149,12 +149,14 @@ export const PAYMENT_METHODS = [
   { id: 'QRIS', label: 'QRIS', icon: '📱', color: '#7c3aed' },
 ];
 
-// ─── TABS VISIBILITY PER TIER ────────────────────────────
+// ─── TABS VISIBILITY PER TIER ──────────────────────────────
 export const ADMIN_TABS = [
-  { id: 'pos',         name: 'Kasir (POS)',        feature: 'pos',            iconName: 'ShoppingCart' },
+  { id: 'dashboard',   name: 'Dashboard',          feature: 'basicReport',    iconName: 'LayoutDashboard' },
   { id: 'servis',      name: 'Servis & Tracking',  feature: 'services',       iconName: 'Wrench' },
-  { id: 'master',      name: 'Master Barang',      feature: 'masterProducts', iconName: 'Package' },
-  { id: 'karyawan',    name: 'Karyawan',           feature: 'employees',      iconName: 'Users',     proOnly: true },
+  { id: 'pos',         name: 'Kasir (POS)',        feature: 'pos',            iconName: 'ShoppingCart' },
+  { id: 'master',      name: 'Barang & Stok',      feature: 'masterProducts', iconName: 'Package' },
+  { id: 'pelanggan',   name: 'Pelanggan & WA Blast', feature: 'basicReport',  iconName: 'MessageSquare' },
   { id: 'keuangan',    name: 'Keuangan',           feature: 'basicReport',    iconName: 'TrendingUp' },
+  { id: 'karyawan',    name: 'Karyawan & PIN',     feature: 'themeSettings',  iconName: 'Users' },
   { id: 'pengaturan',  name: 'Pengaturan Toko',    feature: 'themeSettings',  iconName: 'Settings' },
 ];

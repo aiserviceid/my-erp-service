@@ -87,15 +87,15 @@ export default function Login() {
   };
 
   const getTierPriceText = () => {
-    if (selectedTier === 'enterprise') return 'Rp 79.000';
-    if (selectedTier === 'pro') return 'Rp 49.000';
-    return 'Rp 0';
+    if (selectedTier === 'enterprise') return 'Rp 299.000';
+    if (selectedTier === 'pro') return 'Rp 149.000';
+    return 'Rp 79.000';
   };
 
   const getTierTitle = () => {
-    if (selectedTier === 'enterprise') return 'Paket Enterprise Cabang (Promo Rp 79.000/bln)';
-    if (selectedTier === 'pro') return 'Paket Pro Titan (Promo Rp 49.000/bln)';
-    return 'Paket Starter (Gratis)';
+    if (selectedTier === 'enterprise') return 'Paket Enterprise (Rp 299.000/bln)';
+    if (selectedTier === 'pro') return 'Paket Pro (Rp 149.000/bln)';
+    return 'Paket Starter (Rp 79.000/bln)';
   };
 
   const getWaUrl = () => {
@@ -127,8 +127,8 @@ export default function Login() {
           <h2 style={{ fontSize: '1.65rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>
             AISERVICE.ID
           </h2>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-            Platform ERP Kasir & Manajemen Servis
+          <p style={{ color: '#0284c7', fontSize: '0.85rem', fontWeight: '700', margin: '4px 0 0 0' }}>
+            Sistem Operasional Toko Servis Modern
           </p>
         </div>
 
@@ -213,11 +213,40 @@ export default function Login() {
               style={{
                 width: '100%', padding: '12px', borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '1rem',
                 background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white', cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                marginBottom: '1rem'
               }}
             >
               <LogIn size={18} /> {loading ? 'Memverifikasi...' : 'Masuk ke Dashboard'}
             </button>
+
+            {/* QUICK DEMO LOGIN BUTTON */}
+            <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }}>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '8px' }}>
+                Ingin langsung mencoba tanpa membuat akun baru?
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTenant('DEMO-STORE', 'Toko Servis Laptop & PC (Demo)', '', 'pro', 'token_demo_123');
+                  useStore.getState().updateTenantSettings({
+                    storeName: 'Toko Servis Laptop & PC (Demo)',
+                    store_wa: '081234567890',
+                    theme: 'laptop'
+                  });
+                  navigate('/admin');
+                }}
+                style={{
+                  width: '100%', padding: '11px', borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                  color: '#15803d', border: '1px solid #86efac', fontWeight: '800',
+                  fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.15)'
+                }}
+              >
+                ✨ Coba Akun Demo Instan (1-Klik) 🚀
+              </button>
+            </div>
           </form>
         )}
 
@@ -292,13 +321,13 @@ export default function Login() {
               />
             </div>
 
-            {/* Tier Selector (Starter, Pro 49k, Enterprise 79k) */}
+            {/* Tier Selector (Starter 79k, Pro 149k, Enterprise 299k) */}
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
                 Pilihan Paket Berlangganan (Promo)
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                {/* Free */}
+                {/* Starter 79k */}
                 <div 
                   onClick={() => setSelectedTier('free')}
                   style={{
@@ -309,10 +338,10 @@ export default function Login() {
                   }}
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#059669' : '#0f172a' }}>Starter</div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Rp 0 (Gratis)</div>
+                  <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '700' }}>Rp 79rb/bln</div>
                 </div>
 
-                {/* Pro 49k */}
+                {/* Pro 149k */}
                 <div 
                   onClick={() => setSelectedTier('pro')}
                   style={{
@@ -322,11 +351,11 @@ export default function Login() {
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#0284c7' : '#0f172a' }}>Pro Titan ⭐</div>
-                  <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>Rp 49rb/bln</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#0284c7' : '#0f172a' }}>Pro ⭐</div>
+                  <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>Rp 149rb/bln</div>
                 </div>
 
-                {/* Enterprise 79k */}
+                {/* Enterprise 299k */}
                 <div 
                   onClick={() => setSelectedTier('enterprise')}
                   style={{
@@ -337,7 +366,7 @@ export default function Login() {
                   }}
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Enterprise</div>
-                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 79rb/bln</div>
+                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 299rb/bln</div>
                 </div>
               </div>
             </div>
@@ -347,12 +376,12 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%', padding: '12px', borderRadius: '12px', border: 'none', fontWeight: '800', fontSize: '0.95rem',
-                background: selectedTier === 'free' ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
                 color: 'white', cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
-              {selectedTier === 'free' ? 'Daftar & Mulai Gratis 🚀' : `Lanjut Pembayaran Promo (${getTierPriceText()}) →`}
+              Lanjut Pendaftaran ({getTierPriceText()}) 🚀
             </button>
           </form>
         )}
