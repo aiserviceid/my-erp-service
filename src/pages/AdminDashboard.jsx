@@ -1340,6 +1340,11 @@ export default function AdminDashboard() {
                               {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
                             </div>
 
+                            <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SRV-12345`} alt="QR Code Tracking" style={{ width: '80px', height: '80px', marginBottom: '5px' }} />
+                              <p style={{ margin: '0', fontSize: '0.7rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>{window.location.host}/track</strong></p>
+                            </div>
+
                             <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
                               <strong style={{ color: '#0f172a' }}>{settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
                               Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
