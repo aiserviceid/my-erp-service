@@ -238,7 +238,7 @@ export const apiService = {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, role, created_at')
+        .select('id, name, role, pin')
         .eq('tenant_code', tenantCode);
 
       if (error) throw error;
