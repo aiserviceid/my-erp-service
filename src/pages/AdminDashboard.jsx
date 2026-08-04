@@ -4,7 +4,7 @@ import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, Trending
 import { useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
 import ForumCommunity from '../components/ForumCommunity';
 import POSView from '../components/POSView';
@@ -204,13 +204,63 @@ export default function AdminDashboard() {
     // 4. Konversi ke Worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     
-    // 5. Percantik Tampilan Excel (Lebar Kolom & Merge Cell)
+    // 5. Percantik Tampilan Excel (Styling, Lebar Kolom & Merge Cell)
+    
+    // Define styles
+    const headerStyle = { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 }, fill: { fgColor: { rgb: "1E293B" } }, alignment: { horizontal: "center", vertical: "center" } };
+    const sectionTitleStyle = { font: { bold: true, color: { rgb: "0F172A" }, sz: 12 }, fill: { fgColor: { rgb: "F1F5F9" } }, border: { bottom: { style: "thin", color: { rgb: "CBD5E1" } }, top: { style: "thin", color: { rgb: "CBD5E1" } } } };
+    const subHeaderStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "334155" } }, alignment: { horizontal: "center" }, border: { bottom: { style: "medium", color: { rgb: "000000" } } } };
+    const moneyStyle = { numFmt: '"Rp"#,##0;[Red]\-"Rp"#,##0', font: { name: "Arial" } };
+    const profitStyle = { font: { bold: true, color: { rgb: "059669" }, sz: 12 }, fill: { fgColor: { rgb: "ECFDF5" } }, numFmt: '"Rp"#,##0;[Red]\-"Rp"#,##0' };
+    const expenseStyle = { font: { color: { rgb: "DC2626" }, bold: true }, numFmt: '"Rp"#,##0;[Red]\-"Rp"#,##0' };
+    const boldStyle = { font: { bold: true } };
+
+    // Apply Styles to specific cells
+    for (const cellAddress in worksheet) {
+      if (cellAddress[0] === '!') continue;
+      const cell = worksheet[cellAddress];
+      const col = cellAddress.replace(/[0-9]/g, '');
+      const row = parseInt(cellAddress.replace(/\D/g, '')) - 1; // 0-indexed
+
+      // Default font
+      if (!cell.s) cell.s = { font: { name: "Arial", sz: 11 }, alignment: { vertical: "center" } };
+
+      // Number formatting for money
+      if ((row >= 5 && row <= 8 && col === 'B') || (row >= 13 && col === 'D')) {
+        cell.s = { ...cell.s, ...moneyStyle };
+      }
+
+      // Title (Row 0)
+      if (row === 0) cell.s = headerStyle;
+      
+      // Section Headers (Row 4 and 11)
+      if (row === 4 || row === 11) cell.s = sectionTitleStyle;
+      
+      // Ringkasan Labels bold
+      if (row >= 5 && row <= 8 && col === 'A') cell.s = { ...cell.s, ...boldStyle };
+
+      // Laba Bersih Kas (Row 9)
+      if (row === 9) cell.s = { ...cell.s, ...profitStyle };
+
+      // Pengeluaran di Ringkasan (Row 8)
+      if (row === 8 && col === 'B') cell.s = { ...cell.s, ...expenseStyle };
+
+      // Header Tabel Rincian (Row 12)
+      if (row === 12) cell.s = subHeaderStyle;
+      
+      // Highlight row for expense/income in details table
+      if (row >= 13 && col === 'D') {
+         if (cell.v < 0) cell.s = { ...cell.s, font: { color: { rgb: "DC2626" }, bold: true }, numFmt: '"Rp"#,##0;[Red]\-"Rp"#,##0' };
+         else cell.s = { ...cell.s, font: { color: { rgb: "059669" }, bold: true }, numFmt: '"Rp"#,##0;[Red]\-"Rp"#,##0' };
+      }
+    }
+
     worksheet['!cols'] = [
       {wch: 22}, // Tanggal
-      {wch: 22}, // Kategori
+      {wch: 25}, // Kategori
       {wch: 45}, // Keterangan
-      {wch: 18}, // Nominal
-      {wch: 18}  // Tipe
+      {wch: 20}, // Nominal
+      {wch: 20}  // Tipe
     ];
 
     worksheet['!merges'] = [
