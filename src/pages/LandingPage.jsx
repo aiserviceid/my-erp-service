@@ -635,9 +635,9 @@ export default function LandingPage() {
               boxShadow: '0 8px 25px rgba(0, 0, 0, 0.04)'
             }}>
               <div style={{ marginBottom: '1.5rem' }}>
-                <span style={{ color: '#0284c7', fontWeight: '800', fontSize: '0.85rem', textTransform: 'uppercase' }}>Starter Toko</span>
-                <h3 style={{ fontSize: '1.8rem', fontWeight: '900', marginTop: '4px', color: '#0f172a' }}>Paket Starter</h3>
-                <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '6px' }}>Solusi operasional hemat untuk konter & perorangan.</p>
+                <span style={{ color: '#0284c7', fontWeight: '800', fontSize: '0.85rem', textTransform: 'uppercase' }}>Pro Store</span>
+                <h3 style={{ fontSize: '1.8rem', fontWeight: '900', marginTop: '4px', color: '#0f172a' }}>Paket Pro</h3>
+                <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '6px' }}>Solusi operasional lengkap untuk konter & bengkel.</p>
               </div>
 
               {/* No fixed price — Contact Admin */}
