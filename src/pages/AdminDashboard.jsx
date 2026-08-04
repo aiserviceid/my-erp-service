@@ -41,6 +41,36 @@ export default function AdminDashboard() {
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
   const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'nota' | 'promo'
 
+  const handleImageUpload = (file, callback) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 800;
+
+        if (width > height) {
+          if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+        } else {
+          if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        const compressedBase64 = canvas.toDataURL('image/webp', 0.6);
+        callback(compressedBase64);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     if (tenant) {
       const isReg = Boolean(
@@ -1114,11 +1144,23 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <label className="label">URL Logo (Opsional)</label>
-                      <input type="text" className="input-field" placeholder="https://..."
-                        value={settings.logoUrl || ''} 
-                        onChange={(e) => updateTenantSettings({ logoUrl: e.target.value })} 
+                      <label className="label">Logo Toko (Opsional - Otomatis disesuaikan)</label>
+                      <input type="file" accept="image/*" className="input-field"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if(file) {
+                             handleImageUpload(file, (base64) => {
+                               updateTenantSettings({ logoUrl: base64 });
+                             });
+                          }
+                        }} 
                       />
+                      {settings.logoUrl && (
+                        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center' }}>
+                          <img src={settings.logoUrl} alt="Logo" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid #e2e8f0' }} />
+                          <button className="btn" style={{ padding: '4px 10px', marginLeft: '10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }} onClick={() => updateTenantSettings({ logoUrl: '' })}>Hapus Logo</button>
+                        </div>
+                      )}
                     </div>
                     <div style={{ marginBottom: '1.5rem' }}>
                       <label className="label">Pilih Tema Bisnis</label>
@@ -1312,10 +1354,25 @@ export default function AdminDashboard() {
                           />
                         </div>
                         <div>
-                          <label className="label">URL Gambar Promo</label>
-                          <input type="text" className="input-field" value={ad.imageUrl} disabled={isFree} 
-                            onChange={(e) => { const newAds = [...settings.ads]; newAds[index].imageUrl = e.target.value; updateTenantSettings({ ads: newAds }); }} 
+                          <label className="label">Upload Gambar Promo (Otomatis dikompres oleh AI)</label>
+                          <input type="file" accept="image/*" className="input-field" disabled={isFree} 
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if(file) {
+                                handleImageUpload(file, (base64) => {
+                                  const newAds = [...settings.ads];
+                                  newAds[index].imageUrl = base64;
+                                  updateTenantSettings({ ads: newAds });
+                                });
+                              }
+                            }} 
                           />
+                          {ad.imageUrl && (
+                            <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
+                              <img src={ad.imageUrl} alt="Promo" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover' }} />
+                              <button onClick={() => { const newAds = [...settings.ads]; newAds[index].imageUrl = ''; updateTenantSettings({ ads: newAds }); }} style={{ position: 'absolute', top: '-10px', right: '-10px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontSize: '12px' }}>×</button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
