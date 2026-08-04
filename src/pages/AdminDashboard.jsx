@@ -46,6 +46,7 @@ export default function AdminDashboard() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [serviceTechTab, setServiceTechTab] = useState('ALL');
   const [serviceStatusTab, setServiceStatusTab] = useState('ALL');
+  const [customerTab, setCustomerTab] = useState('servis');
 
   const handleImageUpload = (file, callback) => {
     if (!file) return;
@@ -1168,86 +1169,118 @@ export default function AdminDashboard() {
             </div>
 
             {/* TABEL DATABASE PELANGGAN */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
-              <h4 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan Toko:</h4>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  className="btn"
-                  style={{ background: '#e2e8f0', color: '#475569', fontWeight: '600', padding: '6px 12px', fontSize: '0.85rem' }}
-                  onClick={() => {
-                    const numbers = [...new Set(services.map(s => s.customer_phone).filter(Boolean))].map(n => n.replace(/^0/, '62')).join(', ');
-                    navigator.clipboard.writeText(numbers);
-                    alert('Berhasil disalin!\n\nSilakan "Paste" nomor-nomor ini di HP Anda untuk membuat Broadcast List WhatsApp.\n\nTotal: ' + [...new Set(services.map(s => s.customer_phone).filter(Boolean))].length + ' Nomor');
-                  }}
-                >
-                  📋 Salin Semua Nomor (Broadcast WA)
-                </button>
-                <button 
-                  className="btn"
-                  style={{ background: '#25D366', color: 'white', fontWeight: 'bold', padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '5px' }}
-                  onClick={() => {
-                    const msgInput = document.getElementById('waBlastMessage');
-                    const msgText = msgInput ? msgInput.value : `Halo Kak, salam dari ${settings.storeName || tenant?.name || 'Toko Servis'}!`;
-                    
-                    // Hilangkan duplikat nomor HP
-                    const uniqueServices = services.filter((v,i,a)=>a.findIndex(t=>(t.customer_phone === v.customer_phone))===i);
-                    
-                    if(!confirm(`PERINGATAN POPUP: Aksi ini akan membuka ${uniqueServices.length} tab WhatsApp secara berurutan.\n\nPastikan fitur "Popup Blocker" di browser Anda sudah DIIZINKAN (Allow Popups) untuk situs ini.\n\nLanjutkan mengirim WA Blast?`)) return;
-                    
-                    uniqueServices.forEach((s, idx) => {
-                      setTimeout(() => {
-                        const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
-                        let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
-                        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(personalizedMsg)}`, '_blank');
-                      }, idx * 800); // jeda 800ms per tab agar browser tidak hang
-                    });
-                  }}
-                >
-                  🚀 Buka Tab Multi-Blast
-                </button>
-              </div>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Nama Pelanggan</th>
-                    <th>Nomor WhatsApp</th>
-                    <th>Terakhir Servis / Transaksi</th>
-                    <th>Aksi Broadcast WA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {services.length === 0 ? (
-                    <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>Belum ada data pelanggan terdaftar. Data otomatis terkumpul dari menu Servis & Kasir.</td></tr>
-                  ) : (
-                    services.map(s => {
-                      const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
-                      return (
-                        <tr key={s.resi}>
-                          <td><strong>{s.customer_name}</strong> <br/><small style={{ color: '#64748b' }}>Perangkat: {s.device_name}</small></td>
-                          <td><span className="badge badge-info">{s.customer_phone || '-'}</span></td>
-                          <td>{new Date(s.created_at || Date.now()).toLocaleDateString('id-ID')} ({s.status})</td>
-                          <td>
-                            <button 
-                              className="btn btn-accent"
-                              style={{ padding: '4px 12px', fontSize: '0.78rem', background: '#25D366', color: 'white', border: 'none' }}
-                              onClick={() => {
-                                const msgInput = document.getElementById('waBlastMessage');
-                                const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
-                                window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}`, '_blank');
-                              }}
-                            >
-                              Kirim WA Blast 📲
-                            </button>
-                          </td>
+            {/* TABEL DATABASE PELANGGAN */}
+            {(() => {
+              const displayedCustomers = customerTab === 'servis' 
+                ? services 
+                : transactions.filter(t => t.type === 'POS_SALES' && t.description?.includes('| Cust: ')).map(t => {
+                    const desc = t.description || '';
+                    const custMatch = desc.match(/\| Cust: ([^\|]+)/);
+                    const waMatch = desc.match(/\| WA: ([^\|]+)/);
+                    return {
+                      resi: 'pos_' + t.id,
+                      customer_name: custMatch ? custMatch[1].trim() : 'Anonim',
+                      customer_phone: waMatch ? waMatch[1].trim() : '',
+                      device_name: 'Pembelian Kasir (POS)',
+                      created_at: t.created_at,
+                      status: 'SELESAI'
+                    };
+                  });
+              
+              return (
+                <>
+                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px', borderBottom: '1px solid var(--border-light)' }}>
+                    <button onClick={() => setCustomerTab('servis')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'servis' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'servis' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Kategori Servis</button>
+                    <button onClick={() => setCustomerTab('pos')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'pos' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'pos' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Pembelian POS</button>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+                    <h4 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan {customerTab === 'servis' ? 'Servis' : 'POS Toko'}:</h4>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button 
+                        className="btn"
+                        style={{ background: '#e2e8f0', color: '#475569', fontWeight: '600', padding: '6px 12px', fontSize: '0.85rem' }}
+                        onClick={() => {
+                          const numbers = [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].map(n => n.replace(/^0/, '62')).join(', ');
+                          if(!numbers) return alert('Tidak ada nomor WA yang tersedia di kategori ini.');
+                          navigator.clipboard.writeText(numbers);
+                          alert('Berhasil disalin!\n\nSilakan "Paste" nomor-nomor ini di HP Anda untuk membuat Broadcast List WhatsApp.\n\nTotal: ' + [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].length + ' Nomor');
+                        }}
+                      >
+                        📋 Salin Semua Nomor (Broadcast WA)
+                      </button>
+                      <button 
+                        className="btn"
+                        style={{ background: '#25D366', color: 'white', fontWeight: 'bold', padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        onClick={() => {
+                          const msgInput = document.getElementById('waBlastMessage');
+                          const msgText = msgInput ? msgInput.value : `Halo Kak, salam dari ${settings.storeName || tenant?.name || 'Toko Servis'}!`;
+                          
+                          // Hilangkan duplikat nomor HP
+                          const uniqueServices = displayedCustomers.filter((v,i,a)=>a.findIndex(t=>(t.customer_phone === v.customer_phone))===i).filter(s => s.customer_phone);
+                          if(uniqueServices.length === 0) return alert('Tidak ada nomor WA yang valid untuk dikirim.');
+                          
+                          if(!confirm(`PERINGATAN POPUP: Aksi ini akan membuka ${uniqueServices.length} tab WhatsApp secara berurutan.\n\nPastikan fitur "Popup Blocker" di browser Anda sudah DIIZINKAN (Allow Popups) untuk situs ini.\n\nLanjutkan mengirim WA Blast?`)) return;
+                          
+                          uniqueServices.forEach((s, idx) => {
+                            setTimeout(() => {
+                              const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
+                              let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
+                              window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(personalizedMsg)}`, '_blank');
+                            }, idx * 800);
+                          });
+                        }}
+                      >
+                        🚀 Buka Tab Multi-Blast
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Nama Pelanggan</th>
+                          <th>Nomor WhatsApp</th>
+                          <th>Terakhir Transaksi</th>
+                          <th>Aksi Broadcast WA</th>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      </thead>
+                      <tbody>
+                        {displayedCustomers.length === 0 ? (
+                          <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>Belum ada data pelanggan {customerTab === 'servis' ? 'Servis' : 'POS'} terdaftar. Data otomatis terkumpul dari menu {customerTab === 'servis' ? 'Servis' : 'Kasir'}.</td></tr>
+                        ) : (
+                          displayedCustomers.map(s => {
+                            const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
+                            return (
+                              <tr key={s.resi}>
+                                <td><strong>{s.customer_name}</strong> <br/><small style={{ color: '#64748b' }}>Kategori: {s.device_name}</small></td>
+                                <td><span className="badge badge-info">{s.customer_phone || '-'}</span></td>
+                                <td>{new Date(s.created_at || Date.now()).toLocaleDateString('id-ID')} ({s.status})</td>
+                                <td>
+                                  {cleanPhone ? (
+                                    <button 
+                                      className="btn btn-accent"
+                                      style={{ padding: '4px 12px', fontSize: '0.78rem', background: '#25D366', color: 'white', border: 'none' }}
+                                      onClick={() => {
+                                        const msgInput = document.getElementById('waBlastMessage');
+                                        const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
+                                        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}`, '_blank');
+                                      }}
+                                    >
+                                      Kirim WA Blast 📲
+                                    </button>
+                                  ) : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Tanpa No. WA</span>}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         ) : activeTab === 'pengaturan' ? (
           <div className="glass-panel" style={{ maxWidth: '100%', padding: '0' }}>

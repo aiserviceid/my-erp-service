@@ -100,13 +100,18 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       storeName: settings.storeName || tenant?.name || 'Toko'
     };
 
+    const posCustName = document.getElementById('posCustomerName')?.value || '';
+    const posCustPhone = document.getElementById('posCustomerPhone')?.value || '';
+    const custString = posCustName ? ` | Cust: ${posCustName}` : '';
+    const phoneString = posCustPhone ? ` | WA: ${posCustPhone}` : '';
+
     try {
       // 1. Create transaction
       await apiService.post('/transactions', {
         tenant_code: tenant.code,
         type: 'POS_SALES',
         amount: grandTotal,
-        description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}`
+        description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
       });
 
       // 2. Update stock for each item
@@ -600,18 +605,29 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                     onClick={() => setPaymentMethod(method.id)}
                     style={{
                       background: paymentMethod === method.id ? method.color : 'white',
-                      color: paymentMethod === method.id ? 'white' : '#334155',
-                      border: paymentMethod === method.id ? 'none' : '1px solid #e2e8f0',
-                      borderRadius: '12px', padding: '14px 10px', cursor: 'pointer',
-                      fontWeight: '700', fontSize: '0.85rem', textAlign: 'center',
-                      transition: 'all 0.15s',
-                      boxShadow: paymentMethod === method.id ? `0 4px 12px ${method.color}40` : 'none',
+                      color: paymentMethod === method.id ? 'white' : '#64748b',
+                      border: `1px solid ${paymentMethod === method.id ? method.color : '#e2e8f0'}`,
+                      padding: '12px', borderRadius: '12px', fontWeight: '700', fontSize: '0.85rem',
+                      cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                      boxShadow: paymentMethod === method.id ? `0 4px 15px ${method.color}40` : 'none',
                     }}
                   >
-                    <div style={{ fontSize: '1.4rem', marginBottom: '4px' }}>{method.icon}</div>
+                    <span style={{ fontSize: '1.2rem' }}>{method.icon}</span>
                     {method.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Customer Info (Optional) */}
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '6px' }}>Nama Pelanggan (Opsional)</label>
+                <input type="text" id="posCustomerName" className="input-field" placeholder="Nama..." style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '6px' }}>No. WA (Opsional)</label>
+                <input type="text" id="posCustomerPhone" className="input-field" placeholder="08..." style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
               </div>
             </div>
 
