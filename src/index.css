@@ -264,7 +264,9 @@
 
 /* TRUE DARK MODE OVERRIDES VIA INVERT FILTER */
 html[data-theme="dark"] {
-  filter: invert(1) hue-rotate(180deg);
+  background-color: #fff;
+  /* Mute the pure black to a smooth elegant dark slate */
+  filter: invert(1) hue-rotate(180deg) brightness(1.15) contrast(0.85);
 }
 
 /* Re-invert media and specific elements so they look normal */
@@ -274,5 +276,6 @@ html[data-theme="dark"] iframe,
 html[data-theme="dark"] canvas,
 html[data-theme="dark"] .qr-section img,
 html[data-theme="dark"] .logo {
-  filter: invert(1) hue-rotate(180deg);
+  /* Reverse the muting to restore original image quality */
+  filter: invert(1) hue-rotate(180deg) contrast(1.15) brightness(0.9);
 }
