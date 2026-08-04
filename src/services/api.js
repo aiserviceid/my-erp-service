@@ -27,10 +27,13 @@ export const apiService = {
     }
   },
 
-  // 1. Login / Register Tenant (Store) — Express Backend Auth
+  // 1. Login / Register Tenant (Store) — Express Backend Auth + Supabase Sync
   loginTenant: async (code, name = '', pin = '', phone = '') => {
+    const cleanCode = (code || '').trim().toUpperCase();
+    let resultTenant = null;
+    let resultToken = null;
+
     try {
-      const cleanCode = (code || '').trim().toUpperCase();
       const response = await fetch(`${API_BASE_URL}/tenant/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,18 +46,17 @@ export const apiService = {
       }
 
       const resData = await response.json();
-      // Token is cryptographically signed JWT from Express Backend server
-      if (resData.token) {
-        localStorage.setItem('TENANT_TOKEN', resData.token);
+      resultToken = resData.token;
+      resultTenant = resData;
+      if (resultToken) {
+        localStorage.setItem('TENANT_TOKEN', resultToken);
       }
-      return { token: resData.token, tenant: resData };
     } catch (e) {
       console.error('Login tenant via backend API failed, attempting fallback...', e);
       // Fallback if local backend server is not running
-      const cleanCode = (code || '').trim().toUpperCase();
       const { data: existing, error } = await supabase
         .from('tenants')
-        .select('code, name, tier, settings, phone')
+        .select('code, name, tier, settings, phone, pin')
         .eq('code', cleanCode)
         .maybeSingle();
 
@@ -62,12 +64,54 @@ export const apiService = {
 
       if (!existing) {
         if (!name) throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
-        const newStore = { code: cleanCode, name: name || cleanCode, tier: 'free', settings: {}, phone: phone || '' };
+        const newStore = { 
+          code: cleanCode, 
+          name: name || cleanCode, 
+          tier: 'free', 
+          settings: { storeName: name || cleanCode, store_wa: phone || '' }, 
+          phone: phone || '', 
+          pin: pin || '' 
+        };
         await supabase.from('tenants').insert(newStore);
-        return { token: `dev_token_${cleanCode}`, tenant: newStore };
+        resultToken = `dev_token_${cleanCode}`;
+        resultTenant = newStore;
+      } else {
+        resultToken = `dev_token_${cleanCode}`;
+        resultTenant = existing;
       }
-      return { token: `dev_token_${cleanCode}`, tenant: existing };
     }
+
+    // Always ensure tenant record is synced/upserted to Supabase for Super Admin visibility & cloud persistence
+    if (resultTenant && resultTenant.code) {
+      try {
+        const settingsToSave = typeof resultTenant.settings === 'string'
+          ? JSON.parse(resultTenant.settings)
+          : (resultTenant.settings || {});
+        
+        if (!settingsToSave.storeName && (name || resultTenant.name)) {
+          settingsToSave.storeName = name || resultTenant.name;
+        }
+        if (!settingsToSave.store_wa && (phone || resultTenant.phone)) {
+          settingsToSave.store_wa = phone || resultTenant.phone;
+        }
+
+        const supabaseRecord = {
+          code: resultTenant.code,
+          name: name || resultTenant.name || resultTenant.code,
+          phone: phone || resultTenant.phone || '',
+          tier: resultTenant.tier || 'free',
+          settings: settingsToSave
+        };
+        if (pin) supabaseRecord.pin = pin;
+
+        await supabase.from('tenants').upsert(supabaseRecord, { onConflict: 'code' });
+        resultTenant.settings = settingsToSave;
+      } catch (syncErr) {
+        console.warn('Syncing tenant to Supabase warning:', syncErr);
+      }
+    }
+
+    return { token: resultToken, tenant: resultTenant };
   },
 
   // 2. Login Employee — Express Backend Auth
@@ -527,19 +571,65 @@ export const apiService = {
   // 10. Super Admin
   getAdminStats: async () => {
     try {
-      const { data: tenants } = await supabase.from('tenants').select('*');
-      const { data: withdrawals } = await supabase.from('withdrawals').select('*, tenants(name)').order('created_at', { ascending: false });
-      const { data: pWallet } = await supabase.from('platform_wallet').select('balance').eq('id', 1).maybeSingle();
+      let backendTenants = [];
+      let backendWithdrawals = [];
+      let backendPlatformBalance = null;
 
-      const formattedWithdrawals = (withdrawals || []).map(w => ({
-        ...w,
-        tenant_name: w.tenants ? w.tenants.name : w.tenant_code
-      }));
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/stats`, {
+          headers: apiService.getHeaders()
+        });
+        if (res.ok) {
+          const statsRes = await res.json();
+          if (statsRes.tenants) backendTenants = statsRes.tenants;
+          if (statsRes.withdrawals) backendWithdrawals = statsRes.withdrawals;
+          if (statsRes.platform_balance !== undefined) backendPlatformBalance = statsRes.platform_balance;
+        }
+      } catch (err) {
+        console.warn('Backend fetch for admin stats failed, will fallback to Supabase:', err);
+      }
+
+      let supabaseTenants = [];
+      let supabaseWithdrawals = [];
+      let supabasePlatformBalance = 0;
+
+      try {
+        const { data: tenants } = await supabase.from('tenants').select('*');
+        if (tenants) supabaseTenants = tenants;
+        const { data: withdrawals } = await supabase.from('withdrawals').select('*, tenants(name)').order('created_at', { ascending: false });
+        if (withdrawals) supabaseWithdrawals = withdrawals;
+        const { data: pWallet } = await supabase.from('platform_wallet').select('balance').eq('id', 1).maybeSingle();
+        if (pWallet && pWallet.balance !== undefined) supabasePlatformBalance = pWallet.balance;
+      } catch (err) {
+        console.warn('Supabase fetch for admin stats failed:', err);
+      }
+
+      // Merge tenants cleanly by code
+      const tenantMap = new Map();
+      supabaseTenants.forEach(t => tenantMap.set(t.code, t));
+      backendTenants.forEach(t => {
+        if (!tenantMap.has(t.code)) {
+          tenantMap.set(t.code, t);
+        } else {
+          const existing = tenantMap.get(t.code);
+          tenantMap.set(t.code, { ...existing, ...t, phone: t.phone || existing.phone, name: t.name || existing.name });
+        }
+      });
+      const allTenants = Array.from(tenantMap.values());
+
+      // Merge withdrawals
+      const withdrawalMap = new Map();
+      supabaseWithdrawals.forEach(w => withdrawalMap.set(String(w.id), { ...w, tenant_name: w.tenants ? w.tenants.name : w.tenant_code }));
+      backendWithdrawals.forEach(w => {
+        if (!withdrawalMap.has(String(w.id))) {
+          withdrawalMap.set(String(w.id), w);
+        }
+      });
 
       return {
-        tenants: tenants || [],
-        withdrawals: formattedWithdrawals,
-        platform_balance: (pWallet && pWallet.balance) || 0
+        tenants: allTenants,
+        withdrawals: Array.from(withdrawalMap.values()),
+        platform_balance: backendPlatformBalance !== null ? backendPlatformBalance : supabasePlatformBalance
       };
     } catch (e) {
       console.error(e);

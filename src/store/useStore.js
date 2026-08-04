@@ -61,15 +61,38 @@ export const useStore = create((set) => ({
   
   clearCart: () => set({ cart: [] }),
   
-  setTenant: (code, name, apiUrl, tier = 'free', token = null) => {
+  setTenant: (code, name, apiUrl, tier = 'free', token = null, phone = null, customSettings = null) => {
     if (typeof window !== 'undefined') {
       if (code) localStorage.setItem('TENANT_CODE', code);
       if (name) localStorage.setItem('TENANT_NAME', name);
       if (apiUrl) localStorage.setItem('TENANT_API_URL', apiUrl);
       if (tier) localStorage.setItem('TENANT_TIER', tier);
       if (token) localStorage.setItem('TENANT_TOKEN', token);
+      if (phone) localStorage.setItem('TENANT_PHONE', phone);
     }
-    set((state) => ({ tenant: { ...state.tenant, code, name, tier, token } }));
+    set((state) => {
+      const currentSettings = state.tenant?.settings || defaultSettings;
+      const updatedSettings = {
+        ...currentSettings,
+        ...(customSettings || {}),
+        storeName: (customSettings && customSettings.storeName) || name || currentSettings.storeName,
+        store_wa: (customSettings && customSettings.store_wa) || phone || currentSettings.store_wa
+      };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('TENANT_SETTINGS', JSON.stringify(updatedSettings));
+      }
+      return {
+        tenant: {
+          ...state.tenant,
+          code,
+          name,
+          tier,
+          token,
+          phone: phone || (typeof window !== 'undefined' ? localStorage.getItem('TENANT_PHONE') : null),
+          settings: updatedSettings
+        }
+      };
+    });
   },
   
   updateTenantSettings: (newSettings) => set((state) => {

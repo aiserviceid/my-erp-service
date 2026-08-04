@@ -60,7 +60,7 @@ export default function Login() {
     try {
       const res = await apiService.loginTenant(code, '', pin);
       const data = res.tenant || res;
-      setTenant(data.code, data.name, '', data.tier, res.token || `tenant_${data.code}`);
+      setTenant(data.code, data.name, '', data.tier, res.token || `tenant_${data.code}`, data.phone, data.settings);
       if (data.settings) {
         useStore.getState().updateTenantSettings(typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings);
       }
@@ -109,7 +109,7 @@ export default function Login() {
         const res = await apiService.loginTenant(code, name, pin, cleanPhone);
         const data = res.tenant || res;
         setSuccessMsg('Akun Gratis berhasil dibuat! Mengalihkan ke Dashboard...');
-        setTenant(data.code, data.name, '', 'free', res.token || `tenant_${data.code}`);
+        setTenant(data.code, data.name, '', 'free', res.token || `tenant_${data.code}`, cleanPhone, data.settings);
         setTimeout(() => { navigate('/admin'); }, 1500);
       } catch (err) {
         setError(err.message || 'Gagal mendaftar. Silakan gunakan Kode Toko lain.');
@@ -131,7 +131,7 @@ export default function Login() {
     try {
       const res = await apiService.loginTenant(pendingReg.code, pendingReg.name, pendingReg.pin, pendingReg.phone);
       const data = res.tenant || res;
-      setTenant(data.code, data.name, '', pendingReg.tier, res.token || `tenant_${data.code}`);
+      setTenant(data.code, data.name, '', pendingReg.tier, res.token || `tenant_${data.code}`, pendingReg.phone, data.settings);
     } catch (err) {
       console.error('Register after payment confirm failed:', err);
     } finally {

@@ -31,14 +31,32 @@ export default function AdminDashboard() {
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('Bulan Ini');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showOnboardingModal, setShowOnboardingModal] = useState(!tenant?.settings?.storeName || tenant?.settings?.storeName === 'AISERVICE.ID Toko');
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
-  const [obStoreName, setObStoreName] = useState(tenant?.settings?.storeName || tenant?.name || '');
-  const [obStoreWa, setObStoreWa] = useState(tenant?.settings?.store_wa || '');
-  const [obTheme, setObTheme] = useState(tenant?.settings?.theme || 'hp');
+  const [obStoreName, setObStoreName] = useState('');
+  const [obStoreWa, setObStoreWa] = useState('');
+  const [obTheme, setObTheme] = useState('hp');
   const [obEmpName, setObEmpName] = useState('');
   const [obEmpPin, setObEmpPin] = useState('');
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
+
+  useEffect(() => {
+    if (tenant) {
+      const isReg = Boolean(
+        (tenant?.name && tenant?.name !== 'AISERVICE.ID Toko') || 
+        (tenant?.settings?.storeName && tenant?.settings?.storeName !== 'AISERVICE.ID Toko')
+      );
+      if (!isReg) {
+        setShowOnboardingModal(true);
+        setOnboardingStep(1);
+      } else {
+        setShowOnboardingModal(false);
+      }
+      setObStoreName(tenant?.settings?.storeName || tenant?.name || '');
+      setObStoreWa(tenant?.settings?.store_wa || tenant?.phone || '');
+      setObTheme(tenant?.settings?.theme || 'hp');
+    }
+  }, [tenant]);
 
   // Generator Demo Data Instan (40 Barang, 25 Transaksi, 10 Servis, 5 Teknisi)
   const loadDemoData = () => {
