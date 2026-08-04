@@ -116,25 +116,25 @@ export const apiService = {
   loginEmployee: async (tenant_code, pin) => {
     try {
       const cleanCode = (tenant_code || '').trim().toUpperCase();
-      const response = await fetch(`${API_BASE_URL}/employee/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_code: cleanCode, pin })
-      });
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('tenant_code', cleanCode)
+        .eq('pin', pin)
+        .single();
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'PIN Karyawan Salah!');
+      if (error || !data) {
+        throw new Error('PIN atau Kode Toko Salah!');
       }
 
-      const resData = await response.json();
-      if (resData.token) {
-        localStorage.setItem('EMPLOYEE_TOKEN', resData.token);
-      }
-      return resData;
+      const fakeToken = `EMP_${data.id}_${Date.now()}`;
+      localStorage.setItem('EMPLOYEE_TOKEN', fakeToken);
+      
+      return { token: fakeToken, user: data };
     } catch (e) {
-      console.error('Login employee via backend API error:', e);
-      throw e;
+      console.error('Login employee error:', e);
+      throw new Error('PIN atau Kode Toko Salah!');
     }
   },
 
