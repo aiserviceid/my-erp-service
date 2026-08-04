@@ -226,7 +226,8 @@ export default function AdminDashboard() {
       </style>
     `;
     
-    const logoHtml = tenant?.settings?.logoUrl ? `<img src="${tenant.settings.logoUrl}" class="logo" alt="Logo" />` : '';
+    const activeLogoUrl = tenant?.settings?.logoUrl || '/favicon.svg';
+    const logoHtml = `<img src="${activeLogoUrl}" class="logo" alt="Logo" />`;
 
     if (printType === 'pendaftaran') {
       htmlContent = `
@@ -1321,6 +1322,7 @@ export default function AdminDashboard() {
                           <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota (Servis)</h4>
                           <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
                             <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
+                              <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '50px', marginBottom: '8px' }} />
                               <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
                               <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
                             </div>

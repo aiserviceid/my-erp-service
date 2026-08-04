@@ -193,9 +193,12 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
     const payLabel = PAYMENT_METHODS.find(m => m.id === lastReceipt.paymentMethod)?.label || 'Tunai';
 
+    const activeLogoUrl = settings?.logoUrl || '/favicon.svg';
+
     const html = `
       <div class="receipt">
         <div class="header">
+          <img src="${activeLogoUrl}" alt="Logo" style="max-height: ${isThermal ? '40px' : '60px'}; margin-bottom: 8px;" />
           <h2>${lastReceipt.storeName}</h2>
           <p>STRUK PENJUALAN</p>
         </div>
