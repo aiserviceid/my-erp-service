@@ -398,9 +398,9 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
-                            {t.phone ? (
+                            {tSettings.store_wa || t.phone ? (
                               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155', fontWeight: '600' }}>
-                                <PhoneIcon size={13} color="#059669" /> {t.phone}
+                                <PhoneIcon size={13} color="#059669" /> {tSettings.store_wa || t.phone}
                               </span>
                             ) : (
                               <span style={{ color: '#94a3b8' }}>Belum diisi</span>
@@ -408,9 +408,9 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
                           </td>
                           <td style={{ padding: '12px' }}>{t.reputation_points || 0} poin</td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
-                            {t.phone ? (
+                            {tSettings.store_wa || t.phone ? (
                               <a
-                                href={`https://wa.me/${t.phone.replace(/^0/, '62')}`}
+                                href={`https://wa.me/${(tSettings.store_wa || t.phone).replace(/^0/, '62')}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{
@@ -803,9 +803,9 @@ export default function SuperAdmin() {
                         </td>
                         <td style={{ padding: '12px', fontWeight: '700' }}>{t.name}</td>
                         <td style={{ padding: '12px', color: '#334155' }}>
-                          {t.phone ? (
-                            <a href={`https://wa.me/${t.phone.replace(/^0/, '62')}`} target="_blank" rel="noreferrer" style={{ color: '#059669', fontWeight: '700', textDecoration: 'none' }}>
-                              📱 {t.phone}
+                          {tSettings.store_wa || t.phone ? (
+                            <a href={`https://wa.me/${(tSettings.store_wa || t.phone).replace(/^0/, '62')}`} target="_blank" rel="noreferrer" style={{ color: '#059669', fontWeight: '700', textDecoration: 'none' }}>
+                              📱 {tSettings.store_wa || t.phone}
                             </a>
                           ) : (
                             <span style={{ color: '#94a3b8' }}>-</span>
