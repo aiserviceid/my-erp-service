@@ -56,7 +56,7 @@ export const apiService = {
       // Fallback if local backend server is not running
       const { data: existing, error } = await supabase
         .from('tenants')
-        .select('code, name, tier, settings, phone, pin')
+        .select('code, name, tier, settings, pin')
         .eq('code', cleanCode)
         .maybeSingle();
 
