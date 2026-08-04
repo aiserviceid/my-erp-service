@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [obEmpName, setObEmpName] = useState('');
   const [obEmpPin, setObEmpPin] = useState('');
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
+  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'nota' | 'promo'
 
   useEffect(() => {
     if (tenant) {
@@ -1082,261 +1083,277 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
-        ) : 
-
-        /* 3. PENGATURAN */
-        activeTab === 'pengaturan' ? (
-          <div className="glass-panel" style={{ maxWidth: '600px' }}>
-            <h3 style={{ marginBottom: '1.5rem' }}>Konfigurasi Tema & Branding</h3>
-            
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="label">Nama Toko</label>
-              <input type="text" className="input-field" 
-                value={settings.storeName || ''} 
-                onChange={(e) => updateTenantSettings({ storeName: e.target.value })} 
-              />
-            </div>
-            
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="label">URL Logo (Opsional)</label>
-              <input type="text" className="input-field" placeholder="https://..."
-                value={settings.logoUrl || ''} 
-                onChange={(e) => updateTenantSettings({ logoUrl: e.target.value })} 
-              />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label className="label">Pilih Tema Bisnis</label>
-              <select className="input-field" 
-                value={settings.theme || 'laptop'} 
-                onChange={(e) => updateTenantSettings({ theme: e.target.value })}
-              >
-                <option value="laptop">Servis Laptop & Komputer</option>
-                <option value="hp">Servis Smartphone (HP)</option>
-                <option value="motor">Bengkel Motor</option>
-              </select>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '2rem 0' }} />
-
-            <div style={{ opacity: isFree ? 0.6 : 1 }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Otomatisasi WhatsApp & Kontak {isFree && <span className="badge badge-warning">Premium</span>}</h3>
-              <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
-                <h4>Otomatisasi WhatsApp Gateway</h4>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Pilih metode pengiriman notifikasi WhatsApp. Anda dapat menggunakan server terpusat sistem kami atau nomor WA toko Anda sendiri.
-                </p>
-
-                <div style={{ marginBottom: '1rem' }}>
-                  <label className="label">Mode Pengiriman WA:</label>
-                  <select 
-                    className="input-field" 
-                    id="waSenderModeInput"
-                    value={tenant?.settings?.wa_sender_mode || 'SYSTEM'} 
-                    style={{ width: '100%', maxWidth: '400px' }}
-                    disabled={isFree}
-                    onChange={async (e) => {
-                      const mode = e.target.value;
-                      const newSettings = { ...tenant?.settings, wa_sender_mode: mode };
-                      try {
-                        await apiService.updateTenantSettings(tenant.code, newSettings);
-                        updateTenantSettings(newSettings);
-                      } catch(err) { alert('Gagal mengubah mode'); }
-                    }}
-                  >
-                    <option value="SYSTEM">🟢 Server Terpusat AIService.ID (Sistem Global)</option>
-                    <option value="CUSTOM">⚙️ Custom API Key Mandiri (Toko Sendiri)</option>
-                  </select>
+        ) : activeTab === 'pengaturan' ? (
+          <div className="glass-panel" style={{ maxWidth: '100%', padding: '0' }}>
+            <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', minHeight: '600px' }}>
+              
+              {/* Sidebar Tabs */}
+              <div style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
+                <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Pengaturan Toko</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>🎨 Tema & Branding</button>
+                  <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? '#059669' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>💬 WhatsApp Gateway</button>
+                  <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>🧾 Kontak & Nota</button>
+                  <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? '#f59e0b' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>📢 Iklan & Promo</button>
+                  <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
+                  <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#ef4444', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>⚠️ Reset Data</button>
                 </div>
+              </div>
 
-                {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label className="label">Token API Fonnte / Wablas Toko Anda:</label>
-                    <input 
-                      type="password" 
-                      className="input-field" 
-                      placeholder="Masukkan Token Fonnte/Wablas Toko Anda..."
-                      defaultValue={tenant?.settings?.fonnte_token || ''}
-                      id="fonnteTokenInput"
-                      style={{ width: '100%', maxWidth: '400px' }}
-                      disabled={isFree}
-                    />
-                    <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '6px' }}>
-                      🔑 Pesan notifikasi akan dikirimkan langsung menggunakan nomor server WhatsApp Anda sendiri.
-                    </span>
-                  </div>
-                ) : (
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '10px 14px', borderRadius: '10px', color: '#15803d', fontSize: '0.82rem', fontWeight: '800', marginBottom: '1rem', maxWidth: '400px' }}>
-                    ✓ Layanan WA otomatis aktif menggunakan Server Gateway AIService.ID. Tidak perlu konfigurasi API Key tambahan.
+              {/* Content Area */}
+              <div style={{ flex: 1, padding: '2rem' }}>
+                
+                {settingTab === 'umum' && (
+                  <div style={{ maxWidth: '500px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Konfigurasi Tema & Branding</h3>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label">Nama Toko</label>
+                      <input type="text" className="input-field" 
+                        value={settings.storeName || ''} 
+                        onChange={(e) => updateTenantSettings({ storeName: e.target.value })} 
+                      />
+                    </div>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label">URL Logo (Opsional)</label>
+                      <input type="text" className="input-field" placeholder="https://..."
+                        value={settings.logoUrl || ''} 
+                        onChange={(e) => updateTenantSettings({ logoUrl: e.target.value })} 
+                      />
+                    </div>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label">Pilih Tema Bisnis</label>
+                      <select className="input-field" 
+                        value={settings.theme || 'laptop'} 
+                        onChange={(e) => updateTenantSettings({ theme: e.target.value })}
+                      >
+                        <option value="laptop">Servis Laptop & Komputer</option>
+                        <option value="hp">Servis Smartphone (HP)</option>
+                        <option value="motor">Bengkel Motor</option>
+                      </select>
+                    </div>
                   </div>
                 )}
 
-                <button 
-                  className="btn btn-primary" 
-                  disabled={isFree} 
-                  onClick={async () => {
-                    const token = tenant?.settings?.wa_sender_mode === 'CUSTOM' ? document.getElementById('fonnteTokenInput')?.value : '';
-                    try {
-                      const newSettings = { ...tenant?.settings, fonnte_token: token };
-                      await apiService.updateTenantSettings(tenant.code, newSettings);
-                      updateTenantSettings(newSettings);
-                      alert('Pengaturan WhatsApp berhasil disimpan!');
-                    } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                  }}
-                >
-                  💾 Simpan Pengaturan WA
-                </button>
-              </div>
+                {settingTab === 'wa' && (
+                  <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out', opacity: isFree ? 0.6 : 1 }}>
+                    <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Otomatisasi WhatsApp {isFree && <span className="badge badge-warning">Premium</span>}</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                      Pilih metode pengiriman notifikasi WhatsApp. Anda dapat menggunakan server terpusat sistem kami atau nomor WA toko Anda sendiri.
+                    </p>
+                    <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'rgba(255,255,255,0.5)' }}>
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label className="label">Mode Pengiriman WA:</label>
+                        <select 
+                          className="input-field" 
+                          id="waSenderModeInput"
+                          value={tenant?.settings?.wa_sender_mode || 'SYSTEM'} 
+                          disabled={isFree}
+                          onChange={async (e) => {
+                            const mode = e.target.value;
+                            const newSettings = { ...tenant?.settings, wa_sender_mode: mode };
+                            try {
+                              await apiService.updateTenantSettings(tenant.code, newSettings);
+                              updateTenantSettings(newSettings);
+                            } catch(err) { alert('Gagal mengubah mode'); }
+                          }}
+                        >
+                          <option value="SYSTEM">🟢 Server Terpusat AIService.ID (Sistem Global)</option>
+                          <option value="CUSTOM">⚙️ Custom API Key Mandiri (Toko Sendiri)</option>
+                        </select>
+                      </div>
 
-            <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.5)' }}>
-              <h4>Pengaturan Kontak Toko, Rekening Bank & Nota</h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                Lengkapi data ini agar pelanggan mudah menghubungi dan melakukan pembayaran kepada Anda.
-              </p>
-              
-              <div style={{ marginBottom: '1rem' }}>
-                <label className="label">Nomor WhatsApp Penerima Order (Dari Katalog)</label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  placeholder="Contoh: 08123456789"
-                  defaultValue={tenant?.settings?.store_wa || ''}
-                  id="storeWaInput"
-                  style={{ width: '100%', maxWidth: '500px' }}
-                  disabled={isFree}
-                />
-              </div>
+                      {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <label className="label">Token API Fonnte / Wablas Toko Anda:</label>
+                          <input 
+                            type="password" 
+                            className="input-field" 
+                            placeholder="Masukkan Token Fonnte/Wablas Toko Anda..."
+                            defaultValue={tenant?.settings?.fonnte_token || ''}
+                            id="fonnteTokenInput"
+                            disabled={isFree}
+                          />
+                          <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '8px' }}>
+                            🔑 Pesan notifikasi akan dikirimkan langsung menggunakan nomor server WhatsApp Anda sendiri.
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px', borderRadius: '10px', color: '#15803d', fontSize: '0.85rem', fontWeight: '800', marginBottom: '1.5rem' }}>
+                          ✓ Layanan WA otomatis aktif menggunakan Server Gateway AIService.ID. Tidak perlu konfigurasi API Key tambahan.
+                        </div>
+                      )}
 
-              <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1rem', maxWidth: '500px' }}>
-                <h5 style={{ margin: '0 0 12px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>💳 Info Rekening Pembayaran</h5>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
-                  <select id="bankNameSelect" className="input-field" disabled={isFree} defaultValue={tenant?.settings?.bank_name || ''}>
-                    <option value="">-- Pilih Bank / E-Wallet --</option>
-                    <optgroup label="Bank Nasional">
-                      <option value="BCA">BCA</option>
-                      <option value="Mandiri">Mandiri</option>
-                      <option value="BNI">BNI</option>
-                      <option value="BRI">BRI</option>
-                      <option value="BSI">BSI (Bank Syariah Indonesia)</option>
-                      <option value="CIMB Niaga">CIMB Niaga</option>
-                    </optgroup>
-                    <optgroup label="Bank Digital">
-                      <option value="Seabank">Seabank</option>
-                      <option value="Bank Jago">Bank Jago</option>
-                      <option value="Blu BCA">Blu by BCA</option>
-                      <option value="Neo Bank">Neo Bank</option>
-                    </optgroup>
-                    <optgroup label="E-Wallet">
-                      <option value="DANA">DANA</option>
-                      <option value="GoPay">GoPay</option>
-                      <option value="OVO">OVO</option>
-                      <option value="ShopeePay">ShopeePay</option>
-                      <option value="LinkAja">LinkAja</option>
-                    </optgroup>
-                  </select>
-                  <input type="text" id="accNumberInput" className="input-field" placeholder="Nomor Rekening / No. HP E-Wallet" disabled={isFree} defaultValue={tenant?.settings?.bank_account || ''} />
-                  <input type="text" id="accNameInput" className="input-field" placeholder="Atas Nama (A/N)" disabled={isFree} defaultValue={tenant?.settings?.bank_holder || ''} />
-                </div>
-              </div>
-
-              <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', maxWidth: '500px' }}>
-                <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota (Struk)</h5>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>
-                  Contoh: <i>"Garansi servis 1 minggu dari tanggal pengambilan. Barang yang tidak diambil lebih dari 1 bulan bukan tanggung jawab kami."</i>
-                </p>
-                <textarea 
-                  className="input-field" 
-                  placeholder="Ketik aturan garansi / ucapan terima kasih di sini..."
-                  defaultValue={tenant?.settings?.receipt_note || ''}
-                  id="receiptNoteInput"
-                  style={{ width: '100%', minHeight: '70px', resize: 'vertical' }}
-                  disabled={isFree}
-                />
-              </div>
-
-              <div>
-                <button className="btn btn-primary" disabled={isFree} onClick={async () => {
-                  const storeWa = document.getElementById('storeWaInput').value;
-                  const bankName = document.getElementById('bankNameSelect').value;
-                  const accNumber = document.getElementById('accNumberInput').value;
-                  const accName = document.getElementById('accNameInput').value;
-                  const receiptNote = document.getElementById('receiptNoteInput').value;
-                  
-                  const storeBank = bankName && accNumber ? `${bankName} ${accNumber} a/n ${accName}` : '';
-                  
-                  try {
-                    const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, receipt_note: receiptNote };
-                    await apiService.updateTenantSettings(tenant.code, newSettings);
-                    updateTenantSettings(newSettings);
-                    alert('Informasi Kontak, Bank & Nota berhasil disimpan!');
-                  } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                }}>💾 Simpan Kontak, Bank & Nota</button>
-              </div>
-            </div>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '2rem 0' }} />
-
-            <div style={{ opacity: isFree ? 0.6 : 1 }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Pengaturan Iklan & Promo {isFree && <span className="badge badge-warning">Premium</span>}</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Iklan akan tampil di Halaman Beranda Publik.</p>
-              
-              {settings.ads?.map((ad, index) => (
-                <div key={ad.id} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', marginBottom: '1rem', background: 'rgba(255,255,255,0.5)' }}>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <label className="label">Judul Promo</label>
-                    <input type="text" className="input-field" value={ad.title} 
-                      disabled={isFree}
-                      onChange={(e) => {
-                        const newAds = [...settings.ads];
-                        newAds[index].title = e.target.value;
-                        updateTenantSettings({ ads: newAds });
-                      }} 
-                    />
+                      <button 
+                        className="btn" 
+                        style={{ background: '#059669', color: 'white', border: 'none' }}
+                        disabled={isFree} 
+                        onClick={async () => {
+                          const token = tenant?.settings?.wa_sender_mode === 'CUSTOM' ? document.getElementById('fonnteTokenInput')?.value : '';
+                          try {
+                            const newSettings = { ...tenant?.settings, fonnte_token: token };
+                            await apiService.updateTenantSettings(tenant.code, newSettings);
+                            updateTenantSettings(newSettings);
+                            alert('Pengaturan WhatsApp berhasil disimpan!');
+                          } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                        }}
+                      >
+                        💾 Simpan Pengaturan WA
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <label className="label">URL Gambar Promo</label>
-                    <input type="text" className="input-field" value={ad.imageUrl}
-                      disabled={isFree} 
-                      onChange={(e) => {
-                        const newAds = [...settings.ads];
-                        newAds[index].imageUrl = e.target.value;
-                        updateTenantSettings({ ads: newAds });
-                      }} 
-                    />
+                )}
+
+                {settingTab === 'nota' && (
+                  <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Kontak, Rekening & Nota</h3>
+                    
+                    <div style={{ display: 'flex', gap: '2rem', flexDirection: window.innerWidth < 1100 ? 'column' : 'row' }}>
+                      {/* FORM SECTION */}
+                      <div style={{ flex: 1, minWidth: '300px', opacity: isFree ? 0.6 : 1 }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                          Lengkapi data ini agar pelanggan mudah menghubungi dan melakukan pembayaran kepada Anda.
+                        </p>
+                        
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <label className="label">Nomor WhatsApp Penerima Order (Dari Katalog)</label>
+                          <input type="text" className="input-field" placeholder="Contoh: 08123456789" defaultValue={tenant?.settings?.store_wa || ''} id="storeWaInput" disabled={isFree} />
+                        </div>
+
+                        <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                          <h5 style={{ margin: '0 0 12px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>💳 Info Rekening Pembayaran</h5>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                            <select id="bankNameSelect" className="input-field" disabled={isFree} defaultValue={tenant?.settings?.bank_name || ''} onChange={(e) => updateTenantSettings({ bank_name: e.target.value })}>
+                              <option value="">-- Pilih Bank / E-Wallet --</option>
+                              <optgroup label="Bank Nasional">
+                                <option value="BCA">BCA</option><option value="Mandiri">Mandiri</option><option value="BNI">BNI</option><option value="BRI">BRI</option><option value="BSI">BSI</option><option value="CIMB Niaga">CIMB Niaga</option>
+                              </optgroup>
+                              <optgroup label="Bank Digital">
+                                <option value="Seabank">Seabank</option><option value="Bank Jago">Bank Jago</option><option value="Blu BCA">Blu by BCA</option><option value="Neo Bank">Neo Bank</option>
+                              </optgroup>
+                              <optgroup label="E-Wallet">
+                                <option value="DANA">DANA</option><option value="GoPay">GoPay</option><option value="OVO">OVO</option><option value="ShopeePay">ShopeePay</option><option value="LinkAja">LinkAja</option>
+                              </optgroup>
+                            </select>
+                            <input type="text" id="accNumberInput" className="input-field" placeholder="Nomor Rekening / No. HP" disabled={isFree} defaultValue={tenant?.settings?.bank_account || ''} onChange={(e) => updateTenantSettings({ bank_account: e.target.value })} />
+                            <input type="text" id="accNameInput" className="input-field" placeholder="Atas Nama (A/N)" disabled={isFree} defaultValue={tenant?.settings?.bank_holder || ''} onChange={(e) => updateTenantSettings({ bank_holder: e.target.value })} />
+                          </div>
+                        </div>
+
+                        <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Garansi servis 1 minggu dari tanggal pengambilan."</p>
+                          <textarea className="input-field" placeholder="Ketik aturan garansi / ucapan terima kasih di sini..." defaultValue={tenant?.settings?.receipt_note || ''} id="receiptNoteInput" style={{ width: '100%', minHeight: '70px', resize: 'vertical' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note: e.target.value })} />
+                        </div>
+
+                        <button className="btn" style={{ background: '#0ea5e9', color: 'white', border: 'none', width: '100%', padding: '12px' }} disabled={isFree} onClick={async () => {
+                          const storeWa = document.getElementById('storeWaInput').value;
+                          const bankName = document.getElementById('bankNameSelect').value;
+                          const accNumber = document.getElementById('accNumberInput').value;
+                          const accName = document.getElementById('accNameInput').value;
+                          const receiptNote = document.getElementById('receiptNoteInput').value;
+                          
+                          const storeBank = bankName && accNumber ? `${bankName} ${accNumber} a/n ${accName}` : '';
+                          
+                          try {
+                            const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, receipt_note: receiptNote };
+                            await apiService.updateTenantSettings(tenant.code, newSettings);
+                            updateTenantSettings(newSettings);
+                            alert('Informasi berhasil disimpan!');
+                          } catch(e) { alert('Gagal menyimpan'); }
+                        }}>💾 Simpan Perubahan</button>
+                      </div>
+
+                      {/* LIVE PREVIEW SECTION */}
+                      <div style={{ flex: 1, minWidth: '300px' }}>
+                        <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota</h4>
+                          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
+                            <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
+                              <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                              <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                              <div><strong>No. Resi</strong><br/>SRV-12345</div>
+                              <div><strong>Tanggal</strong><br/>{new Date().toLocaleDateString('id-ID')}</div>
+                            </div>
+                            <div style={{ marginBottom: '15px' }}>
+                              <strong>Rincian Perbaikan:</strong><br/>
+                              Ganti LCD (Part) - Rp 350.000<br/>
+                              Jasa Pasang - Rp 100.000<br/>
+                              <strong>TOTAL: Rp 450.000</strong>
+                            </div>
+                            
+                            <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontFamily: 'sans-serif' }}>
+                              <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                              {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
+                            </div>
+
+                            <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
+                              <strong style={{ color: '#0f172a' }}>{settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
+                              Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )}
+
+                {settingTab === 'promo' && (
+                  <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out', opacity: isFree ? 0.6 : 1 }}>
+                    <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Iklan & Promo {isFree && <span className="badge badge-warning">Premium</span>}</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Iklan akan tampil di Halaman Beranda Publik.</p>
+                    {settings.ads?.map((ad, index) => (
+                      <div key={ad.id} style={{ padding: '1.2rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1rem', background: 'rgba(255,255,255,0.5)' }}>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <label className="label">Judul Promo</label>
+                          <input type="text" className="input-field" value={ad.title} disabled={isFree}
+                            onChange={(e) => { const newAds = [...settings.ads]; newAds[index].title = e.target.value; updateTenantSettings({ ads: newAds }); }} 
+                          />
+                        </div>
+                        <div>
+                          <label className="label">URL Gambar Promo</label>
+                          <input type="text" className="input-field" value={ad.imageUrl} disabled={isFree} 
+                            onChange={(e) => { const newAds = [...settings.ads]; newAds[index].imageUrl = e.target.value; updateTenantSettings({ ads: newAds }); }} 
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button className="btn" style={{ background: '#f59e0b', color: 'white', border: 'none' }} onClick={() => updateTenantSettings({ ads: [...(settings.ads||[]), {id: Date.now().toString(), title: '', imageUrl: '', isActive: true}] })} disabled={isFree}>
+                      + Tambah Promo Baru
+                    </button>
+                  </div>
+                )}
+
+                {settingTab === 'danger' && (
+                  <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ color: '#dc2626', margin: '0 0 1rem 0' }}>Zona Bahaya (Danger Zone)</h3>
+                    <div style={{ padding: '1.5rem', border: '1px solid #fecaca', borderRadius: '12px', background: '#fef2f2' }}>
+                      <p style={{ fontSize: '0.85rem', color: '#991b1b', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                        Tindakan ini akan <strong>menghapus seluruh data transaksi, servis, dan produk</strong> dari toko Anda. Akun karyawan (kasir/teknisi) akan tetap dipertahankan. <br/><br/><strong>Aksi ini bersifat permanen dan tidak dapat dibatalkan.</strong>
+                      </p>
+                      <button 
+                        className="btn btn-danger"
+                        onClick={async () => {
+                          const confirm1 = window.confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA DATA (Transaksi, Servis, Produk)?');
+                          if (!confirm1) return;
+                          const confirm2 = window.prompt('Peringatan Terakhir! Aksi ini permanen dan tidak bisa dikembalikan.\n\nKetik "RESET" untuk melanjutkan:');
+                          if (confirm2 !== 'RESET') return alert('Batal mereset data.');
+                          try {
+                            await apiService.resetTenantData(tenant.code, { keepUsers: true });
+                            alert('Berhasil! Seluruh data transaksi, servis, dan produk telah dihapus.');
+                            window.location.reload();
+                          } catch (e) { alert('Gagal mereset data: ' + e.message); }
+                        }}
+                      >
+                        🗑️ Saya Mengerti, Reset Data Sekarang
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
             </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '2rem 0' }} />
-
-            <div style={{ padding: '1.5rem', border: '1px solid #fecaca', borderRadius: '12px', background: '#fef2f2' }}>
-              <h3 style={{ color: '#dc2626', margin: '0 0 1rem 0' }}>Zona Bahaya (Danger Zone)</h3>
-              <p style={{ fontSize: '0.85rem', color: '#991b1b', marginBottom: '1rem' }}>
-                Hapus seluruh data transaksi, servis, dan produk dari toko ini. Akun karyawan (kasir/teknisi) akan tetap dipertahankan. <strong>Aksi ini tidak dapat dibatalkan.</strong>
-              </p>
-              <button 
-                className="btn btn-danger"
-                onClick={async () => {
-                  const confirm1 = window.confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA DATA (Transaksi, Servis, Produk)?');
-                  if (!confirm1) return;
-                  const confirm2 = window.prompt('Peringatan Terakhir! Aksi ini permanen dan tidak bisa dikembalikan.\n\nKetik "RESET" untuk melanjutkan:');
-                  if (confirm2 !== 'RESET') return alert('Batal mereset data.');
-
-                  try {
-                    await apiService.resetTenantData(tenant.code, { keepUsers: true });
-                    alert('Berhasil! Seluruh data transaksi, servis, dan produk telah dihapus.');
-                    window.location.reload();
-                  } catch (e) {
-                    alert('Gagal mereset data: ' + e.message);
-                  }
-                }}
-              >
-                🗑️ Reset Data Semua
-              </button>
-            </div>
-            
           </div>
         ) : activeTab === 'forum' ? (
           <ForumCommunity />
