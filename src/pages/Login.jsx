@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
-import { Store, LogIn, Search, Sparkles, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame } from 'lucide-react';
+import { Store, LogIn, Search, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import UnitProLogo from '../components/UnitProLogo';
 
 // ── VALIDASI FORMAT INPUT (sesuai jenis data masing-masing field) ──
 // Kode Toko: huruf kapital, angka, strip (-), underscore (_) saja
@@ -178,14 +179,9 @@ export default function Login() {
       }}>
         
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <div style={{ 
-            width: '46px', height: '46px', margin: '0 auto 12px auto',
-            background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', 
-            borderRadius: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 15px rgba(2, 132, 199, 0.3)'
-          }}>
-            <Sparkles size={24} color="white" />
+        <div style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+          <div style={{ width: '52px', height: '52px', margin: '0 auto 12px auto' }}>
+            <UnitProLogo size={52} />
           </div>
           <h2 style={{ fontSize: '1.65rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>
             UnitPro

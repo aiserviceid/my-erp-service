@@ -1,15 +1,22 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, Component } from 'react';
-import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
-import EmployeePortal from './pages/EmployeePortal';
-import PublicTracking from './pages/PublicTracking';
-import LandingPage from './pages/LandingPage';
-import SuperAdmin from './pages/SuperAdmin';
-import PublicCatalog from './pages/PublicCatalog';
-import TermsPage from './pages/TermsPage';
-import PrivacyPage from './pages/PrivacyPage';
+import { useEffect, Component, lazy, Suspense } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useStore } from './store/useStore';
+
+const Login = lazy(() => import('./pages/Login'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const EmployeePortal = lazy(() => import('./pages/EmployeePortal'));
+const PublicTracking = lazy(() => import('./pages/PublicTracking'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
+const PublicCatalog = lazy(() => import('./pages/PublicCatalog'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const isNativeApp = Capacitor.isNativePlatform();
+
+function PageLoader() {
+  return <div style={{ minHeight: '100vh', background: '#f7faf9' }} aria-label="Memuat halaman" />;
+}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -111,31 +118,20 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <Routes>
-          {/* Halaman Utama Publik */}
-          <Route path="/" element={<LandingPage />} />
-          
-          {/* Halaman Login Karyawan / Admin */}
-          <Route path="/login" element={!hasTenantCode ? <Login /> : <Navigate to="/admin" />} />
-          
-          {/* Dashboard Internal */}
-          <Route path="/admin" element={hasTenantCode ? <AdminDashboard /> : <Navigate to="/login" />} />
-          <Route path="/employee" element={<EmployeePortal />} />
-          <Route path="/super-admin" element={<SuperAdmin />} />
-          
-          {/* Cek Resi Publik */}
-          <Route path="/tracking" element={<PublicTracking />} />
-          
-          {/* Katalog Produk Publik */}
-          <Route path="/katalog/:tenantCode" element={<PublicCatalog />} />
-
-          {/* Legal Pages */}
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={isNativeApp ? <Navigate to="/login" replace /> : <LandingPage />} />
+            <Route path="/login" element={!hasTenantCode ? <Login /> : <Navigate to="/admin" />} />
+            <Route path="/admin" element={hasTenantCode ? <AdminDashboard /> : <Navigate to="/login" />} />
+            <Route path="/employee" element={<EmployeePortal />} />
+            <Route path="/super-admin" element={<SuperAdmin />} />
+            <Route path="/tracking" element={<PublicTracking />} />
+            <Route path="/katalog/:tenantCode" element={<PublicCatalog />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="*" element={<Navigate to={isNativeApp ? '/login' : '/'} replace />} />
+          </Routes>
+        </Suspense>
       </Router>
     </ErrorBoundary>
   );

@@ -6,6 +6,7 @@ import {
   Printer, ShieldCheck, ShoppingCart, Sparkles, UsersRound, Wrench, X
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import UnitProLogo from '../components/UnitProLogo';
 import heroImage from '../assets/unitpro-hero.png';
 import './LandingPage.css';
 
@@ -80,7 +81,7 @@ const faqs = [
 ];
 
 function UnitProMark() {
-  return <span className="unitpro-mark" aria-hidden="true">UP</span>;
+  return <UnitProLogo size={38} />;
 }
 
 export default function LandingPage() {
