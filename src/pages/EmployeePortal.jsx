@@ -600,7 +600,7 @@ export default function EmployeePortal() {
         }}
       />
 
-      <div className="main-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
+      <div className="main-content employee-portal-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
         <div className="native-screen-heading native-employee-heading">
           <p>{isKasir ? 'AREA KASIR' : 'AREA KARYAWAN'}</p>
           <h2>{isKasir ? 'Kasir & Servis' : 'Tugas Hari Ini'}</h2>

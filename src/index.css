@@ -1007,6 +1007,19 @@ html.native-app .finance-mobile-empty {
 .management-action-disclosure[open] summary::after { content: '−'; }
 .management-action-disclosure .inventory-add-form { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
 .management-action-disclosure .inventory-add-form > h4 { display: none; }
+.customer-blast-disclosure { margin: 0 0 20px; border: 1px solid #b7efd0; border-radius: 16px; background: linear-gradient(135deg, #f0fdf4, #f0f9ff); overflow: hidden; }
+.customer-blast-disclosure summary { display: flex; align-items: center; min-height: 54px; padding: 0 18px; color: #166534; font-size: 14px; font-weight: 800; cursor: pointer; list-style: none; }
+.customer-blast-disclosure summary::-webkit-details-marker { display: none; }
+.customer-blast-disclosure summary::before { content: 'WA'; display: grid; place-items: center; width: 28px; height: 28px; margin-right: 9px; border-radius: 8px; background: #dcfce7; color: #15803d; font-size: 10px; font-weight: 900; }
+.customer-blast-disclosure summary::after { content: 'Atur pesan'; margin-left: auto; color: #15803d; font-size: 12px; font-weight: 700; }
+.customer-blast-disclosure[open] summary { border-bottom: 1px solid #b7efd0; }
+.customer-blast-disclosure[open] summary::after { content: 'Tutup'; }
+.customer-blast-disclosure .customer-blast-card { margin: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+
+@media (min-width: 1100px) {
+  .employee-portal-content { max-width: 1400px !important; }
+  .employee-portal-content .employee-section-switcher { margin-bottom: 20px !important; }
+}
 .service-active-mobile-list { display: none; }
 .service-list-search { align-items: center; }
 .service-filter-row { scrollbar-width: none; }
