@@ -971,6 +971,17 @@ html.native-app .finance-mobile-empty {
   text-align: center;
 }
 
+/* Dashboard summary actions and labels shared by web and APK. */
+.dashboard-hero-kicker { margin: 0 0 7px; color: #7dd3fc; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.dashboard-quick-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.dashboard-quick-actions .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 9px 12px; border-color: rgba(255,255,255,.24); color: #e2e8f0; background: rgba(255,255,255,.08); font-size: 12px; }
+.dashboard-quick-actions .btn.btn-primary { border-color: #14b8a6; background: #14b8a6; color: #062b2c; }
+.dashboard-quick-actions > button:last-child:not(.btn) { border: 0; padding: 8px 10px; border-radius: 9px; background: transparent; color: #94a3b8; font-size: 11px; cursor: pointer; }
+.dashboard-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 2px 0 -4px; }
+.dashboard-section-heading p { margin: 0 0 4px; color: #0f9d95; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.dashboard-section-heading h4 { margin: 0; color: #0f172a; font-size: 18px; }
+.dashboard-section-heading > span { color: #64748b; font-size: 12px; font-weight: 600; }
+
 /* Native admin dashboard: the desktop dashboard contains dense summary
    blocks, so the APK uses a single mobile-first reading flow. */
 html.native-app .dashboard-overview {
@@ -998,6 +1009,12 @@ html.native-app .dashboard-store-hero > div:last-child button {
 html.native-app .dashboard-store-hero > div:last-child button {
   justify-content: center;
 }
+
+html.native-app .dashboard-quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+html.native-app .dashboard-quick-actions .btn { min-width: 0; padding: 9px 6px; justify-content: center; font-size: 11px; }
+html.native-app .dashboard-quick-actions .btn svg { width: 15px; height: 15px; }
+html.native-app .dashboard-section-heading { align-items: flex-start; }
+html.native-app .dashboard-section-heading > span { max-width: 118px; text-align: right; line-height: 1.35; }
 
 html.native-app .dashboard-upgrade-banner {
   align-items: stretch !important;

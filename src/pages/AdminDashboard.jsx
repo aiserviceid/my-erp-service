@@ -791,15 +791,25 @@ export default function AdminDashboard() {
               padding: '1.2rem 1.6rem', borderRadius: '18px', color: 'white', flexWrap: 'wrap', gap: '12px'
             }}>
               <div>
+                <p className="dashboard-hero-kicker">RINGKASAN OPERASIONAL</p>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>
-                  Sistem Operasional Toko: {tenant?.settings?.storeName || tenant?.name}
+                  {tenant?.settings?.storeName || tenant?.name}
                 </h3>
                 <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
                   Mode: <span style={{ color: '#38bdf8', fontWeight: '800' }}>Paket {tenant?.tier === 'pro' ? 'Pro Titan' : tenant?.tier === 'enterprise' ? 'Enterprise' : 'Starter'}</span> • ID Toko: <span style={{ fontFamily: 'monospace', color: '#f1f5f9' }}>{tenant?.code}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button 
+              <div className="dashboard-quick-actions">
+                <button className="btn btn-primary" onClick={() => { setActiveTab('servis'); setShowServiceRegistration(true); }}>
+                  <Plus size={17} /> Terima Servis
+                </button>
+                <button className="btn btn-ghost" onClick={() => setActiveTab('pos')}>
+                  <ShoppingCart size={17} /> Buka Kasir
+                </button>
+                <button className="btn btn-ghost" onClick={() => setActiveTab('keuangan')}>
+                  <TrendingUp size={17} /> Laporan
+                </button>
+                {tenant?.code === 'DEMO-STORE' && <button
                   onClick={loadDemoData}
                   style={{
                     background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white',
@@ -809,7 +819,7 @@ export default function AdminDashboard() {
                   }}
                 >
                   ✨ Muat Demo Data Instan
-                </button>
+                </button>}
               </div>
             </div>
 
@@ -946,6 +956,13 @@ export default function AdminDashboard() {
             )}
 
             {/* METRICS CARDS: HARI INI */}
+            <div className="dashboard-section-heading">
+              <div>
+                <p>RINGKASAN HARI INI</p>
+                <h4>Kondisi toko saat ini</h4>
+              </div>
+              <span>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            </div>
             <div className="dashboard-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
               
               {/* Card 1: Omzet Hari Ini */}
