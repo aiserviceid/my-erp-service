@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft } from 'lucide-react';
 import { apiService } from '../services/api';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
@@ -28,6 +28,12 @@ export default function EmployeePortal() {
   const [showPersetujuanModal, setShowPersetujuanModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferService, setTransferService] = useState(null);
+  const [transferTechnicianId, setTransferTechnicianId] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferError, setTransferError] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
   const [serviceWizardStep, setServiceWizardStep] = useState(1);
   const [serviceWizardError, setServiceWizardError] = useState('');
   const [serviceForm, setServiceForm] = useState({
@@ -114,6 +120,63 @@ export default function EmployeePortal() {
     setServiceWizardStep((step) => Math.min(4, Math.max(1, step + direction)));
   };
 
+  const openTransferModal = (service) => {
+    setTransferService(service);
+    setTransferTechnicianId('');
+    setTransferReason('');
+    setTransferError('');
+    setShowTransferModal(true);
+  };
+
+  const closeTransferModal = () => {
+    setShowTransferModal(false);
+    setTransferService(null);
+    setTransferError('');
+  };
+
+  const handleTransferService = async (event) => {
+    event.preventDefault();
+    if (!transferService || !transferTechnicianId) {
+      setTransferError('Pilih teknisi pengganti terlebih dahulu.');
+      return;
+    }
+
+    const replacement = technicianUsers.find((user) => String(user.id) === String(transferTechnicianId));
+    if (!replacement) {
+      setTransferError('Teknisi pengganti tidak ditemukan.');
+      return;
+    }
+
+    setTransferLoading(true);
+    try {
+      const reason = transferReason.trim();
+      const previousTechnician = employee?.name || 'Teknisi sebelumnya';
+      const transferNote = `[Tugas dialihkan dari ${previousTechnician} ke ${replacement.name}${reason ? `: ${reason}` : ''}]`;
+      const updatedIssue = `${transferService.issue || ''}\n${transferNote}`.trim();
+
+      await apiService.post('/services/update', { resi: transferService.resi, technician_id: replacement.id, issue: updatedIssue });
+
+      const fonnteToken = tenant?.settings?.fonnte_token;
+      const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
+      if (waSenderMode === 'CUSTOM' && fonnteToken && replacement.phone) {
+        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
+        fetch('https://api.fonnte.com/send', {
+          method: 'POST',
+          headers: { Authorization: fonnteToken },
+          body: new URLSearchParams({ target: normalizePhone(replacement.phone), message }),
+        }).catch(console.error);
+      }
+
+      closeTransferModal();
+      fetchServices();
+      alert(`Tugas ${transferService.resi} berhasil dialihkan ke ${replacement.name}.`);
+    } catch (error) {
+      setTransferError(error.message || 'Gagal mengalihkan tugas servis.');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (employee) {
       fetchServices();
@@ -123,7 +186,7 @@ export default function EmployeePortal() {
         apiService.getProducts(code).then(setProducts);
       }
     }
-    if (employee && (employee.role === 'KASIR' || employee.role === 'Kasir')) {
+    if (employee) {
       const code = tenant?.code || employee.tenant_code;
       if (code) {
         apiService.getUsers(code).then(setUsers);
@@ -639,6 +702,11 @@ export default function EmployeePortal() {
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
                         <div className="technician-task-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).length > 0 && (
+                            <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => openTransferModal(s)}>
+                              <ArrowRightLeft size={14} style={{ marginRight: '5px', display: 'inline' }} /> Alihkan Tugas
+                            </button>
+                          )}
                           {(s.status === 'PROSES' || s.status === 'MENUNGGU_PART' || s.status === 'DICEK' || s.status === 'DIKERJAKAN') && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => {
                               setSelectedService(s);
@@ -1050,6 +1118,28 @@ export default function EmployeePortal() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {showTransferModal && transferService && (
+        <div className="modal-backdrop service-wizard-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1120, padding: '1rem' }}>
+          <form className="glass-panel service-wizard-dialog" onSubmit={handleTransferService} style={{ width: '100%', maxWidth: '480px', background: 'var(--bg-light)' }}>
+            <div className="service-wizard-header">
+              <button type="button" className="btn btn-ghost service-wizard-back" onClick={closeTransferModal} aria-label="Kembali ke tugas"><ChevronLeft size={22} /></button>
+              <div><p>PENGALIHAN TUGAS</p><h3>Alihkan Job Servis</h3></div>
+              <button type="button" className="btn btn-ghost service-wizard-close" onClick={closeTransferModal} aria-label="Tutup"><X size={20} /></button>
+            </div>
+            <div className="service-transfer-summary"><strong>{transferService.device_name}</strong><span>{transferService.resi}</span><p>{transferService.customer_name}</p></div>
+            <label className="service-transfer-label">Teknisi pengganti</label>
+            <select className="input-field" value={transferTechnicianId} onChange={(event) => { setTransferTechnicianId(event.target.value); setTransferError(''); }} required>
+              <option value="">Pilih teknisi</option>
+              {technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.phone ? ` - ${technician.phone}` : ''}</option>)}
+            </select>
+            <label className="service-transfer-label">Alasan pengalihan <span>(opsional)</span></label>
+            <textarea className="input-field" rows="3" placeholder="Contoh: sedang sakit atau pekerjaan di luar keahlian" value={transferReason} onChange={(event) => setTransferReason(event.target.value)} />
+            {transferError && <p className="service-wizard-error">{transferError}</p>}
+            <div className="service-wizard-actions"><button type="button" className="btn btn-ghost" onClick={closeTransferModal}>Batal</button><button type="submit" className="btn btn-primary" disabled={transferLoading}><ArrowRightLeft size={18} /> {transferLoading ? 'Mengalihkan...' : 'Alihkan Tugas'}</button></div>
+          </form>
         </div>
       )}
 

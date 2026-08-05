@@ -262,6 +262,20 @@ app.post('/api/services/finish', (req, res) => {
   );
 });
 
+app.post('/api/services/update', (req, res) => {
+  const { resi, technician_id, issue } = req.body;
+  if (!resi) return res.status(400).json({ error: 'Resi wajib diisi' });
+  db.run(
+    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',
+    [technician_id, issue, resi],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan' });
+      res.json({ success: true });
+    }
+  );
+});
+
 app.get('/api/tracking/:resi', (req, res) => {
   db.get('SELECT * FROM services WHERE resi = ?', [req.params.resi], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });

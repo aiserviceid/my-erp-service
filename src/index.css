@@ -461,6 +461,14 @@
 .technician-task-list-header > span { padding: 5px 9px; border-radius: 99px; background: #e0f2fe; color: #0369a1; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .technician-task-title { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .technician-task-actions { flex: 0 0 auto; }
+.service-transfer-summary { margin: 2px 0 18px; padding: 14px; border: 1px solid #dbe7ec; border-radius: 8px; background: #f7faf9; }
+.service-transfer-summary strong, .service-transfer-summary span { display: block; }
+.service-transfer-summary strong { color: #0f172a; font-size: 16px; }
+.service-transfer-summary span { margin-top: 4px; color: #087a75; font-size: 12px; font-weight: 800; }
+.service-transfer-summary p { margin: 7px 0 0; color: #64748b; font-size: 13px; }
+.service-transfer-label { display: block; margin: 14px 0 7px; color: #334155; font-size: 13px; font-weight: 800; }
+.service-transfer-label span { color: #94a3b8; font-weight: 600; }
+.service-transfer-label + .input-field { width: 100%; }
 
 @media (max-width: 768px) {
   .service-wizard-backdrop { align-items: flex-end !important; padding: 0 !important; }
