@@ -39,7 +39,7 @@ export default function AdminDashboard() {
   const [obEmpName, setObEmpName] = useState('');
   const [obEmpPin, setObEmpPin] = useState('');
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
-  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'nota' | 'promo'
+  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'rekening' | 'nota' | 'promo'
   const [previewTab, setPreviewTab] = useState('servis');
   const [empTab, setEmpTab] = useState('daftar'); // 'daftar' | 'kasbon' | 'absensi'
   const [masterTab, setMasterTab] = useState('stok'); // 'stok' | 'audit'
@@ -349,7 +349,8 @@ export default function AdminDashboard() {
             <p>Scan QR untuk cek status servis<br/>atau kunjungi: <strong>${trackingUrl}</strong></p>
           </div>
 
-          ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${qrisImageUrl ? `<div class="qr-section"><img src="${qrisImageUrl}" alt="QRIS Pembayaran" /><p>Scan QRIS untuk pembayaran</p></div>` : ''}
           
           <div class="divider"></div>
           <div class="footer">
@@ -401,7 +402,8 @@ export default function AdminDashboard() {
             </tbody>
           </table>
           
-          ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${qrisImageUrl ? `<div class="qr-section"><img src="${qrisImageUrl}" alt="QRIS Pembayaran" /><p>Scan QRIS untuk pembayaran</p></div>` : ''}
           
           <div class="qr-section">
             <img src="${qrCodeUrl}" alt="QR Code Tracking" />
@@ -428,6 +430,17 @@ export default function AdminDashboard() {
   const [newBranchName, setNewBranchName] = useState('');
 
   const settings = tenant?.settings || {};
+  const paymentInfoText = (() => {
+    const bankName = settings.bank_name || '';
+    const bankAccount = settings.bank_account || '';
+    const bankHolder = settings.bank_holder || '';
+    if (bankName || bankAccount || bankHolder) {
+      const bankLine = [bankName, bankAccount].filter(Boolean).join(' ').trim();
+      return bankHolder ? `${bankLine}${bankLine ? ' ' : ''}a/n ${bankHolder}`.trim() : bankLine;
+    }
+    return settings.store_bank || '';
+  })();
+  const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
   const isFree = tenant?.tier === 'free';
   const isEnterprise = tenant?.tier === 'enterprise';
 
@@ -1317,7 +1330,8 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>🎨 Tema & Branding</button>
                   <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? '#059669' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>💬 WhatsApp Gateway</button>
-                  <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>🧾 Kontak & Nota</button>
+                  <button onClick={() => setSettingTab('rekening')} className={`btn ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
+                  <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
                   <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? '#f59e0b' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>📢 Iklan & Promo</button>
                   <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
                   <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#ef4444', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>⚠️ Reset Data</button>
@@ -1449,24 +1463,23 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {settingTab === 'nota' && (
+                {settingTab === 'rekening' && (
                   <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Kontak, Rekening & Nota</h3>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Kontak & Rekening</h3>
                     
                     <div style={{ display: 'flex', gap: '2rem', flexDirection: window.innerWidth < 1100 ? 'column' : 'row' }}>
-                      {/* FORM SECTION */}
                       <div style={{ flex: 1, minWidth: '300px', opacity: isFree ? 0.6 : 1 }}>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                          Lengkapi data ini agar pelanggan mudah menghubungi dan melakukan pembayaran kepada Anda.
+                          Lengkapi nomor kontak, rekening, dan gambar QRIS toko agar pelanggan lebih mudah membayar.
                         </p>
                         
                         <div style={{ marginBottom: '1.5rem' }}>
                           <label className="label">Nomor WhatsApp Penerima Order (Dari Katalog)</label>
-                          <input type="text" className="input-field" placeholder="Contoh: 08123456789" defaultValue={tenant?.settings?.store_wa || ''} id="storeWaInput" disabled={isFree} />
+                          <input type="text" className="input-field" placeholder="Contoh: 08123456789" defaultValue={tenant?.settings?.store_wa || ''} id="storeWaInput" disabled={isFree} onChange={(e) => updateTenantSettings({ store_wa: e.target.value })} />
                         </div>
 
                         <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
-                          <h5 style={{ margin: '0 0 12px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>💳 Info Rekening Pembayaran</h5>
+                          <h5 style={{ margin: '0 0 12px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Info Rekening Pembayaran</h5>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
                             <select id="bankNameSelect" className="input-field" disabled={isFree} defaultValue={tenant?.settings?.bank_name || ''} onChange={(e) => updateTenantSettings({ bank_name: e.target.value })}>
                               <option value="">-- Pilih Bank / E-Wallet --</option>
@@ -1486,13 +1499,22 @@ export default function AdminDashboard() {
                         </div>
 
                         <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
-                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota (Servis)</h5>
-                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Garansi servis 1 minggu dari tanggal pengambilan."</p>
-                          <textarea className="input-field" placeholder="Ketik aturan garansi / ucapan terima kasih di sini..." defaultValue={tenant?.settings?.receipt_note_service || tenant?.settings?.receipt_note || ''} id="receiptNoteServiceInput" style={{ width: '100%', minHeight: '60px', resize: 'vertical', marginBottom: '1rem' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_service: e.target.value })} />
-
-                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>📝 Catatan Kaki Nota (Penjualan Kasir)</h5>
-                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Barang yang sudah dibeli tidak dapat ditukar/dikembalikan."</p>
-                          <textarea className="input-field" placeholder="Ketik ucapan terima kasih / aturan retur di sini..." defaultValue={tenant?.settings?.receipt_note_pos || ''} id="receiptNotePosInput" style={{ width: '100%', minHeight: '60px', resize: 'vertical' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_pos: e.target.value })} />
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Upload Gambar QRIS Toko</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Unggah QRIS resmi toko agar pelanggan bisa scan langsung dari nota.</p>
+                          <input type="file" accept="image/*" className="input-field" disabled={isFree} onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              handleImageUpload(file, (base64) => updateTenantSettings({ qrisUrl: base64 }));
+                            }
+                          }} />
+                          {qrisImageUrl ? (
+                            <div style={{ marginTop: '10px', display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', alignItems: 'center', gap: '12px' }}>
+                              <img src={qrisImageUrl} alt="QRIS Toko" style={{ width: '160px', height: '160px', objectFit: 'contain', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px' }} />
+                              <button className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }} onClick={() => updateTenantSettings({ qrisUrl: '' })}>Hapus QRIS</button>
+                            </div>
+                          ) : (
+                            <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>Belum ada gambar QRIS yang diunggah.</p>
+                          )}
                         </div>
 
                         <button className="btn" style={{ background: '#0ea5e9', color: 'white', border: 'none', width: '100%', padding: '12px' }} disabled={isFree} onClick={async () => {
@@ -1500,21 +1522,82 @@ export default function AdminDashboard() {
                           const bankName = document.getElementById('bankNameSelect').value;
                           const accNumber = document.getElementById('accNumberInput').value;
                           const accName = document.getElementById('accNameInput').value;
-                          const receiptNoteService = document.getElementById('receiptNoteServiceInput').value;
-                          const receiptNotePos = document.getElementById('receiptNotePosInput').value;
-                          
-                          const storeBank = bankName && accNumber ? `${bankName} ${accNumber} a/n ${accName}` : '';
+                          const qrisUrl = settings.qrisUrl || '';
+                          const bankLine = [bankName, accNumber].filter(Boolean).join(' ').trim();
+                          const storeBank = bankLine ? `${bankLine}${accName ? ` a/n ${accName}` : ''}`.trim() : '';
                           
                           try {
-                            const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, receipt_note_service: receiptNoteService, receipt_note_pos: receiptNotePos };
+                            const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, qrisUrl };
                             await apiService.updateTenantSettings(tenant.code, newSettings);
                             updateTenantSettings(newSettings);
-                            alert('Informasi berhasil disimpan!');
+                            alert('Informasi kontak, rekening, dan QRIS berhasil disimpan!');
                           } catch(e) { alert('Gagal menyimpan'); }
                         }}>💾 Simpan Perubahan</button>
                       </div>
 
-                      {/* LIVE PREVIEW SECTION */}
+                      <div style={{ flex: 1, minWidth: '300px' }}>
+                        <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Kontak & Pembayaran</h4>
+                          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b' }}>
+                            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #e2e8f0' }}>
+                              <div style={{ color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Nomor WhatsApp</div>
+                              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>{settings.store_wa || '-'}</div>
+                            </div>
+                            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #e2e8f0' }}>
+                              <div style={{ color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Info Rekening</div>
+                              <div style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: '700', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{paymentInfoText || '-'}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: '700', marginBottom: '10px' }}>QRIS Toko</div>
+                              {qrisImageUrl ? (
+                                <>
+                                  <img src={qrisImageUrl} alt="QRIS Toko" style={{ width: '160px', height: '160px', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px', background: '#fff' }} />
+                                  <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#64748b' }}>Scan QRIS ini untuk pembayaran.</div>
+                                </>
+                              ) : (
+                                <div style={{ padding: '24px 12px', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#94a3b8', fontSize: '0.8rem' }}>QRIS belum diunggah.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {settingTab === 'nota' && (
+                  <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Catatan Nota</h3>
+                    
+                    <div style={{ display: 'flex', gap: '2rem', flexDirection: window.innerWidth < 1100 ? 'column' : 'row' }}>
+                      <div style={{ flex: 1, minWidth: '300px', opacity: isFree ? 0.6 : 1 }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                          Atur catatan kaki untuk nota servis dan struk penjualan kasir.
+                        </p>
+
+                        <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Catatan Kaki Nota (Servis)</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Garansi servis 1 minggu dari tanggal pengambilan."</p>
+                          <textarea className="input-field" placeholder="Ketik aturan garansi / ucapan terima kasih di sini..." defaultValue={tenant?.settings?.receipt_note_service || tenant?.settings?.receipt_note || ''} id="receiptNoteServiceInput" style={{ width: '100%', minHeight: '80px', resize: 'vertical', marginBottom: '1rem' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_service: e.target.value, receipt_note: e.target.value })} />
+
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Catatan Kaki Nota (Penjualan Kasir)</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Barang yang sudah dibeli tidak dapat ditukar/dikembalikan."</p>
+                          <textarea className="input-field" placeholder="Ketik ucapan terima kasih / aturan retur di sini..." defaultValue={tenant?.settings?.receipt_note_pos || ''} id="receiptNotePosInput" style={{ width: '100%', minHeight: '80px', resize: 'vertical' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_pos: e.target.value })} />
+                        </div>
+
+                        <button className="btn" style={{ background: '#0ea5e9', color: 'white', border: 'none', width: '100%', padding: '12px' }} disabled={isFree} onClick={async () => {
+                          const receiptNoteService = document.getElementById('receiptNoteServiceInput').value;
+                          const receiptNotePos = document.getElementById('receiptNotePosInput').value;
+                          
+                          try {
+                            const newSettings = { ...tenant?.settings, receipt_note_service: receiptNoteService, receipt_note_pos: receiptNotePos, receipt_note: receiptNoteService };
+                            await apiService.updateTenantSettings(tenant.code, newSettings);
+                            updateTenantSettings(newSettings);
+                            alert('Catatan nota berhasil disimpan!');
+                          } catch(e) { alert('Gagal menyimpan'); }
+                        }}>💾 Simpan Catatan</button>
+                      </div>
+
                       <div style={{ flex: 1, minWidth: '300px' }}>
                         <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
                           <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota</h4>
@@ -1544,15 +1627,19 @@ export default function AdminDashboard() {
                                   <strong>TOTAL: Rp 450.000</strong>
                                 </div>
                                 
-                                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontFamily: 'sans-serif' }}>
-                                  <strong>INFO REKENING PEMBAYARAN:</strong><br/>
-                                  {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
-                                </div>
+                                {paymentInfoText ? (
+                                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontFamily: 'sans-serif' }}>
+                                    <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                                    {paymentInfoText}
+                                  </div>
+                                ) : null}
 
-                                <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
-                                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SRV-12345`} alt="QR Code Tracking" style={{ width: '80px', height: '80px', marginBottom: '5px' }} />
-                                  <p style={{ margin: '0', fontSize: '0.7rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>{window.location.host}/track</strong></p>
-                                </div>
+                                {qrisImageUrl ? (
+                                  <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                                    <img src={qrisImageUrl} alt="QRIS Pembayaran" style={{ width: '110px', height: '110px', objectFit: 'contain', marginBottom: '5px' }} />
+                                    <p style={{ margin: '0', fontSize: '0.75rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QRIS untuk pembayaran</p>
+                                  </div>
+                                ) : null}
 
                                 <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
                                   <strong style={{ color: '#0f172a' }}>{settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
@@ -1584,10 +1671,18 @@ export default function AdminDashboard() {
                                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Subtotal</span><span>Rp 175.000</span></div>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '1.1rem', margin: '10px 0', borderTop: '2px solid #333', borderBottom: '2px solid #333', padding: '8px 0' }}><span>TOTAL</span><span>Rp 175.000</span></div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', margin: '15px 0', fontFamily: 'sans-serif', textAlign: 'center' }}>
-                                  <strong>INFO REKENING PEMBAYARAN:</strong><br/>
-                                  {settings.bank_name ? `${settings.bank_name} ${settings.bank_account} a/n ${settings.bank_holder}` : settings.store_bank || '-'}
-                                </div>
+                                {paymentInfoText ? (
+                                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', margin: '15px 0', fontFamily: 'sans-serif', textAlign: 'center' }}>
+                                    <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                                    {paymentInfoText}
+                                  </div>
+                                ) : null}
+                                {qrisImageUrl ? (
+                                  <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                                    <img src={qrisImageUrl} alt="QRIS Pembayaran" style={{ width: '110px', height: '110px', objectFit: 'contain', marginBottom: '5px' }} />
+                                    <p style={{ margin: '0', fontSize: '0.75rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QRIS untuk pembayaran</p>
+                                  </div>
+                                ) : null}
                                 <div style={{ textAlign: 'center', color: '#64748b', fontFamily: 'sans-serif' }}>
                                   {settings.receipt_note_pos ? <><strong style={{ color: '#0f172a' }}>{settings.receipt_note_pos}</strong></> : <><strong style={{ color: '#0f172a' }}>Terima kasih atas pembelian Anda!</strong><br/>Barang yang sudah dibeli tidak dapat dikembalikan.</>}
                                 </div>

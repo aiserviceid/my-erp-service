@@ -34,6 +34,18 @@ export default function EmployeePortal() {
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
   const sparepartCatalog = products.filter(p => (p.category || '').toUpperCase() !== 'JASA');
   const jasaCatalog = products.filter(p => (p.category || '').toUpperCase() === 'JASA');
+  const settings = tenant?.settings || {};
+  const paymentInfoText = (() => {
+    const bankName = settings.bank_name || '';
+    const bankAccount = settings.bank_account || '';
+    const bankHolder = settings.bank_holder || '';
+    if (bankName || bankAccount || bankHolder) {
+      const bankLine = [bankName, bankAccount].filter(Boolean).join(' ').trim();
+      return bankHolder ? `${bankLine}${bankLine ? ' ' : ''}a/n ${bankHolder}`.trim() : bankLine;
+    }
+    return settings.store_bank || '';
+  })();
+  const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
 
   const normalizePhone = (phone) => {
     const cleaned = (phone || '').replace(/\D/g, '');
@@ -250,7 +262,8 @@ export default function EmployeePortal() {
           <div><strong style="color: #64748b; font-size: 0.9rem;">Keluhan & Kelengkapan:</strong></div>
           <div class="issue-box">${selectedService.issue}</div>
           
-          ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${qrisImageUrl ? `<div class="bank-info"><strong>QRIS PEMBAYARAN:</strong><br/><img src="${qrisImageUrl}" alt="QRIS Pembayaran" style="width:110px;height:110px;object-fit:contain;margin-top:8px;" /><div style="margin-top:6px;">Scan QRIS untuk pembayaran</div></div>` : ''}
           
           <div class="divider"></div>
           <div class="footer">
@@ -299,7 +312,8 @@ export default function EmployeePortal() {
             </tbody>
           </table>
           
-          ${tenant?.settings?.store_bank ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${tenant.settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
+          ${qrisImageUrl ? `<div class="bank-info"><strong>QRIS PEMBAYARAN:</strong><br/><img src="${qrisImageUrl}" alt="QRIS Pembayaran" style="width:110px;height:110px;object-fit:contain;margin-top:8px;" /><div style="margin-top:6px;">Scan QRIS untuk pembayaran</div></div>` : ''}
           
           <div class="divider"></div>
           <div class="footer">

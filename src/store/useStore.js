@@ -14,6 +14,7 @@ const defaultSettings = {
   logoUrl: '',
   storeName: 'AISERVICE.ID Toko',
   theme: 'laptop', // 'hp', 'laptop', 'motor'
+  qrisUrl: '',
   ads: [
     { id: 1, title: 'Promo Diskon 50%', imageUrl: 'https://via.placeholder.com/800x200?text=Promo+Diskon' }
   ]
@@ -125,4 +126,3 @@ export const useStore = create((set) => ({
   showOnboarding: false,
   setShowOnboarding: (val) => set({ showOnboarding: val }),
 }));
-

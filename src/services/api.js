@@ -62,13 +62,13 @@ export const apiService = {
 
       if (error && error.code !== 'PGRST116') console.error('Supabase fallback error:', error);
 
-      if (!existing) {
+        if (!existing) {
         if (!name) throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
         const newStore = { 
           code: cleanCode, 
           name: name || cleanCode, 
           tier: 'free', 
-          settings: { storeName: name || cleanCode, store_wa: phone || '' }, 
+          settings: { storeName: name || cleanCode, store_wa: phone || '', qrisUrl: '' }, 
           pin: pin || '' 
         };
         await supabase.from('tenants').insert(newStore);
@@ -92,6 +92,9 @@ export const apiService = {
         }
         if (!settingsToSave.store_wa && (phone || resultTenant.phone)) {
           settingsToSave.store_wa = phone || resultTenant.phone;
+        }
+        if (typeof settingsToSave.qrisUrl === 'undefined') {
+          settingsToSave.qrisUrl = '';
         }
 
         const supabaseRecord = {

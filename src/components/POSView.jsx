@@ -26,6 +26,17 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
   const tier = tenant?.tier || 'free';
   const settings = tenant?.settings || {};
+  const paymentInfoText = (() => {
+    const bankName = settings.bank_name || '';
+    const bankAccount = settings.bank_account || '';
+    const bankHolder = settings.bank_holder || '';
+    if (bankName || bankAccount || bankHolder) {
+      const bankLine = [bankName, bankAccount].filter(Boolean).join(' ').trim();
+      return bankHolder ? `${bankLine}${bankLine ? ' ' : ''}a/n ${bankHolder}`.trim() : bankLine;
+    }
+    return settings.store_bank || '';
+  })();
+  const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
 
   // Filtered & sorted products
   const filteredProducts = useMemo(() => {
@@ -227,7 +238,8 @@ export default function POSView({ products, transactions = [], onTransactionCrea
             ${lastReceipt.paymentMethod === 'TUNAI' && lastReceipt.change > 0 ? `<div><span><strong>Kembalian</strong></span><span><strong>Rp ${lastReceipt.change.toLocaleString('id-ID')}</strong></span></div>` : ''}
           </div>
         </div>
-        ${settings.store_bank ? `<div style="text-align:center;font-size:0.75rem;color:#666;margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:6px">${settings.store_bank.replace(/\n/g, '<br/>')}</div>` : ''}
+        ${paymentInfoText ? `<div style="text-align:center;font-size:0.75rem;color:#666;margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:6px">${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
+        ${qrisImageUrl ? `<div style="text-align:center;margin:10px 0;padding:8px;border:1px dashed #ddd;border-radius:6px"><img src="${qrisImageUrl}" alt="QRIS Pembayaran" style="width:110px;height:110px;object-fit:contain;margin-bottom:6px" /><div style="font-size:0.75rem;color:#666;font-weight:600;">Scan QRIS untuk pembayaran</div></div>` : ''}
         <div class="footer">
           ${settings.receipt_note_pos ? `<p style="margin: 0 0 5px 0; color: #333; font-weight: 700;">${settings.receipt_note_pos.replace(/\n/g, '<br/>')}</p>` : `<p style="margin:0 0 4px; font-weight: bold;">Terima kasih atas pembelian Anda!</p>
           <p style="margin:0">Barang yang sudah dibeli tidak dapat dikembalikan.</p>`}
