@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
@@ -10,6 +10,7 @@ import ForumCommunity from '../components/ForumCommunity';
 import POSView from '../components/POSView';
 import BarcodeScanner from '../components/BarcodeScanner';
 import UpgradePrompt from '../components/UpgradePrompt';
+import MobileTabBar from '../components/MobileTabBar';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 
 export default function AdminDashboard() {
@@ -82,8 +83,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (tenant) {
       const isReg = Boolean(
-        (tenant?.name && tenant?.name !== 'AISERVICE.ID Toko') || 
-        (tenant?.settings?.storeName && tenant?.settings?.storeName !== 'AISERVICE.ID Toko')
+        (tenant?.name && tenant?.name !== 'AISERVICE.ID Toko' && tenant?.name !== 'UnitPro Toko') ||
+        (tenant?.settings?.storeName && tenant?.settings?.storeName !== 'AISERVICE.ID Toko' && tenant?.settings?.storeName !== 'UnitPro Toko')
       );
       if (!isReg) {
         setShowOnboardingModal(true);
@@ -585,7 +586,7 @@ export default function AdminDashboard() {
   };
 
   // Icon mapping for dynamic tabs
-  const iconMap = { LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle };
+  const iconMap = { LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare };
 
   const todayStr = new Date().toDateString();
   const newServiceCount = services.filter(s => new Date(s.created_at || Date.now()).toDateString() === todayStr && s.status === 'PROSES').length;
@@ -631,7 +632,7 @@ export default function AdminDashboard() {
             </div>
           )}
           <div>
-            <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem' }}>{settings.storeName || 'AISERVICE.ID'}</h3>
+            <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem' }}>{settings.storeName || 'UnitPro'}</h3>
             <div style={{ fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Building2 size={10} /> {tenant?.name || tenant?.code}
             </div>
@@ -647,25 +648,13 @@ export default function AdminDashboard() {
         </button>
       </header>
 
-      {/* MOBILE BOTTOM NAV (Visible only on mobile) */}
-      <nav className="mobile-bottom-nav">
-        {tabs.map(tab => (
-          <button 
-            key={tab.id}
-            className={`mobile-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <tab.icon size={20} />
-            <span>{tab.name.replace(/&.*/, '').split(' ')[0]}</span>
-          </button>
-        ))}
-      </nav>
+      <MobileTabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* SIDEBAR (Desktop only) */}
       <div className="sidebar animate-slide-in">
         <div style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid var(--border-light)', marginBottom: '1rem' }}>
           <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ height: '45px', borderRadius: '8px', display: 'block', margin: '0 auto 0.5rem auto' }} />
-          <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.05rem' }}>{settings.storeName || 'AISERVICE.ID'}</h3>
+          <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.05rem' }}>{settings.storeName || 'UnitPro'}</h3>
           
           {/* Active Branch Badge */}
           <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>

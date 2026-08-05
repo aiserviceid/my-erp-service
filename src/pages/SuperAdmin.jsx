@@ -177,7 +177,7 @@ function SuperAdminLoginGate({ onSuccess }) {
           <div style={{ width: '64px', height: '64px', background: 'rgba(255,255,255,0.1)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: '2px solid rgba(255,255,255,0.2)' }}>
             <Shield size={32} color="#fbbf24" />
           </div>
-          <h1 style={{ margin: 0, color: 'white', fontSize: '1.5rem', fontWeight: '900' }}>AISERVICE.ID</h1>
+          <h1 style={{ margin: 0, color: 'white', fontSize: '1.5rem', fontWeight: '900' }}>UnitPro</h1>
           <p style={{ margin: '6px 0 0 0', color: '#bae6fd', fontSize: '0.88rem', fontWeight: '600' }}>Super Admin Master Panel</p>
         </div>
 
@@ -622,7 +622,7 @@ export default function SuperAdmin() {
           <Shield size={26} color="#fbbf24" />
           <div>
             <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900', color: 'white' }}>Super Admin Master</h2>
-            <span style={{ fontSize: '0.75rem', color: '#e0f2fe' }}>AISERVICE.ID Platform Controller</span>
+            <span style={{ fontSize: '0.75rem', color: '#e0f2fe' }}>UnitPro Platform Controller</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>

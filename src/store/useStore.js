@@ -12,7 +12,7 @@ const safeParseJSON = (str, fallback) => {
 
 const defaultSettings = {
   logoUrl: '',
-  storeName: 'AISERVICE.ID Toko',
+  storeName: 'UnitPro Toko',
   theme: 'laptop', // 'hp', 'laptop', 'motor'
   qrisUrl: '',
   ads: [
