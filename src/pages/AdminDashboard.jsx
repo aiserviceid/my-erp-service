@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showEditServiceNota, setShowEditServiceNota] = useState(false);
+  const [showServiceRegistration, setShowServiceRegistration] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
@@ -90,6 +91,42 @@ export default function AdminDashboard() {
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCreateService = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fd = new FormData(form);
+    const phone = String(fd.get('phone') || '').replace(/\s/g, '');
+    if (!/^(?:\+?62|0)8\d{7,12}$/.test(phone)) {
+      alert('Masukkan nomor WhatsApp yang valid, contoh: 081234567890.');
+      return;
+    }
+
+    const kelengkapan = fd.get('kelengkapan') || '-';
+    const estWaktu = fd.get('estimasi_waktu') || '';
+    const estBiaya = fd.get('estimasi_biaya') || '';
+    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${parseInt(estBiaya, 10).toLocaleString('id-ID')}` : ''}`;
+    const resiGenerated = `TRX-${Date.now()}`;
+
+    try {
+      await apiService.post('/services', {
+        tenant_code: tenant.code,
+        resi: resiGenerated,
+        customer_name: fd.get('name'),
+        customer_phone: phone,
+        device_name: fd.get('device'),
+        issue: issueText,
+        technician_id: fd.get('technician_id'),
+        status: 'DITERIMA'
+      });
+      alert(`Servis berhasil didaftarkan.\nResi: ${resiGenerated}\n\nTugas sudah dikirim ke teknisi yang dipilih.`);
+      form.reset();
+      setShowServiceRegistration(false);
+      apiService.getServices(tenant.code).then(setServices);
+    } catch (error) {
+      alert('Gagal mendaftarkan servis. Periksa koneksi lalu coba lagi.');
+    }
   };
 
   useEffect(() => {
@@ -745,24 +782,34 @@ export default function AdminDashboard() {
 
         {/* 0. EXECUTIVE DASHBOARD (FASE 1 ROADMAP) */}
         {activeTab === 'dashboard' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-in-out' }}>
+          <div className="dashboard-overview" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-in-out' }}>
             
             {/* TOP BAR / MAGIC DEMO BUTTON BAR */}
-            <div style={{
+            <div className="dashboard-store-hero" style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
               padding: '1.2rem 1.6rem', borderRadius: '18px', color: 'white', flexWrap: 'wrap', gap: '12px'
             }}>
               <div>
+                <p className="dashboard-hero-kicker">RINGKASAN OPERASIONAL</p>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>
-                  Sistem Operasional Toko: {tenant?.settings?.storeName || tenant?.name}
+                  {tenant?.settings?.storeName || tenant?.name}
                 </h3>
                 <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
                   Mode: <span style={{ color: '#38bdf8', fontWeight: '800' }}>Paket {tenant?.tier === 'pro' ? 'Pro Titan' : tenant?.tier === 'enterprise' ? 'Enterprise' : 'Starter'}</span> • ID Toko: <span style={{ fontFamily: 'monospace', color: '#f1f5f9' }}>{tenant?.code}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button 
+              <div className="dashboard-quick-actions">
+                <button className="btn btn-primary" onClick={() => { setActiveTab('servis'); setShowServiceRegistration(true); }}>
+                  <Plus size={17} /> Terima Servis
+                </button>
+                <button className="btn btn-ghost" onClick={() => setActiveTab('pos')}>
+                  <ShoppingCart size={17} /> Buka Kasir
+                </button>
+                <button className="btn btn-ghost" onClick={() => setActiveTab('keuangan')}>
+                  <TrendingUp size={17} /> Laporan
+                </button>
+                {tenant?.code === 'DEMO-STORE' && <button
                   onClick={loadDemoData}
                   style={{
                     background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white',
@@ -772,13 +819,13 @@ export default function AdminDashboard() {
                   }}
                 >
                   ✨ Muat Demo Data Instan
-                </button>
+                </button>}
               </div>
             </div>
 
             {/* 🔥 CTA UPGRADE BANNER — hanya untuk tier Free */}
             {isFree && (
-              <div style={{
+              <div className="dashboard-upgrade-banner" style={{
                 background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
                 borderRadius: '20px', padding: '1.5rem 1.8rem',
                 boxShadow: '0 10px 30px rgba(2, 132, 199, 0.25)',
@@ -817,7 +864,7 @@ export default function AdminDashboard() {
 
             {/* INTERACTIVE EMPTY STATE PROGRESS BAR (If no data) */}
             {services.length === 0 && products.length === 0 && (
-              <div style={{
+              <div className="dashboard-setup-card" style={{
                 background: '#ffffff', border: '2px solid #bae6fd', borderRadius: '20px',
                 padding: '1.8rem 1.5rem', boxShadow: '0 8px 25px rgba(2,132,199,0.08)'
               }}>
@@ -849,7 +896,7 @@ export default function AdminDashboard() {
                       </div>
 
                       {/* Steps Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                      <div className="dashboard-setup-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                         <div 
                           onClick={() => setActiveTab('pengaturan')}
                           style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
@@ -909,10 +956,17 @@ export default function AdminDashboard() {
             )}
 
             {/* METRICS CARDS: HARI INI */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+            <div className="dashboard-section-heading">
+              <div>
+                <p>RINGKASAN HARI INI</p>
+                <h4>Kondisi toko saat ini</h4>
+              </div>
+              <span>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            </div>
+            <div className="dashboard-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
               
               {/* Card 1: Omzet Hari Ini */}
-              <div style={{
+              <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
                 borderLeft: '4px solid #10b981'
@@ -925,7 +979,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Card 2: Servis Masuk */}
-              <div style={{
+              <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
                 borderLeft: '4px solid #0284c7'
@@ -938,7 +992,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Card 3: Servis Selesai */}
-              <div style={{
+              <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
                 borderLeft: '4px solid #16a34a'
@@ -951,7 +1005,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Card 4: Teknisi Aktif */}
-              <div style={{
+              <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
                 borderLeft: '4px solid #7c3aed'
@@ -964,7 +1018,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Card 5: Stok Hampir Habis */}
-              <div style={{
+              <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
                 borderLeft: '4px solid #f59e0b'
@@ -979,14 +1033,14 @@ export default function AdminDashboard() {
             </div>
 
             {/* GRAPH & 5 RECENT SERVICES GRID */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            <div className="dashboard-insights-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
               
               {/* Grafik Pemasukan */}
-              <div style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                 <h4 style={{ margin: '0 0 1.2rem 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
                   Grafik Omzet & Arus Kas 7 Hari Terakhir
                 </h4>
-                <div style={{ height: '260px' }}>
+                <div className="dashboard-chart-area" style={{ height: '260px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={
                       Array.from({length: 7}).map((_, i) => {
@@ -1010,7 +1064,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* 5 Servis Terbaru */}
-              <div style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                   <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
                     📋 5 Servis Terbaru Toko
@@ -1028,7 +1082,7 @@ export default function AdminDashboard() {
                     {services.slice(0, 5).map(s => {
                       const st = getStatusInfo(s.status);
                       return (
-                        <div key={s.resi} style={{
+                        <div key={s.resi} className="dashboard-service-row" style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '10px 12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #f1f5f9'
                         }}>
@@ -1860,62 +1914,15 @@ export default function AdminDashboard() {
         ) : activeTab === 'servis' ? (
           <div className="glass-panel" style={{ minHeight: '400px' }}>
               
-              {/* Form Tambah Servis */}
-              <div style={{ marginBottom: '2rem', background: 'rgba(255,255,255,0.4)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
-                <h3 style={{ margin: '0 0 1rem 0' }}>+ Pendaftaran Servis & Penugasan Teknisi</h3>
-                <form onSubmit={async (e) => {
-                  e.preventDefault();
-                  const fd = new FormData(e.target);
-                  const kelengkapan = fd.get('kelengkapan') || '-';
-                  const estWaktu = fd.get('estimasi_waktu') || '';
-                  const estBiaya = fd.get('estimasi_biaya') || '';
-                  const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${parseInt(estBiaya).toLocaleString('id-ID')}` : ''}`;
-                  const resiGenerated = 'TRX-' + Date.now();
-                  const serviceData = {
-                    tenant_code: tenant.code,
-                    resi: resiGenerated,
-                    customer_name: fd.get('name'),
-                    customer_phone: fd.get('phone'),
-                    device_name: fd.get('device'),
-                    issue: issueText,
-                    technician_id: fd.get('technician_id'),
-                    status: 'DITERIMA'
-                  };
-                  try {
-                    await apiService.post('/services', serviceData);
-                    alert(`Servis berhasil didaftarkan! (Resi: ${resiGenerated})\n\nTugas ini sudah otomatis masuk ke aplikasi teknisi yang dipilih.`);
-                    e.target.reset();
-                    apiService.getServices(tenant.code).then(setServices);
-                  } catch(err) {
-                    alert('Gagal menambah tugas');
-                  }
-                }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <input type="text" name="name" className="input-field" placeholder="Nama Pelanggan" required />
-                  <input type="text" name="phone" className="input-field" placeholder="No. WA (08...)" required />
-                  <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
-                  <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <input type="text" name="address" className="input-field" placeholder="Alamat Pelanggan (Opsional - Khusus Servis Panggilan / Antar-Jemput)" />
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
-                  </div>
-                  <input type="number" name="estimasi_biaya" className="input-field" placeholder="Estimasi Biaya Awal (Rp) - Opsional" />
-                  <input type="text" name="estimasi_waktu" className="input-field" placeholder="Estimasi Waktu Selesai (Misal: 3 Hari)" />
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <select name="technician_id" className="input-field" required>
-                      <option value="">-- Pilih Teknisi yang Akan Mengerjakan --</option>
-                      {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                      <Plus size={18} /> Daftarkan Servis & Tugaskan Teknisi
-                    </button>
-                  </div>
-                </form>
+              <div className="service-action-card">
+                <div>
+                  <p>PENERIMAAN UNIT</p>
+                  <h3>Daftarkan servis tanpa memenuhi layar</h3>
+                  <span>Data pelanggan, unit, keluhan, dan teknisi diisi dalam satu formulir ringkas.</span>
+                </div>
+                <button type="button" className="btn btn-primary" onClick={() => setShowServiceRegistration(true)}>
+                  <Plus size={18} /> Daftarkan & Tugaskan
+                </button>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
@@ -2234,10 +2241,10 @@ export default function AdminDashboard() {
             const netProfit = totalServis + totalPOS - totalExpense;
 
             return (
-              <div className="glass-panel" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
+              <div className="glass-panel finance-report" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
+                <div className="finance-report-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 style={{ margin: 0 }}>Laporan Keuangan Toko ({tenant?.name})</h3>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="finance-report-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button className="btn btn-ghost" onClick={() => {
                       if (isFree || !hasFeature(tenant?.tier, 'exportExcel')) {
                         return setShowUpgradeModal(true);
@@ -2278,9 +2285,9 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '2.5rem' }}>
+                <div className="finance-summary" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '2.5rem' }}>
                     {/* LABA BERSIH - MAIN HIGHLIGHT */}
-                    <div style={{ padding: '2rem', background: 'linear-gradient(135deg, var(--primary) 0%, #1e1b4b 100%)', color: 'white', borderRadius: '16px', boxShadow: '0 8px 20px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div className="finance-hero-card" style={{ padding: '2rem', background: 'linear-gradient(135deg, var(--primary) 0%, #1e1b4b 100%)', color: 'white', borderRadius: '16px', boxShadow: '0 8px 20px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: '20px' }}>
                       <div style={{ background: 'rgba(255,255,255,0.2)', padding: '15px', borderRadius: '50%' }}>
                         <Wallet size={36} color="white" />
                       </div>
@@ -2291,8 +2298,8 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* BREAKDOWN METRICS */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
-                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                    <div className="finance-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+                      <div className="finance-metric-card" style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                         <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '10px', borderRadius: '10px', color: 'var(--accent)' }}><Wrench size={24} /></div>
                         <div>
                           <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Pemasukan Jasa</p>
@@ -2300,7 +2307,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       
-                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                      <div className="finance-metric-card" style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                         <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '10px', borderRadius: '10px', color: '#8b5cf6' }}><Package size={24} /></div>
                         <div>
                           <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Pemasukan Sparepart</p>
@@ -2308,7 +2315,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                      <div className="finance-metric-card" style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                         <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '10px', borderRadius: '10px', color: '#3b82f6' }}><ShoppingCart size={24} /></div>
                         <div>
                           <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Penjualan Kasir (POS)</p>
@@ -2316,7 +2323,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                      <div className="finance-metric-card" style={{ padding: '1.2rem', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '10px', color: '#ef4444' }}><DollarSign size={24} /></div>
                         <div>
                           <p style={{ margin: '0 0 2px 0', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>Total Pengeluaran</p>
@@ -2326,7 +2333,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div style={{ height: '300px', marginBottom: '2rem', background: 'rgba(255,255,255,0.7)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                <div className="finance-chart" style={{ height: '300px', marginBottom: '2rem', background: 'rgba(255,255,255,0.7)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
                   <h4 style={{ margin: '0 0 1rem 0' }}>Grafik Pemasukan vs Pengeluaran (7 Hari Terakhir)</h4>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={
@@ -2355,7 +2362,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <h4 style={{ marginBottom: '1rem', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>Riwayat Transaksi: {timeFilter}</h4>
-                <div className="table-container">
+                <div className="table-container finance-history">
                 <table className="table">
                   <thead><tr><th>Tanggal & Waktu</th><th>Kategori</th><th>Nominal</th><th>Keterangan</th></tr></thead>
                   <tbody>
@@ -2378,6 +2385,20 @@ export default function AdminDashboard() {
                     {filteredTransactions.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada transaksi.</td></tr>}
                   </tbody>
                 </table>
+                </div>
+                <div className="finance-mobile-transactions">
+                  {filteredTransactions.slice(0, 8).map((transaction) => {
+                    const isIncome = transaction.type === 'INCOME' || transaction.type === 'INCOME_JASA' || transaction.type === 'INCOME_SPAREPART' || transaction.type === 'POS_SALES';
+                    const category = transaction.type === 'POS_SALES' ? 'Penjualan kasir' : transaction.type === 'EXPENSE' ? 'Pengeluaran' : transaction.type === 'BON_KARYAWAN' ? 'Kasbon karyawan' : isIncome ? 'Pendapatan servis' : 'Transaksi toko';
+                    return (
+                      <article className="finance-mobile-transaction" key={transaction.id}>
+                        <div><strong>{category}</strong><span>{new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+                        <div className={isIncome ? 'income' : 'expense'}>{isIncome ? '+' : '-'} Rp {transaction.amount?.toLocaleString('id-ID')}</div>
+                        {transaction.description && <p>{transaction.description}</p>}
+                      </article>
+                    );
+                  })}
+                  {filteredTransactions.length === 0 && <p className="finance-mobile-empty">Belum ada transaksi pada periode ini.</p>}
                 </div>
               </div>
             );
@@ -2640,6 +2661,38 @@ export default function AdminDashboard() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* SERVICE REGISTRATION MODAL */}
+      {showServiceRegistration && (
+        <div className="modal-backdrop service-registration-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(7,28,43,0.58)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <form className="glass-panel service-registration-form" onSubmit={handleCreateService} style={{ width: '100%', maxWidth: '640px', background: '#fff' }}>
+            <div className="service-registration-header">
+              <div>
+                <p>PENERIMAAN UNIT</p>
+                <h3>Daftarkan & tugaskan servis</h3>
+                <span>Kolom bertanda * wajib diisi.</span>
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => setShowServiceRegistration(false)} aria-label="Tutup formulir"><X size={20} /></button>
+            </div>
+            <div className="service-registration-form-grid">
+              <label className="label">Nama pelanggan *<input name="name" className="input-field" placeholder="Contoh: Budi Santoso" autoComplete="name" required /></label>
+              <label className="label">Nomor WhatsApp *<input name="phone" type="tel" className="input-field" placeholder="081234567890" inputMode="tel" autoComplete="tel" required /></label>
+              <label className="label">Perangkat *<input name="device" className="input-field" placeholder="Contoh: iPhone 13 / Laptop ASUS" required /></label>
+              <label className="label">Kelengkapan unit *<input name="kelengkapan" className="input-field" placeholder="Contoh: Charger, tas / Tidak ada" required /></label>
+              <label className="label service-registration-wide">Keluhan atau kerusakan *<textarea name="issue" className="input-field" placeholder="Jelaskan keluhan yang disampaikan pelanggan" rows="3" required /></label>
+              <label className="label">Estimasi biaya <input name="estimasi_biaya" type="number" min="0" className="input-field" placeholder="Opsional, dalam Rupiah" inputMode="numeric" /></label>
+              <label className="label">Estimasi selesai <input name="estimasi_waktu" className="input-field" placeholder="Opsional, misal: 3 hari" /></label>
+              <label className="label service-registration-wide">Tugaskan kepada teknisi *
+                <select name="technician_id" className="input-field" required defaultValue="">
+                  <option value="" disabled>Pilih teknisi yang bertanggung jawab</option>
+                  {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </label>
+            </div>
+            <button type="submit" className="btn btn-primary service-registration-submit"><Check size={18} /> Simpan Servis & Kirim Tugas</button>
+          </form>
         </div>
       )}
 

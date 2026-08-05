@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { MoreHorizontal, X } from 'lucide-react';
 
-const PRIMARY_TAB_IDS = ['dashboard', 'pos', 'servis', 'keuangan'];
+const PRIMARY_TAB_IDS = ['dashboard', 'servis', 'pos', 'keuangan'];
+const PRIMARY_MENU_ORDER = ['master', 'pelanggan', 'karyawan', 'pengaturan'];
+
+const getNavLabel = (tab) => ({
+  dashboard: 'Beranda',
+  servis: 'Servis',
+  pos: 'Kasir',
+  keuangan: 'Keuangan',
+}[tab.id] || tab.name.replace(/\s*&.*/, '').replace(' (POS)', ''));
 
 /**
  * Keeps the mobile navigation deliberately short. Operational screens that
@@ -12,7 +20,13 @@ export default function MobileTabBar({ tabs, activeTab, onChange, primaryTabIds 
   const primaryTabs = primaryTabIds
     .map((id) => tabs.find((tab) => tab.id === id))
     .filter(Boolean);
-  const moreTabs = tabs.filter((tab) => !primaryTabIds.includes(tab.id));
+  const moreTabs = tabs
+    .filter((tab) => !primaryTabIds.includes(tab.id))
+    .sort((left, right) => {
+      const leftRank = PRIMARY_MENU_ORDER.indexOf(left.id);
+      const rightRank = PRIMARY_MENU_ORDER.indexOf(right.id);
+      return (leftRank === -1 ? 99 : leftRank) - (rightRank === -1 ? 99 : rightRank);
+    });
   const isMoreActive = moreTabs.some((tab) => tab.id === activeTab);
   const navCount = primaryTabs.length + (moreTabs.length ? 1 : 0);
 
@@ -34,8 +48,8 @@ export default function MobileTabBar({ tabs, activeTab, onChange, primaryTabIds 
               onClick={() => selectTab(tab.id)}
               aria-current={activeTab === tab.id ? 'page' : undefined}
             >
-              <Icon size={21} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-              <span>{tab.name.replace(/\s*&.*/, '').replace(' (POS)', '')}</span>
+              <span className="mobile-nav-icon"><Icon size={21} strokeWidth={activeTab === tab.id ? 2.5 : 2} />{tab.badge && <b>{tab.badge}</b>}</span>
+              <span>{getNavLabel(tab)}</span>
             </button>
           );
         })}
@@ -44,10 +58,10 @@ export default function MobileTabBar({ tabs, activeTab, onChange, primaryTabIds 
             type="button"
             className={`mobile-nav-item ${isMoreActive || isMoreOpen ? 'active' : ''}`}
             onClick={() => setIsMoreOpen(true)}
-            aria-label="Buka menu lainnya"
+            aria-label="Buka seluruh menu aplikasi"
           >
-            <MoreHorizontal size={22} />
-            <span>Lainnya</span>
+            <span className="mobile-nav-icon"><MoreHorizontal size={22} />{moreTabs.some((tab) => tab.badge) && <b>•</b>}</span>
+            <span>Menu</span>
           </button>
         )}
       </nav>
@@ -58,18 +72,19 @@ export default function MobileTabBar({ tabs, activeTab, onChange, primaryTabIds 
             className="mobile-menu-sheet"
             role="dialog"
             aria-modal="true"
-            aria-label="Menu lainnya"
+            aria-label="Seluruh menu aplikasi"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mobile-sheet-header">
               <div>
-                <p>MENU OPERASIONAL</p>
-                <h3>Fitur lainnya</h3>
+                <p>NAVIGASI TOKO</p>
+                <h3>Kelola operasional</h3>
               </div>
               <button type="button" className="mobile-sheet-close" onClick={() => setIsMoreOpen(false)} aria-label="Tutup menu">
                 <X size={20} />
               </button>
             </div>
+            <p className="mobile-menu-description">Akses fitur pendukung tanpa membuat navigasi utama penuh.</p>
             <div className="mobile-menu-grid">
               {moreTabs.map((tab) => {
                 const Icon = tab.icon;
