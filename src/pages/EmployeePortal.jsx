@@ -620,36 +620,11 @@ export default function EmployeePortal() {
 
           {activeTab === 'tugas' && (
             <>
-              <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ marginBottom: '1rem' }}>+ Buat Servis Baru</h3>
-                <form className="mobile-form-grid" onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <input type="text" name="name" className="input-field" placeholder="Nama Pelanggan" required />
-                  <input type="text" name="phone" className="input-field" placeholder="No. WA (08...)" required />
-                  <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
-                  <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
-                  </div>
-                  {employee?.role === 'KASIR' || employee?.role === 'Kasir' ? (
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <select name="technician_id" className="input-field" required>
-                        <option value="">-- Pilih Teknisi yang Akan Mengerjakan --</option>
-                        {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : null}
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                      <Plus size={18} /> Daftarkan Servis & Tugaskan Teknisi
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div className="glass-panel">
-                <h3 style={{ marginBottom: '1rem' }}>Daftar Tugas Servis</h3>
+              <div className="glass-panel technician-task-list">
+                <div className="technician-task-list-header">
+                  <div><h3>Daftar Tugas Servis</h3><p>Unit yang ditugaskan kepada Anda.</p></div>
+                  <span>{services.filter(s => String(s.technician_id) === String(employee.id) && s.status !== 'DIAMBIL').length} aktif</span>
+                </div>
                 {services.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada antrian servis.</p>
                 ) : (
@@ -657,13 +632,13 @@ export default function EmployeePortal() {
                     {services.filter(s => s.technician_id === employee.id).length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
                     ) : services.filter(s => s.technician_id === employee.id).map(s => (
-                      <div key={s.resi} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 'bold' }}>{s.device_name}</div>
+                      <div key={s.resi} className="technician-task-card" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="technician-task-detail" style={{ flex: 1 }}>
+                          <div className="technician-task-title"><strong>{s.device_name}</strong><span className="badge badge-info">{s.status || 'PROSES'}</span></div>
                           <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>Keluhan: {s.issue}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div className="technician-task-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                           {(s.status === 'PROSES' || s.status === 'MENUNGGU_PART' || s.status === 'DICEK' || s.status === 'DIKERJAKAN') && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => {
                               setSelectedService(s);

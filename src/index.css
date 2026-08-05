@@ -454,11 +454,22 @@
 .service-wizard-error { color: #b91c1c; }
 .service-wizard-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .service-wizard-actions .btn { display: inline-flex; align-items: center; gap: 4px; }
+.technician-task-list-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.technician-task-list-header h3 { margin: 0; }
+.technician-task-list-header p { margin: 5px 0 0; color: var(--text-muted); font-size: 13px; }
+.technician-task-list-header > span { padding: 5px 9px; border-radius: 99px; background: #e0f2fe; color: #0369a1; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.technician-task-title { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.technician-task-actions { flex: 0 0 auto; }
 
 @media (max-width: 768px) {
   .service-wizard-backdrop { align-items: flex-end !important; padding: 0 !important; }
   .service-wizard-backdrop > .service-wizard-dialog { width: 100% !important; max-width: none !important; max-height: min(88vh, 720px); margin: 0; padding: 24px 20px max(24px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; overflow-y: auto; }
   .service-wizard-actions .btn { min-width: 112px; justify-content: center; }
+  .technician-task-card { flex-direction: column; align-items: stretch !important; gap: 14px; }
+  .technician-task-detail { width: 100%; }
+  .technician-task-actions { width: 100%; flex-wrap: wrap; }
+  .technician-task-actions > .input-field { flex: 1 1 150px; width: auto !important; }
+  .technician-task-actions > .btn { flex: 1 1 150px; justify-content: center; }
 }
 
 @keyframes mobileSheetIn {
