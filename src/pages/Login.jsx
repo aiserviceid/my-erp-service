@@ -26,6 +26,7 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [selectedTier, setSelectedTier] = useState(initialTier);
+  const [billingCycle, setBillingCycle] = useState(initialBilling);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,7 +121,7 @@ export default function Login() {
     } else {
       // Paket berbayar — tampilkan payment modal DULU, belum simpan ke DB
       // Simpan data form di pendingReg untuk diproses setelah konfirmasi
-      setPendingReg({ code, name, pin, phone: cleanPhone, tier: selectedTier });
+      setPendingReg({ code, name, pin, phone: cleanPhone, tier: selectedTier, billingCycle });
       setShowPaymentModal(true);
     }
   };
@@ -142,16 +143,18 @@ export default function Login() {
 
   const getTierPriceText = () => {
     const tier = pendingReg?.tier || selectedTier;
-    const isYearly = initialBilling === 'yearly';
-    if (tier === 'enterprise') return 'Rp 249.000';
+    const selectedBillingCycle = pendingReg?.billingCycle || billingCycle;
+    const isYearly = selectedBillingCycle === 'yearly';
+    if (tier === 'enterprise') return isYearly ? 'Rp 2.490.000' : 'Rp 249.000';
     if (tier === 'pro') return isYearly ? 'Rp 590.000 (Promo Tahun Pertama)' : 'Rp 99.000';
     return 'GRATIS';
   };
 
   const getTierTitle = () => {
     const tier = pendingReg?.tier || selectedTier;
-    const isYearly = initialBilling === 'yearly';
-    if (tier === 'enterprise') return 'Paket Multi Outlet (Rp 249.000/bln)';
+    const selectedBillingCycle = pendingReg?.billingCycle || billingCycle;
+    const isYearly = selectedBillingCycle === 'yearly';
+    if (tier === 'enterprise') return isYearly ? 'Paket Multi Outlet Tahunan (Rp 2.490.000/tahun)' : 'Paket Multi Outlet (Rp 249.000/bln)';
     if (tier === 'pro') return isYearly ? 'UnitPro Pro Tahunan (Promo Rp 590.000 tahun pertama)' : 'UnitPro Pro (Rp 99.000/bln)';
     return 'Paket Gratis (Rp 0/selamanya)';
   };
@@ -425,7 +428,7 @@ export default function Login() {
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#0284c7' : '#0f172a' }}>Pro ⭐</div>
                   <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
-                    {initialBilling === 'yearly' ? 'Rp 590rb/thn' : 'Rp 99rb/bln'}
+                    {billingCycle === 'yearly' ? 'Rp 590rb/thn' : 'Rp 99rb/bln'}
                   </div>
                 </div>
 
@@ -440,10 +443,22 @@ export default function Login() {
                   }}
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Multi Outlet</div>
-                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 249rb/bln</div>
+                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>{billingCycle === 'yearly' ? 'Rp 2,49jt/thn' : 'Rp 249rb/bln'}</div>
                 </div>
               </div>
             </div>
+
+            {selectedTier !== 'free' && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
+                  Periode Pembayaran
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '4px', border: '1px solid #cbd5e1', borderRadius: '10px', background: '#f8fafc' }}>
+                  <button type="button" onClick={() => setBillingCycle('monthly')} style={{ padding: '9px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: billingCycle === 'monthly' ? '#0284c7' : 'transparent', color: billingCycle === 'monthly' ? 'white' : '#475569', fontWeight: '800', fontSize: '0.82rem' }}>Bulanan</button>
+                  <button type="button" onClick={() => setBillingCycle('yearly')} style={{ padding: '9px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: billingCycle === 'yearly' ? '#0284c7' : 'transparent', color: billingCycle === 'yearly' ? 'white' : '#475569', fontWeight: '800', fontSize: '0.82rem' }}>Tahunan</button>
+                </div>
+              </div>
+            )}
 
             <button 
               type="submit" 

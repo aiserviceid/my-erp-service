@@ -87,6 +87,12 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const setTenant = useStore((state) => state.setTenant);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState('yearly');
+  const isYearlyBilling = billingCycle === 'yearly';
+  const proPrice = isYearlyBilling ? 'Rp590.000' : 'Rp99.000';
+  const proTerm = isYearlyBilling ? '/ tahun pertama' : '/ bulan';
+  const multiOutletPrice = isYearlyBilling ? 'Rp2.490.000' : 'Rp249.000';
+  const multiOutletTerm = isYearlyBilling ? '/ tahun' : '/ bulan';
 
   const startDemo = () => {
     setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123');
@@ -214,6 +220,10 @@ export default function LandingPage() {
           <h2>Mulai gratis. Bertumbuh saat toko Anda semakin sibuk.</h2>
           <p>Tanpa biaya per transaksi. Biaya gateway WhatsApp mengikuti layanan yang Anda pilih.</p>
         </div>
+        <div className="unitpro-billing-toggle" role="group" aria-label="Pilih periode pembayaran">
+          <button type="button" className={!isYearlyBilling ? 'active' : ''} aria-pressed={!isYearlyBilling} onClick={() => setBillingCycle('monthly')}>Bulanan</button>
+          <button type="button" className={isYearlyBilling ? 'active' : ''} aria-pressed={isYearlyBilling} onClick={() => setBillingCycle('yearly')}>Tahunan</button>
+        </div>
         <div className="unitpro-pricing-grid">
           <article className="unitpro-price-card">
             <p className="unitpro-price-label">Gratis</p>
@@ -227,18 +237,18 @@ export default function LandingPage() {
             <div className="unitpro-price-badge">Pilihan untuk toko aktif</div>
             <p className="unitpro-price-label">UnitPro Pro</p>
             <h3>Operasional toko dalam satu kendali</h3>
-            <div className="unitpro-price"><strong>Rp99.000</strong><span>/ bulan</span></div>
-            <p className="unitpro-price-promo">Promo tahun pertama: <strong>Rp590.000/tahun</strong></p>
+            <div className="unitpro-price"><strong>{proPrice}</strong><span>{proTerm}</span></div>
+            <p className="unitpro-price-promo">{isYearlyBilling ? 'Promo tahun pertama aktif. Hemat dibanding pembayaran bulanan.' : 'Bayar fleksibel setiap bulan. Beralih ke tahunan kapan saja.'}</p>
             <ul><li><Check size={16} /> Kasir, teknisi, dan stok sparepart</li><li><Check size={16} /> Notifikasi WhatsApp dan tracking</li><li><Check size={16} /> Nota, QRIS, laporan, dan ekspor</li><li><Check size={16} /> Hingga 10 karyawan</li></ul>
-            <button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro', billing: 'yearly' } })}>Ambil promo Pro <ArrowRight size={18} /></button>
+            <button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro', billing: billingCycle } })}>{isYearlyBilling ? 'Ambil promo Pro' : 'Pilih Pro Bulanan'} <ArrowRight size={18} /></button>
           </article>
           <article className="unitpro-price-card muted">
             <p className="unitpro-price-label">Multi Outlet</p>
             <h3>Untuk toko yang sedang berkembang</h3>
-            <div className="unitpro-price"><strong>Rp249.000</strong><span>/ bulan</span></div>
+            <div className="unitpro-price"><strong>{multiOutletPrice}</strong><span>{multiOutletTerm}</span></div>
             <p>Kontrol cabang, pengguna lebih banyak, dan laporan owner terpusat.</p>
             <ul><li><Check size={16} /> Beberapa outlet</li><li><Check size={16} /> Kontrol stok dan laporan terpusat</li><li><Check size={16} /> Prioritas pembaruan enterprise</li></ul>
-            <a className="unitpro-button outlined" href="https://wa.me/6285382535050?text=Halo%20UnitPro%2C%20saya%20tertarik%20dengan%20paket%20Multi%20Outlet.">Masuk daftar tunggu</a>
+            <a className="unitpro-button outlined" href={`https://wa.me/6285382535050?text=${encodeURIComponent(`Halo UnitPro, saya tertarik dengan paket Multi Outlet ${isYearlyBilling ? 'tahunan' : 'bulanan'} (${multiOutletPrice}).`)}`}>Masuk daftar tunggu</a>
           </article>
         </div>
       </section>
