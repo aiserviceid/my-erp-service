@@ -113,6 +113,13 @@ function App() {
     }
   }, [settings?.theme]);
 
+  // The Android build has its own compact, task-focused shell. Keeping this
+  // marker on the document lets the public web site retain its desktop layout.
+  useEffect(() => {
+    document.documentElement.classList.toggle('native-app', isNativeApp);
+    return () => document.documentElement.classList.remove('native-app');
+  }, []);
+
   const hasTenantCode = Boolean(tenant?.code);
 
   return (

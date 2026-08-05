@@ -52,7 +52,7 @@ export default function AdminDashboard() {
   const [serviceStatusTab, setServiceStatusTab] = useState('ALL');
   const [customerTab, setCustomerTab] = useState('servis');
   const appVersion = '1.1.0';
-  const latestApkUrl = 'https://unitproid.vercel.app/downloads/UnitPro-debug.apk';
+  const latestApkUrl = 'https://unitproid.vercel.app/downloads/UnitPro.apk';
 
   const openAppUpdate = async () => {
     if (Capacitor.isNativePlatform()) {
@@ -634,7 +634,7 @@ export default function AdminDashboard() {
   return (
     <div className="dashboard-layout">
       {/* MOBILE TOP BAR (Visible only on mobile) */}
-      <header className="mobile-top-bar">
+      <header className="mobile-top-bar native-app-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {settings.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" style={{ height: '32px', borderRadius: '6px' }} />
@@ -728,7 +728,10 @@ export default function AdminDashboard() {
 
       {/* MAIN CONTENT AREA */}
       <div className="main-content animate-fade-in">
-        <h2 style={{ marginBottom: '1.5rem' }}>{tabs.find(t => t.id === activeTab)?.name}</h2>
+        <div className="native-screen-heading">
+          <p>OPERASIONAL TOKO</p>
+          <h2 style={{ marginBottom: '1.5rem' }}>{tabs.find(t => t.id === activeTab)?.name}</h2>
+        </div>
         
         {/* Usage Banner for Free tier */}
         {isFree && (activeTab === 'pos' || activeTab === 'servis') && (

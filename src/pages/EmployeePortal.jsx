@@ -437,8 +437,8 @@ export default function EmployeePortal() {
 
   if (!employee) {
     return (
-      <div className="login-container animate-fade-in" style={{ padding: '2rem' }}>
-        <div className="glass-panel" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+      <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
+        <div className="glass-panel native-employee-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
           <h2>Portal Karyawan</h2>
           <p>{tenant?.name || 'Masuk sebagai Karyawan'}</p>
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
@@ -539,7 +539,7 @@ export default function EmployeePortal() {
   return (
     <div className="dashboard-layout" style={{ display: 'block' }}>
       {/* MOBILE TOP BAR (Visible only on mobile) */}
-      <header className="mobile-top-bar">
+      <header className="mobile-top-bar native-app-header native-employee-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div>
             <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem', fontWeight: 'bold' }}>{tenant?.name || 'Toko Servis'}</h3>
@@ -567,6 +567,10 @@ export default function EmployeePortal() {
       />
 
       <div className="main-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
+        <div className="native-screen-heading native-employee-heading">
+          <p>{isKasir ? 'AREA KASIR' : 'AREA KARYAWAN'}</p>
+          <h2>{isKasir ? 'Kasir & Servis' : 'Tugas Hari Ini'}</h2>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
           <div>
             <h2 style={{ margin: '0 0 10px 0' }}>Halo, {employee.name} <span className="badge badge-warning">{employee.role}</span></h2>

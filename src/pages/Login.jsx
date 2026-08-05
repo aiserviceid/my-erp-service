@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
 import { Store, LogIn, Search, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import UnitProLogo from '../components/UnitProLogo';
 
 // ── VALIDASI FORMAT INPUT (sesuai jenis data masing-masing field) ──
@@ -16,6 +17,7 @@ const PHONE_REGEX = /^[0-9]{9,15}$/;
 const PIN_REGEX = /^[0-9]{4,6}$/;
 
 export default function Login() {
+  const isNativeApp = Capacitor.isNativePlatform();
   const location = useLocation();
   const initialTab = location.state?.tab || 'login'; // 'login' | 'register'
   const initialTier = location.state?.tier || 'pro'; // default Pro agar user selalu lihat payment
@@ -169,17 +171,17 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f1f5f9', padding: '2rem 1rem', color: '#0f172a', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
+    <div className="login-container native-login-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f1f5f9', padding: '2rem 1rem', color: '#0f172a', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       
       {/* CARD CONTAINER */}
-      <div style={{ 
+      <div className="native-login-card" style={{
         width: '100%', maxWidth: '480px', borderRadius: '24px', 
         background: '#ffffff', border: '1px solid #e2e8f0', 
         padding: '2.5rem 2rem', boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.08)'
       }}>
         
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+        <div className="native-login-brand" style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('/login')}>
           <div style={{ width: '52px', height: '52px', margin: '0 auto 12px auto' }}>
             <UnitProLogo size={52} />
           </div>
@@ -187,7 +189,7 @@ export default function Login() {
             UnitPro
           </h2>
           <p style={{ color: '#0284c7', fontSize: '0.85rem', fontWeight: '700', margin: '4px 0 0 0' }}>
-            Sistem Operasional Toko Servis Modern
+            {isNativeApp ? 'Operasional Toko dalam Genggaman' : 'Sistem Operasional Toko Servis Modern'}
           </p>
         </div>
 
@@ -474,7 +476,7 @@ export default function Login() {
         )}
 
         {/* FOOTER LINKS */}
-        <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="native-login-footer" style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button onClick={() => navigate('/tracking')} style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
             <Search size={14} /> Cek Resi
           </button>
