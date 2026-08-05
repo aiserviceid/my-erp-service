@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "prepare:android": "node scripts/prepare-android-assets.mjs",
+    "sync:android": "npm run prepare:android && npx cap sync android",
     "lint": "eslint .",
     "preview": "vite preview",
     "backend": "node server/index.cjs"

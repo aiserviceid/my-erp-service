@@ -17,6 +17,8 @@ const features = [
   { icon: BarChart3, title: 'Kontrol toko dari satu layar', description: 'Pantau servis, penjualan, stok, nota, QRIS, dan laporan tanpa rekap berulang.' },
 ];
 
+const apkDownloadUrl = 'https://unitproid.vercel.app/downloads/UnitPro.apk';
+
 function UnitProMark() {
   return <UnitProLogo size={38} />;
 }
@@ -122,7 +124,7 @@ export default function LandingPage() {
           <div className="unitpro-hero-actions">
             <button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}>Mulai kelola toko <ArrowRight size={19} /></button>
             <button className="unitpro-button secondary" onClick={startDemo}>Lihat demo</button>
-            <a className="unitpro-button secondary" href="/downloads/UnitPro.apk" download><Download size={18} /> Unduh APK</a>
+            <a className="unitpro-button secondary" href={apkDownloadUrl} target="_blank" rel="noreferrer"><Download size={18} /> Unduh APK</a>
           </div>
         </div>
       </section>
