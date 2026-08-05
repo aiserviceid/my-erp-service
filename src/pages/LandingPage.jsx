@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, Check, ClipboardCheck, Download, Menu,
-  MessageCircle, Send, ShoppingCart, Sparkles, Star, UsersRound, Wrench, X
+  ArrowRight, BarChart3, Building2, Check, CheckCircle2, ClipboardCheck, Clock3, Download, Menu,
+  MessageCircle, Send, ShieldCheck, ShoppingCart, Sparkles, Star, UsersRound, Wrench, X
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
@@ -103,6 +103,7 @@ export default function LandingPage() {
         <div className={`unitpro-links ${menuOpen ? 'open' : ''}`}>
           <a href="#fitur" onClick={() => setMenuOpen(false)}>Fitur</a>
           <a href="#harga" onClick={() => setMenuOpen(false)}>Harga</a>
+          <a href="#roadmap" onClick={() => setMenuOpen(false)}>Roadmap</a>
           <a href="#komentar" onClick={() => setMenuOpen(false)}>Komentar</a>
         </div>
         <div className="unitpro-nav-actions">
@@ -121,7 +122,7 @@ export default function LandingPage() {
           <div className="unitpro-hero-actions">
             <button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}>Mulai kelola toko <ArrowRight size={19} /></button>
             <button className="unitpro-button secondary" onClick={startDemo}>Lihat demo</button>
-            <a className="unitpro-button secondary" href="/downloads/UnitPro-debug.apk" download><Download size={18} /> Unduh APK</a>
+            <a className="unitpro-button secondary" href="/downloads/UnitPro.apk" download><Download size={18} /> Unduh APK</a>
           </div>
         </div>
       </section>
@@ -146,9 +147,19 @@ export default function LandingPage() {
           <button type="button" className={!isYearlyBilling ? 'active' : ''} onClick={() => setBillingCycle('monthly')}>Bulanan</button>
           <button type="button" className={isYearlyBilling ? 'active' : ''} onClick={() => setBillingCycle('yearly')}>Tahunan</button>
         </div>
-        <div className="unitpro-pricing-grid unitpro-pricing-grid-short">
+        <div className="unitpro-pricing-grid">
           <article className="unitpro-price-card"><p className="unitpro-price-label">Gratis</p><h3>Mulai pakai UnitPro</h3><div className="unitpro-price"><strong>Rp0</strong><span>/ selamanya</span></div><ul><li><Check size={16} /> 1 akun pemilik</li><li><Check size={16} /> Kasir dan servis dasar</li><li><Check size={16} /> Resi dan tracking</li></ul><button className="unitpro-button outlined" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}>Coba gratis</button></article>
           <article className="unitpro-price-card featured"><div className="unitpro-price-badge">Paling lengkap</div><p className="unitpro-price-label">UnitPro Pro</p><h3>Toko aktif, semua lebih terkendali</h3><div className="unitpro-price"><strong>{proPrice}</strong><span>{proTerm}</span></div><ul><li><Check size={16} /> Kasir, teknisi, dan stok</li><li><Check size={16} /> WhatsApp, QRIS, dan nota</li><li><Check size={16} /> Laporan dan hingga 10 karyawan</li></ul><button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'pro', billing: billingCycle } })}>Pilih UnitPro Pro <ArrowRight size={18} /></button></article>
+          <article className="unitpro-price-card coming-soon"><div className="unitpro-price-badge neutral">Segera hadir</div><p className="unitpro-price-label">Enterprise</p><h3>Kontrol untuk jaringan toko</h3><div className="unitpro-price"><strong>Dalam pengembangan</strong></div><p className="unitpro-price-promo">Paket lanjutan untuk bisnis dengan beberapa cabang dan tim operasional yang lebih besar.</p><ul><li><Building2 size={16} /> Multi-cabang dan laporan gabungan</li><li><ShieldCheck size={16} /> Hak akses pemilik, admin, kasir, dan teknisi</li><li><Check size={16} /> Transfer stok antar cabang</li></ul><button className="unitpro-button outlined" type="button" disabled>Segera hadir</button></article>
+        </div>
+      </section>
+
+      <section id="roadmap" className="unitpro-section unitpro-roadmap-section">
+        <div className="unitpro-section-heading centered"><p className="unitpro-kicker">Roadmap UnitPro</p><h2>Posisi aplikasi saat ini: Tahap 2 — penguatan tim dan pengalaman APK.</h2><p>Fitur Enterprise dibuka setelah fondasi operasional toko dan akses peran tim benar-benar siap dipakai.</p></div>
+        <div className="unitpro-roadmap" aria-label="Tahapan pengembangan UnitPro">
+          <article className="unitpro-roadmap-item complete"><span className="unitpro-roadmap-status"><CheckCircle2 size={16} /> Selesai</span><h3>Tahap 1 · Operasional inti</h3><p>Servis, kasir, stok, nota, tracking pelanggan, serta laporan dasar sudah tersedia.</p></article>
+          <article className="unitpro-roadmap-item current"><span className="unitpro-roadmap-status"><Clock3 size={16} /> Anda di sini</span><h3>Tahap 2 · Tim & aplikasi</h3><p>APK admin dan karyawan, portal kasir/teknisi, absensi, komisi, serta penyempurnaan hak akses per peran.</p></article>
+          <article className="unitpro-roadmap-item future"><span className="unitpro-roadmap-status"><Building2 size={16} /> Berikutnya</span><h3>Tahap 3 · Enterprise</h3><p>Multi-cabang, laporan gabungan, transfer stok, dan kontrol akses lengkap untuk jaringan toko.</p></article>
         </div>
       </section>
 

@@ -46,15 +46,15 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Rename APK for Distribution
+      - name: Name APK for Distribution
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/app-release.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/UnitPro.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: my-erp-service-apk
-          path: android/app/build/outputs/apk/debug/app-release.apk
+          path: android/app/build/outputs/apk/debug/UnitPro.apk
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -65,6 +65,6 @@ jobs:
           body: "Unduh file APK Android terbaru resmi untuk aplikasi ERP Servis & Kasir POS."
           draft: false
           prerelease: false
-          files: android/app/build/outputs/apk/debug/app-release.apk
+          files: android/app/build/outputs/apk/debug/UnitPro.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

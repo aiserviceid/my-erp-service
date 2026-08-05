@@ -1,1 +1,1 @@
-Letakkan file installer Android 'app-release.apk' di folder ini (public/downloads/) agar tombol di Landing Page bisa langsung mengunduh file ini ke HP pengguna.
+File installer Android yang dipakai tombol unduh Landing Page adalah `UnitPro.apk` di folder ini.
