@@ -119,11 +119,11 @@ export const apiService = {
       
       if (cleanCode === 'DEMO-STORE') {
         const demoUsers = [
-          { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', phone: '081234567801', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', phone: '081234567802', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', phone: '081234567803', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', phone: '081234567804', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', phone: '081234567805', tenant_code: 'DEMO-STORE' },
         ];
         const user = demoUsers.find(u => u.pin === pin);
         if (user) return { user, token: 'demo-token-123' };
@@ -311,17 +311,17 @@ export const apiService = {
     try {
       if (tenantCode === 'DEMO-STORE') {
         return [
-          { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', tenant_code: 'DEMO-STORE' },
-          { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', phone: '081234567801', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', phone: '081234567802', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', phone: '081234567803', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', phone: '081234567804', tenant_code: 'DEMO-STORE' },
+          { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', phone: '081234567805', tenant_code: 'DEMO-STORE' },
         ];
       }
 
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, role, is_active, created_at, tenant_code, settings')
+        .select('id, name, role, is_active, created_at, tenant_code, settings, pin, phone')
         .eq('tenant_code', tenantCode)
         .order('name');
       
@@ -396,7 +396,8 @@ export const apiService = {
           status: body.status, 
           part_fee: body.part_fee, 
           jasa_fee: body.jasa_fee,
-          technician_id: body.technician_id
+          technician_id: body.technician_id,
+          ...(body.issue ? { issue: body.issue } : {})
         }).eq('resi', body.resi).select().single();
         if (error) throw error;
         return data;
@@ -1081,4 +1082,3 @@ export const apiService = {
     }
   }
 };
-

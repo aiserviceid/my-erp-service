@@ -129,11 +129,11 @@ export default function AdminDashboard() {
     }
 
     const demoUsers = [
-      { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234' },
-      { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678' },
-      { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111' },
-      { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222' },
-      { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333' },
+      { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', phone: '081234567801' },
+      { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', phone: '081234567802' },
+      { id: 'EMP-3', name: 'Citra (Kasir & Admin)', role: 'KASIR', pin: '1111', phone: '081234567803' },
+      { id: 'EMP-4', name: 'Dedi (Teknisi Chipset)', role: 'TEKNISI', pin: '2222', phone: '081234567804' },
+      { id: 'EMP-5', name: 'Eko (Senior Repair)', role: 'TEKNISI', pin: '3333', phone: '081234567805' },
     ];
 
     const demoServices = [
@@ -2239,6 +2239,7 @@ export default function AdminDashboard() {
                <div className="animate-fade-in">
                  <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1, minWidth: '150px' }} />
+                    <input type="text" className="input-field" placeholder="No WhatsApp (Opsional)" id="newEmpPhone" style={{ width: '180px' }} />
                     <input type="text" className="input-field" placeholder="PIN (Angka)" id="newEmpPin" style={{ width: '120px' }} />
                     <select className="input-field" id="newEmpRole" style={{ width: '120px' }}>
                       <option value="TEKNISI">Teknisi</option>
@@ -2248,13 +2249,14 @@ export default function AdminDashboard() {
                     <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} />
                     <button className="btn btn-primary" onClick={async () => {
                       const name = document.getElementById('newEmpName').value;
+                      const phone = document.getElementById('newEmpPhone').value;
                       const pin = document.getElementById('newEmpPin').value;
                       const role = document.getElementById('newEmpRole').value;
                       const salary = document.getElementById('newEmpSalary').value || '0';
                       const comm = document.getElementById('newEmpComm').value || '0';
                       if (!name || !pin) return alert('Nama dan PIN wajib diisi');
                       try {
-                        const newUser = await apiService.post('/users', { tenant_code: tenant.code, name, role, pin });
+                        const newUser = await apiService.post('/users', { tenant_code: tenant.code, name, role, pin, phone });
                         
                         const currentSettings = tenant.settings || {};
                         const employee_commissions = currentSettings.employee_commissions || {};
@@ -2267,6 +2269,7 @@ export default function AdminDashboard() {
 
                         setUsers([...users, newUser]);
                         document.getElementById('newEmpName').value = '';
+                        document.getElementById('newEmpPhone').value = '';
                         document.getElementById('newEmpPin').value = '';
                         document.getElementById('newEmpSalary').value = '';
                         document.getElementById('newEmpComm').value = '';
@@ -2278,11 +2281,12 @@ export default function AdminDashboard() {
                  </div>
                  <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
                  <table className="table" style={{ marginTop: '1.5rem' }}>
-                   <thead><tr><th>Nama Karyawan</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
+                   <thead><tr><th>Nama Karyawan</th><th>No. WA</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
                    <tbody>
                      {users.map(u => (
                        <tr key={u.id}>
                          <td>{u.name}</td>
+                         <td>{u.phone || '-'}</td>
                          <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
                          <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
                          <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
@@ -2292,6 +2296,8 @@ export default function AdminDashboard() {
                               <button className="btn btn-warning" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
                                 const newName = prompt('Nama Karyawan:', u.name);
                                 if (newName === null) return;
+                                const newPhone = prompt('No WhatsApp:', u.phone || '');
+                                if (newPhone === null) return;
                                 const newPin = prompt('PIN Login:', u.pin);
                                 if (newPin === null) return;
                                 const newSalaryStr = prompt('Gaji Pokok/Bulan (Rp):', tenant.settings?.employee_salaries?.[u.id] || 0);
@@ -2300,7 +2306,7 @@ export default function AdminDashboard() {
                                 if (newCommStr === null) return;
 
                                 try {
-                                  await apiService.updateUser(u.id, { name: newName, pin: newPin });
+                                  await apiService.updateUser(u.id, { name: newName, pin: newPin, phone: newPhone });
                                   
                                   const currentSettings = tenant.settings || {};
                                   const employee_commissions = currentSettings.employee_commissions || {};
@@ -2311,7 +2317,7 @@ export default function AdminDashboard() {
                                   await apiService.updateTenantSettings(tenant.code, newSettings);
                                   updateTenantSettings(newSettings);
 
-                                  setUsers(users.map(x => x.id === u.id ? { ...x, name: newName, pin: newPin } : x));
+                                  setUsers(users.map(x => x.id === u.id ? { ...x, name: newName, pin: newPin, phone: newPhone } : x));
                                 } catch(e) { alert('Gagal edit karyawan'); }
                               }}>Edit</button>
                               <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {

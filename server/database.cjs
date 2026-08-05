@@ -42,8 +42,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
         name TEXT NOT NULL,
         role TEXT NOT NULL,
         pin TEXT NOT NULL,
+        phone TEXT DEFAULT '',
         FOREIGN KEY (tenant_code) REFERENCES tenants(code)
       )`);
+      db.run("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''", (err) => {});
 
       // 3. Products
       db.run(`CREATE TABLE IF NOT EXISTS products (

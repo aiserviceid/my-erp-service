@@ -190,18 +190,18 @@ app.post('/api/transactions', (req, res) => {
 
 // API: Users / Employees
 app.get('/api/users/:tenant', (req, res) => {
-  db.all('SELECT id, name, role FROM users WHERE tenant_code = ?', [req.params.tenant], (err, rows) => {
+  db.all('SELECT id, name, role, phone FROM users WHERE tenant_code = ?', [req.params.tenant], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
 app.post('/api/users', authenticateToken, requirePremiumFeature, async (req, res) => {
-  const { tenant_code, name, role, pin } = req.body;
+  const { tenant_code, name, role, pin, phone = '' } = req.body;
   const hashedPin = await bcrypt.hash(pin, 10);
-  db.run('INSERT INTO users (tenant_code, name, role, pin) VALUES (?, ?, ?, ?)', [tenant_code, name, role, hashedPin], function(err) {
+  db.run('INSERT INTO users (tenant_code, name, role, pin, phone) VALUES (?, ?, ?, ?, ?)', [tenant_code, name, role, hashedPin, phone], function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, name, role });
+    res.json({ id: this.lastID, name, role, phone });
   });
 });
 
@@ -251,12 +251,15 @@ app.get('/api/services/:tenant', (req, res) => {
 });
 
 app.post('/api/services/finish', (req, res) => {
-  const { resi, status, part_fee, jasa_fee } = req.body;
-  db.run('UPDATE services SET status = ?, part_fee = ?, jasa_fee = ? WHERE resi = ?', 
-  [status, part_fee, jasa_fee, resi], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
+  const { resi, status, part_fee, jasa_fee, technician_id, issue } = req.body;
+  db.run(
+    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',
+    [status, part_fee, jasa_fee, technician_id, issue, resi],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
 });
 
 app.get('/api/tracking/:resi', (req, res) => {

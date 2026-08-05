@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   tenant_code TEXT REFERENCES tenants(code),
   name TEXT NOT NULL,
   role TEXT NOT NULL,
-  pin TEXT NOT NULL
+  pin TEXT NOT NULL,
+  phone TEXT DEFAULT ''
 );
 
 -- 3. Products

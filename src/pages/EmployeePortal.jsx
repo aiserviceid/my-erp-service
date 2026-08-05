@@ -17,19 +17,33 @@ export default function EmployeePortal() {
   const [services, setServices] = useState([]);
   const [products, setProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [users, setUsers] = useState([]);
   
   const [activeTab, setActiveTab] = useState('tugas');
+  const [kasirTab, setKasirTab] = useState('pos');
 
   // Modals
   const [showSelesaiModal, setShowSelesaiModal] = useState(false);
   const [showPersetujuanModal, setShowPersetujuanModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
 
+  const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
+
+  const normalizePhone = (phone) => {
+    const cleaned = (phone || '').replace(/\D/g, '');
+    if (!cleaned) return '';
+    if (cleaned.startsWith('62')) return cleaned;
+    if (cleaned.startsWith('0')) return cleaned.replace(/^0/, '62');
+    if (cleaned.startsWith('8')) return `62${cleaned}`;
+    return cleaned;
+  };
+
   useEffect(() => {
-    if (employee && (employee.role === 'TEKNISI' || employee?.role === 'Teknisi')) {
+    if (employee) {
       fetchServices();
       fetchTransactions();
     }
@@ -37,6 +51,7 @@ export default function EmployeePortal() {
       const code = tenant?.code || employee.tenant_code;
       if (code) {
         apiService.getProducts(code).then(setProducts);
+        apiService.getUsers(code).then(setUsers);
       }
     }
   }, [employee, tenant?.code]);
@@ -89,6 +104,7 @@ export default function EmployeePortal() {
     const kelengkapan = fd.get('kelengkapan') || '-';
     const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}`;
     const resiGenerated = 'TRX-' + Date.now();
+    const technician_id = fd.get('technician_id') || employee.id;
     const serviceData = {
       tenant_code: employee.tenant_code || tenant.code,
       resi: resiGenerated,
@@ -96,11 +112,12 @@ export default function EmployeePortal() {
       customer_phone: fd.get('phone'),
       device_name: fd.get('device'),
       issue: issueText,
-      technician_id: employee.id
+      technician_id: technician_id,
+      status: 'DITERIMA'
     };
     try {
       await apiService.post('/services', serviceData);
-      
+
       const trackingLink = `${window.location.origin}/tracking?resi=${resiGenerated}`;
       const waText = `Halo ${serviceData.customer_name}, perangkat ${serviceData.device_name} Anda sudah kami terima untuk diperbaiki.\n\n*Nomor Resi:* ${resiGenerated}\n*Keluhan:* ${fd.get('issue')}\n*Kelengkapan:* ${kelengkapan}\n\nAnda dapat mengecek status servis secara berkala melalui link berikut:\n${trackingLink}\n\nTerima kasih!`;
       const waUrl = `https://wa.me/${serviceData.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;
@@ -115,7 +132,28 @@ export default function EmployeePortal() {
         setShowPrintModal(true);
       }
       
+      // Kirim WA Notifikasi ke Teknisi
+      if (technician_id) {
+        const tech = technicianUsers.find(u => String(u.id) === String(technician_id));
+        if (tech && tech.phone) {
+          const techWaText = `Halo ${tech.name}, ada tugas servis baru:\n\n*Resi:* ${resiGenerated}\n*Pelanggan:* ${serviceData.customer_name}\n*Perangkat:* ${serviceData.device_name}\n*Keluhan:* ${fd.get('issue')}\n\nSilakan cek di portal karyawan.`;
+          const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
+          const fonnteToken = tenant?.settings?.fonnte_token;
+          if (waSenderMode === 'CUSTOM' && fonnteToken) {
+            fetch('https://api.fonnte.com/send', {
+              method: 'POST',
+              headers: { 'Authorization': fonnteToken },
+              body: new URLSearchParams({
+                target: normalizePhone(tech.phone),
+                message: techWaText
+              })
+            }).catch(console.error);
+          }
+        }
+      }
+
       e.target.reset();
+      setShowServiceModal(false);
       fetchServices();
     } catch (err) {
       alert('Gagal tambah tugas');
@@ -366,8 +404,8 @@ export default function EmployeePortal() {
       {/* MOBILE BOTTOM NAV (Visible only on mobile) */}
       <nav className="mobile-bottom-nav" style={{ justifyContent: 'space-around' }}>
         <div className="mobile-nav-item active">
-           {isKasir ? <ShoppingCart size={20} /> : <Wrench size={20} />}
-           <span>{isKasir ? 'Kasir POS' : 'Tugas Servis'}</span>
+           {isKasir ? (kasirTab === 'servis' ? <Wrench size={20} /> : <ShoppingCart size={20} />) : <Wrench size={20} />}
+           <span>{isKasir ? (kasirTab === 'servis' ? 'Servis Baru' : 'Kasir POS') : 'Tugas Servis'}</span>
         </div>
       </nav>
 
@@ -404,7 +442,77 @@ export default function EmployeePortal() {
         </div>
 
       {isKasir ? (
-        <POSView products={products} />
+        <>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <button className={`btn ${kasirTab === 'pos' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('pos')}>
+              Kasir POS
+            </button>
+            <button className={`btn ${kasirTab === 'servis' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('servis')}>
+              Buat Servis Baru
+            </button>
+          </div>
+
+          {kasirTab === 'pos' ? (
+            <POSView products={products} transactions={transactions} onTransactionCreated={fetchTransactions} />
+          ) : (
+            <>
+              <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <div>
+                    <h3 style={{ marginBottom: '0.35rem' }}>Servis & Penugasan Teknisi</h3>
+                    <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                      Buat servis baru, cetak nota, lalu tugaskan ke teknisi yang tersedia.
+                    </p>
+                  </div>
+                  <button className="btn btn-primary" onClick={() => setShowServiceModal(true)}>
+                    <Plus size={18} /> Buat Servis Baru
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginTop: '1.25rem' }}>
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.15)' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: '700' }}>Total Servis</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#0f172a' }}>{services.length}</div>
+                  </div>
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: '700' }}>Diterima</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#0f172a' }}>{services.filter(s => s.status === 'DITERIMA').length}</div>
+                  </div>
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#c2410c', fontWeight: '700' }}>Aktif Dikerjakan</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#0f172a' }}>{services.filter(s => s.status !== 'DIAMBIL' && s.status !== 'SELESAI').length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="glass-panel">
+                <h3 style={{ marginBottom: '1rem' }}>Servis Terbaru</h3>
+                {services.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data servis.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {services.slice(0, 8).map(s => {
+                      const tech = technicianUsers.find(t => String(t.id) === String(s.technician_id));
+                      return (
+                        <div key={s.resi} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: '220px' }}>
+                              <div style={{ fontWeight: 'bold' }}>{s.customer_name} <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>({s.resi})</span></div>
+                              <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap', marginTop: '4px' }}>{s.device_name}</div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Teknisi: {tech ? tech.name : 'Belum ditentukan'}</div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <span className="badge badge-info">{s.status || 'PROSES'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </>
       ) : (
         <>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
@@ -419,18 +527,28 @@ export default function EmployeePortal() {
           {activeTab === 'tugas' && (
             <>
               <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ marginBottom: '1rem' }}>+ Tambah Pelanggan / Servis</h3>
+                <h3 style={{ marginBottom: '1rem' }}>+ Buat Servis Baru</h3>
                 <form onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                   <input type="text" name="name" className="input-field" placeholder="Nama Pelanggan" required />
                   <input type="text" name="phone" className="input-field" placeholder="No. WA (08...)" required />
                   <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
                   <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan" required />
+                    <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
                   </div>
+                  {employee?.role === 'KASIR' || employee?.role === 'Kasir' ? (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <select name="technician_id" className="input-field" required>
+                        <option value="">-- Pilih Teknisi yang Akan Mengerjakan --</option>
+                        {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
                   <div style={{ gridColumn: '1 / -1' }}>
                     <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                      <Plus size={18} /> Tambahkan ke Antrian & Kirim WA
+                      <Plus size={18} /> Daftarkan Servis & Tugaskan Teknisi
                     </button>
                   </div>
                 </form>
@@ -641,9 +759,9 @@ export default function EmployeePortal() {
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
                 
                 const fonnteToken = tenant?.settings?.fonnte_token;
-                const waMethod = tenant?.settings?.wa_method || 'auto';
+                const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
                 
-                if (waMethod === 'auto' && fonnteToken) {
+                if (waSenderMode === 'CUSTOM' && fonnteToken) {
                   try {
                     await fetch('https://api.fonnte.com/send', {
                       method: 'POST',
@@ -730,6 +848,48 @@ export default function EmployeePortal() {
                 <Printer size={16} style={{ display: 'inline', marginRight: '5px' }} /> Kertas Biasa (A4)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showServiceModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '720px', background: 'var(--bg-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Buat Servis Baru</h3>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  Isi data pelanggan, pilih teknisi, lalu sistem akan menyiapkan nota dan tugas servis.
+                </p>
+              </div>
+              <button className="btn btn-ghost" onClick={() => setShowServiceModal(false)}><X size={20} /></button>
+            </div>
+
+            <form onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '14px' }}>
+              <input type="text" name="name" className="input-field" placeholder="Nama Pelanggan" required />
+              <input type="text" name="phone" className="input-field" placeholder="No. WA (08...)" required />
+              <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
+              <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
+              <div style={{ gridColumn: '1 / -1' }}>
+                <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <select name="technician_id" className="input-field" required>
+                  <option value="">-- Pilih Teknisi yang Akan Mengerjakan --</option>
+                  {technicianUsers.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}{t.phone ? ` (${t.phone})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowServiceModal(false)}>
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <Plus size={18} /> Daftarkan Servis & Tugaskan Teknisi
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
