@@ -23,7 +23,7 @@ export default function UpgradePrompt({
   const navigate = useNavigate();
 
   const waLink = "https://wa.me/6285382535050?text=" + 
-    encodeURIComponent(`Halo Admin AISERVICE, saya ingin upgrade ke Paket Pro (Rp 149.000/bln). Kode Toko saya: `);
+    encodeURIComponent(`Halo Admin UnitPro, saya ingin upgrade ke UnitPro Pro (Rp 99.000/bln). Kode Toko saya: `);
 
   // ── BANNER MODE ──
   if (mode === 'banner') {
@@ -81,7 +81,11 @@ export default function UpgradePrompt({
             background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white',
             textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
           }}>
+            {/* Harga lama disembunyikan agar konsisten dengan paket UnitPro. */}
+            Upgrade UnitPro Pro - Rp 99.000/bln
+            {/*
             Upgrade Pro ⚡
+            */}
           </a>
         )}
       </div>
@@ -135,7 +139,7 @@ export default function UpgradePrompt({
           {featureName || 'Fitur Premium'}
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: '1.6', maxWidth: '450px', margin: '0 auto 2rem auto' }}>
-          {featureDescription || 'Upgrade ke Paket Pro Titan untuk mengakses fitur ini dan tingkatkan produktivitas toko Anda.'}
+          {featureDescription || 'Upgrade ke Paket UnitPro Pro untuk mengakses fitur ini dan tingkatkan produktivitas toko Anda.'}
         </p>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -177,7 +181,7 @@ export default function UpgradePrompt({
           </h3>
           <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
             Anda sudah menggunakan <strong>{currentUsage}/{maxUsage} {usageLabel}</strong>. 
-            Upgrade ke Pro Titan untuk <strong>UNLIMITED</strong> akses.
+            Upgrade ke UnitPro Pro untuk <strong>UNLIMITED</strong> akses.
           </p>
 
           <div style={{
@@ -185,7 +189,7 @@ export default function UpgradePrompt({
             marginBottom: '1.5rem', textAlign: 'left',
           }}>
             <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#0369a1', marginBottom: '8px' }}>
-              ✅ Yang didapat di Pro Titan:
+              ✅ Yang didapat di UnitPro Pro:
             </div>
             <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: '1.8' }}>
               • UNLIMITED Servis & Transaksi POS<br/>
@@ -202,7 +206,7 @@ export default function UpgradePrompt({
             textDecoration: 'none', textAlign: 'center',
             boxShadow: '0 4px 18px rgba(2,132,199,0.4)', marginBottom: '10px',
           }}>
-            Upgrade Pro — Rp 149.000/bln ⚡
+            Upgrade UnitPro Pro - Rp 99.000/bln
           </a>
 
           {onClose && (

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench } from 'lucide-react';
 import { apiService } from '../services/api';
 import POSView from '../components/POSView';
+import MobileTabBar from '../components/MobileTabBar';
 import { SERVICE_STATUSES } from '../config/tierLimits';
 
 export default function EmployeePortal() {
@@ -411,6 +412,16 @@ export default function EmployeePortal() {
   const myAttendanceToday = transactions.filter(t => t.description === `ATTENDANCE_EMP_${employee.id}` && new Date(t.created_at).toDateString() === todayDateStr);
   const hasCheckedIn = myAttendanceToday.some(t => t.type === 'ATTENDANCE_IN');
   const hasCheckedOut = myAttendanceToday.some(t => t.type === 'ATTENDANCE_OUT');
+  const employeeMobileTabs = isKasir
+    ? [
+        { id: 'pos', name: 'Kasir', icon: ShoppingCart },
+        { id: 'servis', name: 'Servis', icon: Wrench },
+      ]
+    : [
+        { id: 'tugas', name: 'Tugas', icon: Wrench },
+        { id: 'keuangan', name: 'Keuangan', icon: Wallet },
+      ];
+  const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
 
   const handleAttendance = async (type) => {
     try {
@@ -440,13 +451,15 @@ export default function EmployeePortal() {
         </button>
       </header>
 
-      {/* MOBILE BOTTOM NAV (Visible only on mobile) */}
-      <nav className="mobile-bottom-nav" style={{ justifyContent: 'space-around' }}>
-        <div className="mobile-nav-item active">
-           {isKasir ? (kasirTab === 'servis' ? <Wrench size={20} /> : <ShoppingCart size={20} />) : <Wrench size={20} />}
-           <span>{isKasir ? (kasirTab === 'servis' ? 'Servis Baru' : 'Kasir POS') : 'Tugas Servis'}</span>
-        </div>
-      </nav>
+      <MobileTabBar
+        tabs={employeeMobileTabs}
+        activeTab={employeeMobileActiveTab}
+        primaryTabIds={employeeMobileTabs.map((tab) => tab.id)}
+        onChange={(tabId) => {
+          if (isKasir) setKasirTab(tabId);
+          else setActiveTab(tabId);
+        }}
+      />
 
       <div className="main-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
@@ -482,7 +495,7 @@ export default function EmployeePortal() {
 
       {isKasir ? (
         <>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div className="employee-section-switcher" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
             <button className={`btn ${kasirTab === 'pos' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('pos')}>
               Kasir POS
             </button>
@@ -554,7 +567,7 @@ export default function EmployeePortal() {
         </>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
+          <div className="employee-section-switcher" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
             <button className={`btn ${activeTab === 'tugas' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('tugas')}>
               Daftar Tugas
             </button>
@@ -567,7 +580,7 @@ export default function EmployeePortal() {
             <>
               <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ marginBottom: '1rem' }}>+ Buat Servis Baru</h3>
-                <form onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <form className="mobile-form-grid" onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                   <input type="text" name="name" className="input-field" placeholder="Nama Pelanggan" required />
                   <input type="text" name="phone" className="input-field" placeholder="No. WA (08...)" required />
                   <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />

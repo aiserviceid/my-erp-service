@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Tracking Service</string>
-    <string name="title_activity_main">Tracking Service</string>
+    <string name="app_name">UnitPro</string>
+    <string name="title_activity_main">UnitPro</string>
     <string name="package_name">com.trackingservice.app</string>
     <string name="custom_url_scheme">com.trackingservice.app</string>
 </resources>

@@ -1,9 +1,8 @@
 {
   "appId": "com.trackingservice.app",
-  "appName": "AISERVICE.ID",
+  "appName": "UnitPro",
   "webDir": "dist",
-  "server": {
-    "url": "https://aiserviceid.vercel.app",
-    "cleartext": true
+  "android": {
+    "allowMixedContent": false
   }
 }

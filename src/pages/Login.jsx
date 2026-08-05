@@ -143,16 +143,16 @@ export default function Login() {
   const getTierPriceText = () => {
     const tier = pendingReg?.tier || selectedTier;
     const isYearly = initialBilling === 'yearly';
-    if (tier === 'enterprise') return 'Rp 79.000';
-    if (tier === 'pro') return isYearly ? 'Rp 396.000 (Setahun)' : 'Rp 59.000';
+    if (tier === 'enterprise') return 'Rp 249.000';
+    if (tier === 'pro') return isYearly ? 'Rp 590.000 (Promo Tahun Pertama)' : 'Rp 99.000';
     return 'GRATIS';
   };
 
   const getTierTitle = () => {
     const tier = pendingReg?.tier || selectedTier;
     const isYearly = initialBilling === 'yearly';
-    if (tier === 'enterprise') return 'Paket Enterprise (Rp 79.000/bln)';
-    if (tier === 'pro') return isYearly ? 'Paket Pro Tahunan (Rp 33.000/bln x 12)' : 'Paket Pro (Rp 59.000/bln)';
+    if (tier === 'enterprise') return 'Paket Multi Outlet (Rp 249.000/bln)';
+    if (tier === 'pro') return isYearly ? 'UnitPro Pro Tahunan (Promo Rp 590.000 tahun pertama)' : 'UnitPro Pro (Rp 99.000/bln)';
     return 'Paket Gratis (Rp 0/selamanya)';
   };
 
@@ -160,7 +160,7 @@ export default function Login() {
     const amount = getTierPriceText();
     const nama = pendingReg?.name || tenantName || tenantCode;
     const kode = pendingReg?.code || tenantCode.toUpperCase();
-    const text = `Halo Admin AISERVICE, saya ingin konfirmasi pembayaran aktivasi toko:%0A%0A%F0%9F%8F%AA *Nama Toko:* ${nama}%0A%F0%9F%94%91 *Kode ID:* ${kode}%0A%F0%9F%93%B1 *No. WhatsApp:* ${phone}%0A%F0%9F%93%A6 *Paket:* ${getTierTitle()}%0A%F0%9F%92%B0 *Nominal Transfer:* ${amount}%0A%0ASaya telah melakukan transfer ke rekening BRI / DANA a%2Fn Syaifudin. Mohon segera diaktifkan akun saya. Terima kasih!`;
+    const text = `Halo Admin UnitPro, saya ingin konfirmasi pembayaran aktivasi toko:%0A%0A%F0%9F%8F%AA *Nama Toko:* ${nama}%0A%F0%9F%94%91 *Kode ID:* ${kode}%0A%0A%F0%9F%93%B1 *No. WhatsApp:* ${phone}%0A%F0%9F%93%A6 *Paket:* ${getTierTitle()}%0A%F0%9F%92%B0 *Nominal Transfer:* ${amount}%0A%0ASaya telah melakukan transfer ke rekening BRI / DANA a%2Fn Syaifudin. Mohon segera diaktifkan akun saya. Terima kasih!`;
     return `https://wa.me/6285382535050?text=${text}`;
   };
 
@@ -185,7 +185,7 @@ export default function Login() {
             <Sparkles size={24} color="white" />
           </div>
           <h2 style={{ fontSize: '1.65rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>
-            AISERVICE.ID
+            UnitPro
           </h2>
           <p style={{ color: '#0284c7', fontSize: '0.85rem', fontWeight: '700', margin: '4px 0 0 0' }}>
             Sistem Operasional Toko Servis Modern
@@ -425,7 +425,7 @@ export default function Login() {
                 >
                   <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'pro' ? '#0284c7' : '#0f172a' }}>Pro ⭐</div>
                   <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
-                    {initialBilling === 'yearly' ? 'Rp 33rb/bln' : 'Rp 59rb/bln'}
+                    {initialBilling === 'yearly' ? 'Rp 590rb/thn' : 'Rp 99rb/bln'}
                   </div>
                 </div>
 
@@ -439,8 +439,8 @@ export default function Login() {
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Enterprise</div>
-                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 79rb/bln</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Multi Outlet</div>
+                  <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>Rp 249rb/bln</div>
                 </div>
               </div>
             </div>

@@ -47,7 +47,7 @@ export default function AffiliatePortal() {
   };
 
   const shareWA = () => {
-    const msg = `Halo! 👋 Saya pakai *AISERVICE.ID* untuk kelola toko servis HP/Laptop saya — keren banget!
+    const msg = `Halo! 👋 Saya pakai *UnitPro* untuk kelola toko servis HP/Laptop saya — keren banget!
 
 🆓 Bisa daftar GRATIS, atau upgrade Pro cuma *Rp 49.000/bulan*.
 
@@ -82,7 +82,7 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Multi
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
           <Gift size={32} />
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900', color: 'white' }}>Program Afiliasi AISERVICE.ID</h2>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900', color: 'white' }}>Program Afiliasi UnitPro</h2>
             <p style={{ margin: '2px 0 0 0', color: '#bae6fd', fontSize: '0.9rem' }}>Dapatkan komisi <strong style={{ color: '#fef08a', fontSize: '1.1rem' }}>80%</strong> dari setiap toko yang mendaftar lewat link Anda!</p>
           </div>
         </div>

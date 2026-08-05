@@ -103,7 +103,7 @@ export default function PublicTracking() {
           )}
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-              {tenantSettings.storeName || tenantInfo?.name || 'AISERVICE.ID'}
+              {tenantSettings.storeName || tenantInfo?.name || 'UnitPro'}
             </h2>
             <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '600' }}>
               Lacak Status Servis
@@ -410,7 +410,7 @@ export default function PublicTracking() {
         borderTop: '1px solid #e2e8f0', marginTop: '40px', background: '#ffffff'
       }}>
         <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#64748b' }}>
-          &copy; {new Date().getFullYear()} {tenantSettings.storeName || tenantInfo?.name || 'AISERVICE.ID'} • Dilayani dengan Sistem Operasional Digital
+          &copy; {new Date().getFullYear()} {tenantSettings.storeName || tenantInfo?.name || 'UnitPro'} • Dilayani dengan Sistem Operasional Digital
         </p>
         <div 
           onClick={() => navigate('/login', { state: { tab: 'register' } })}
