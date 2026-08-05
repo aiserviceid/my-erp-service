@@ -491,8 +491,18 @@
 .service-wizard-error { color: #b91c1c; }
 .service-wizard-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .service-wizard-actions .btn { display: inline-flex; align-items: center; gap: 4px; }
-.cashier-service-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-light); }
-.cashier-service-actions .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; font-size: 12px; }
+.cashier-recent-service { padding: 15px 16px; border: 1px solid var(--border-light); border-radius: 14px; background: #fff; transition: border-color .2s ease, box-shadow .2s ease; }
+.cashier-recent-service:hover { border-color: #b8d8df; box-shadow: 0 5px 16px rgba(15, 118, 110, .06); }
+.cashier-service-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.cashier-service-details { min-width: 0; }
+.cashier-service-title { color: #0f172a; font-size: 15px; font-weight: 800; line-height: 1.35; }
+.cashier-service-title span { color: #64748b; font-weight: 700; }
+.cashier-service-device { margin-top: 4px; color: #334155; font-size: 13px; }
+.cashier-service-tech { margin-top: 4px; color: #64748b; font-size: 12px; }
+.cashier-service-side { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-shrink: 0; }
+.cashier-service-actions { display: flex; gap: 7px; }
+.cashier-service-actions .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 10px; border-color: #d5e2e8; color: #47627a; font-size: 12px; }
+.cashier-service-actions .btn:hover { border-color: #0f9d95; color: #087a75; background: #f0fdfa; }
 .cashier-service-list-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
 .cashier-service-list-header h3 { margin: 0 0 5px; }
 .cashier-service-list-header p { margin: 0; color: var(--text-muted); font-size: 13px; }
@@ -523,6 +533,8 @@
   .service-wizard-backdrop > .service-wizard-dialog { width: 100% !important; max-width: none !important; max-height: min(88vh, 720px); margin: 0; padding: 24px 20px max(24px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; overflow-y: auto; }
   .service-wizard-actions .btn { min-width: 112px; justify-content: center; }
   .cashier-recent-service { padding: 14px !important; }
+  .cashier-service-summary { align-items: stretch; flex-direction: column; gap: 12px; }
+  .cashier-service-side { align-items: center; justify-content: space-between; }
   .cashier-service-list-header { flex-direction: column; gap: 12px; }
   .cashier-service-search { width: 100%; }
   .cashier-service-actions .btn { flex: 1; justify-content: center; min-height: 38px; }
@@ -982,6 +994,24 @@ html.native-app .finance-mobile-empty {
 .dashboard-section-heading h4 { margin: 0; color: #0f172a; font-size: 18px; }
 .dashboard-section-heading > span { color: #64748b; font-size: 12px; font-weight: 600; }
 
+/* Shared management-module structure. */
+.customer-table-wrap, .inventory-table-wrap, .employee-table-wrap { overflow-x: auto; border: 1px solid #edf2f5; border-radius: 14px; background: #fff; }
+.customer-table-wrap .table, .inventory-table-wrap .table, .employee-table-wrap .table { margin: 0; }
+.customer-category-tabs, .inventory-tabs, .employee-management-tabs { scrollbar-width: none; }
+.customer-category-tabs::-webkit-scrollbar, .inventory-tabs::-webkit-scrollbar, .employee-management-tabs::-webkit-scrollbar { display: none; }
+.management-action-disclosure { margin: 0 0 16px; border: 1px solid #dbe8ed; border-radius: 14px; background: #f8fbfc; overflow: hidden; }
+.management-action-disclosure summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 15px; color: #0f766e; font-size: 14px; font-weight: 800; cursor: pointer; list-style: none; }
+.management-action-disclosure summary::-webkit-details-marker { display: none; }
+.management-action-disclosure summary::after { content: '+'; margin-left: auto; color: #087a75; font-size: 22px; font-weight: 400; }
+.management-action-disclosure[open] summary { border-bottom: 1px solid #dbe8ed; background: #f0fdfa; }
+.management-action-disclosure[open] summary::after { content: '−'; }
+.management-action-disclosure .inventory-add-form { margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+.management-action-disclosure .inventory-add-form > h4 { display: none; }
+.service-active-mobile-list { display: none; }
+.service-list-search { align-items: center; }
+.service-filter-row { scrollbar-width: none; }
+.service-filter-row::-webkit-scrollbar { display: none; }
+
 /* Native admin dashboard: the desktop dashboard contains dense summary
    blocks, so the APK uses a single mobile-first reading flow. */
 html.native-app .dashboard-overview {
@@ -1015,6 +1045,94 @@ html.native-app .dashboard-quick-actions .btn { min-width: 0; padding: 9px 6px; 
 html.native-app .dashboard-quick-actions .btn svg { width: 15px; height: 15px; }
 html.native-app .dashboard-section-heading { align-items: flex-start; }
 html.native-app .dashboard-section-heading > span { max-width: 118px; text-align: right; line-height: 1.35; }
+
+/* Native management screens: dense desktop modules become compact sections. */
+html.native-app .customer-management,
+html.native-app .inventory-management,
+html.native-app .employee-management { padding: 16px !important; border-radius: 18px; }
+
+html.native-app .customer-management-header h3,
+html.native-app .inventory-management-header h3,
+html.native-app .employee-management-title { font-size: 19px !important; line-height: 1.25; }
+
+html.native-app .customer-management-header p { line-height: 1.45; }
+html.native-app .customer-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; margin-bottom: 16px !important; }
+html.native-app .customer-metric-card { min-width: 0; padding: 12px 9px !important; border-radius: 12px !important; }
+html.native-app .customer-metric-card > div:nth-child(2) { font-size: 20px !important; overflow-wrap: anywhere; }
+html.native-app .customer-metric-card > div:first-child,
+html.native-app .customer-metric-card > div:last-child { font-size: 9px !important; line-height: 1.35; }
+html.native-app .customer-blast-card { padding: 16px !important; margin-bottom: 16px !important; border-radius: 16px !important; }
+html.native-app .customer-blast-card > div:nth-child(2) { grid-template-columns: 1fr !important; gap: 10px !important; }
+html.native-app .customer-category-tabs,
+html.native-app .inventory-tabs,
+html.native-app .employee-management-tabs { gap: 8px !important; overflow-x: auto; padding-bottom: 8px !important; margin-bottom: 16px !important; }
+html.native-app .customer-category-tabs button,
+html.native-app .inventory-tabs button,
+html.native-app .employee-management-tabs button { flex: 0 0 auto; white-space: nowrap; }
+html.native-app .customer-list-header { align-items: stretch !important; flex-direction: column; }
+html.native-app .customer-list-header > div { width: 100%; flex-wrap: wrap; }
+html.native-app .customer-list-header .btn { flex: 1; min-width: 145px; justify-content: center; }
+html.native-app .customer-table-wrap,
+html.native-app .inventory-table-wrap,
+html.native-app .employee-table-wrap { margin: 0 -2px; max-width: calc(100% + 4px); -webkit-overflow-scrolling: touch; }
+html.native-app .customer-table-wrap .table { min-width: 620px; }
+html.native-app .inventory-table-wrap .table { min-width: 720px; }
+html.native-app .employee-table-wrap .table { min-width: 760px; }
+html.native-app .customer-table-wrap::after,
+html.native-app .inventory-table-wrap::after,
+html.native-app .employee-table-wrap::after { content: 'Geser tabel untuk melihat kolom lainnya'; display: block; padding: 8px 12px; color: #64748b; font-size: 11px; font-weight: 600; background: #f8fafc; }
+
+html.native-app .inventory-add-form { padding: 14px !important; margin-bottom: 16px !important; border-radius: 16px !important; }
+html.native-app .inventory-add-form > div:nth-child(2) { grid-template-columns: 1fr !important; gap: 10px !important; }
+html.native-app .inventory-add-form > div:nth-child(3) { align-items: stretch !important; flex-direction: column; gap: 10px !important; }
+html.native-app .inventory-add-form > div:nth-child(3) > div { min-width: 0 !important; width: 100%; }
+html.native-app .inventory-add-form > div:nth-child(3) > div > div { flex-wrap: wrap; }
+html.native-app .inventory-add-form > div:nth-child(3) > button { width: 100%; justify-content: center; }
+
+html.native-app .employee-add-form { align-items: stretch; flex-direction: column; padding: 14px; border: 1px solid #e4edf1; border-radius: 16px; background: #f8fbfc; }
+html.native-app .employee-add-form .input-field { width: 100% !important; min-width: 0 !important; }
+html.native-app .employee-add-form .btn { width: 100%; justify-content: center; min-height: 44px; }
+html.native-app .management-action-disclosure { margin-bottom: 14px; border-radius: 14px; }
+html.native-app .management-action-disclosure summary { min-height: 50px; }
+
+html.native-app .store-settings { border-radius: 18px; overflow: hidden; }
+html.native-app .store-settings-layout { min-height: 0 !important; }
+html.native-app .store-settings-nav { width: 100% !important; padding: 16px !important; border: 0 !important; border-bottom: 1px solid #e4edf1 !important; border-radius: 0 !important; }
+html.native-app .store-settings-nav h3 { margin: 0 0 12px !important; font-size: 19px !important; }
+html.native-app .store-settings-nav-list { display: flex !important; flex-direction: row !important; overflow-x: auto; gap: 8px !important; padding-bottom: 3px; }
+html.native-app .store-settings-nav-list .btn { flex: 0 0 auto; min-height: 38px; padding: 8px 11px !important; white-space: nowrap; }
+html.native-app .store-settings-nav-list > div { display: none; }
+html.native-app .store-settings-content { padding: 18px 16px max(28px, env(safe-area-inset-bottom)) !important; }
+html.native-app .store-settings-content > div { max-width: none !important; }
+html.native-app .store-settings-content [style*="minWidth: '300px'"] { min-width: 0 !important; width: 100%; }
+html.native-app .store-settings-content [style*="position: 'sticky'"] { position: static !important; }
+
+html.native-app .service-management { padding: 16px !important; border-radius: 18px; }
+html.native-app .service-management .service-action-card { margin: -2px 0 16px; padding: 16px; border-radius: 16px; }
+html.native-app .service-management .service-action-card h3 { font-size: 18px; line-height: 1.25; }
+html.native-app .service-list-header { align-items: stretch !important; flex-direction: column; margin-bottom: 14px !important; }
+html.native-app .service-list-header h3 { font-size: 19px !important; }
+html.native-app .service-list-search { width: 100%; min-width: 0 !important; }
+html.native-app .service-list-search .input-field { min-width: 0; flex: 1; }
+html.native-app .service-list-search .btn { min-height: 42px; padding: 8px 12px; }
+html.native-app .service-filter-row { margin-bottom: 10px !important; overflow-x: auto; }
+html.native-app .service-filter-row button { flex: 0 0 auto; min-height: 34px; }
+html.native-app .service-desktop-table { display: none; }
+html.native-app .service-active-mobile-list { display: grid; gap: 10px; }
+html.native-app .service-mobile-empty { margin: 0; padding: 24px 12px; text-align: center; color: #64748b; border: 1px dashed #cbd5e1; border-radius: 14px; }
+html.native-app .service-active-mobile-card { padding: 14px; border: 1px solid #dbe8ed; border-radius: 15px; background: #fff; box-shadow: 0 3px 12px rgba(15, 118, 110, .04); }
+html.native-app .service-mobile-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+html.native-app .service-mobile-card-top > div { min-width: 0; }
+html.native-app .service-mobile-card-top strong { display: block; color: #0f172a; font-size: 15px; line-height: 1.3; }
+html.native-app .service-mobile-card-top a { display: inline-block; margin-top: 4px; color: #087a75; font-size: 12px; font-weight: 800; text-decoration: none; }
+html.native-app .service-mobile-card-top > span { flex: 0 0 auto; max-width: 118px; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-align: center; line-height: 1.2; }
+html.native-app .service-mobile-device { margin: 10px 0 3px; color: #334155; font-size: 13px; font-weight: 700; }
+html.native-app .service-mobile-meta { margin: 0; color: #64748b; font-size: 12px; }
+html.native-app .service-mobile-status-label { display: block; margin: 12px 0 0; color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+html.native-app .service-mobile-status-label .input-field { width: 100%; margin: 6px 0 0; padding: 9px 10px; font-size: 13px; }
+html.native-app .service-mobile-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 12px; }
+html.native-app .service-mobile-actions .btn { display: inline-flex; align-items: center; justify-content: center; min-width: 0; min-height: 38px; padding: 7px 5px; border-color: #cfe0e5; font-size: 11px; text-decoration: none; }
+html.native-app .service-mobile-actions .btn-primary { background: #0f9d95; border-color: #0f9d95; color: #fff; }
 
 html.native-app .dashboard-upgrade-banner {
   align-items: stretch !important;

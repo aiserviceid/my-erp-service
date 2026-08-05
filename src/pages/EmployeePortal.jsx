@@ -705,24 +705,24 @@ export default function EmployeePortal() {
                     {cashierServices.map(s => {
                       const tech = technicianUsers.find(t => String(t.id) === String(s.technician_id));
                       return (
-                        <div key={s.resi} className="cashier-recent-service" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1, minWidth: '220px' }}>
-                              <div style={{ fontWeight: 'bold' }}>{s.customer_name} <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>({s.resi})</span></div>
-                              <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap', marginTop: '4px' }}>{s.device_name}</div>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Teknisi: {tech ? tech.name : 'Belum ditentukan'}</div>
+                        <div key={s.resi} className="cashier-recent-service">
+                          <div className="cashier-service-summary">
+                            <div className="cashier-service-details">
+                              <div className="cashier-service-title">{s.customer_name} <span>({s.resi})</span></div>
+                              <div className="cashier-service-device">{s.device_name}</div>
+                              <div className="cashier-service-tech">Teknisi: {tech ? tech.name : 'Belum ditentukan'}</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <div className="cashier-service-side">
                               <span className="badge badge-info">{s.status || 'PROSES'}</span>
+                              <div className="cashier-service-actions">
+                                <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DIAMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>
+                                  <Printer size={15} /> Cetak Nota
+                                </button>
+                                <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowBarcodeModal(true); }}>
+                                  Barcode
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          <div className="cashier-service-actions">
-                            <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DIAMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>
-                              <Printer size={15} /> Cetak Nota
-                            </button>
-                            <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowBarcodeModal(true); }}>
-                              Barcode
-                            </button>
                           </div>
                         </div>
                       );

@@ -668,6 +668,21 @@ export default function AdminDashboard() {
   const serviceLimit = isWithinLimit(tenant?.tier, 'maxServicesPerMonth', monthlyServiceCount);
   const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
+  const updateServiceStatusFromAction = async (service, newStatus) => {
+    try {
+      await apiService.post('/services/update', { resi: service.resi, status: newStatus });
+      setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));
+      if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
+        const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
+        const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
+        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(newStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
+        window.open(`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');
+      }
+    } catch (error) {
+      alert('Gagal update status');
+    }
+  };
+
   return (
     <div className="dashboard-layout">
       {/* MOBILE TOP BAR (Visible only on mobile) */}
@@ -1229,8 +1244,8 @@ export default function AdminDashboard() {
           </div>
         ) : activeTab === 'pelanggan' ? (
           /* MODUL CRM DATABASE PELANGGAN & WA BLAST */
-          <div className="glass-panel" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
+          <div className="glass-panel customer-management" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+            <div className="customer-management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', color: '#0f172a' }}>
                   👥 Database Pelanggan & WhatsApp Blast CRM
@@ -1242,8 +1257,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* CRM Metrics Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '2rem' }}>
-              <div style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #0284c7' }}>
+            <div className="customer-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '2rem' }}>
+              <div className="customer-metric-card" style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #0284c7' }}>
                 <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>TOTAL DATABASE PELANGGAN</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0284c7', margin: '2px 0' }}>
                   {Array.from(new Set(services.map(s => s.customer_phone).concat(transactions.map(t => t.description?.match(/08\d+/)?.[0]).filter(Boolean)))).length} Orang
@@ -1251,7 +1266,7 @@ export default function AdminDashboard() {
                 <div style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: '600' }}>✓ Tersimpan Otomatis di CRM</div>
               </div>
 
-              <div style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #16a34a' }}>
+              <div className="customer-metric-card" style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #16a34a' }}>
                 <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>SIAP DI-BLAST WHATSAPP</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#16a34a', margin: '2px 0' }}>
                   {services.filter(s => s.customer_phone).length} Nomor
@@ -1259,7 +1274,7 @@ export default function AdminDashboard() {
                 <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: '600' }}>✓ Nomor WA Terverifikasi</div>
               </div>
 
-              <div style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #7c3aed' }}>
+              <div className="customer-metric-card" style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #7c3aed' }}>
                 <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>PELANGGAN REPEAT ORDER</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#7c3aed', margin: '2px 0' }}>
                   {services.filter(s => s.status === 'SELESAI' || s.status === 'DIAMBIL').length} Unit
@@ -1269,7 +1284,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* WA BLAST CAMPAIGN GENERATOR BOX */}
-            <div style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', padding: '1.5rem', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
+            <div className="customer-blast-card" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', padding: '1.5rem', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>💬</span>
                 <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#166534' }}>
@@ -1334,12 +1349,12 @@ export default function AdminDashboard() {
               
               return (
                 <>
-                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px', borderBottom: '1px solid var(--border-light)' }}>
+                  <div className="customer-category-tabs" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px', borderBottom: '1px solid var(--border-light)' }}>
                     <button onClick={() => setCustomerTab('servis')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'servis' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'servis' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Kategori Servis</button>
                     <button onClick={() => setCustomerTab('pos')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'pos' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'pos' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Pembelian POS</button>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+                  <div className="customer-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
                     <h4 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan {customerTab === 'servis' ? 'Servis' : 'POS Toko'}:</h4>
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button 
@@ -1380,7 +1395,7 @@ export default function AdminDashboard() {
                       </button>
                     </div>
                   </div>
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="customer-table-wrap" style={{ overflowX: 'auto' }}>
                     <table className="table">
                       <thead>
                         <tr>
@@ -1428,13 +1443,13 @@ export default function AdminDashboard() {
             })()}
           </div>
         ) : activeTab === 'pengaturan' ? (
-          <div className="glass-panel" style={{ maxWidth: '100%', padding: '0' }}>
-            <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', minHeight: '600px' }}>
+          <div className="glass-panel store-settings" style={{ maxWidth: '100%', padding: '0' }}>
+            <div className="store-settings-layout" style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', minHeight: '600px' }}>
               
               {/* Sidebar Tabs */}
-              <div style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
+              <div className="store-settings-nav" style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
                 <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Pengaturan Toko</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="store-settings-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>🎨 Tema & Branding</button>
                   <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? '#059669' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>💬 WhatsApp Gateway</button>
                   <button onClick={() => setSettingTab('rekening')} className={`btn ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
@@ -1447,7 +1462,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Content Area */}
-              <div style={{ flex: 1, padding: '2rem' }}>
+              <div className="store-settings-content" style={{ flex: 1, padding: '2rem' }}>
                 
                 {settingTab === 'umum' && (
                   <div style={{ maxWidth: '500px', animation: 'fadeIn 0.3s ease-out' }}>
@@ -1912,7 +1927,7 @@ export default function AdminDashboard() {
              </table>
           </div>
         ) : activeTab === 'servis' ? (
-          <div className="glass-panel" style={{ minHeight: '400px' }}>
+          <div className="glass-panel service-management" style={{ minHeight: '400px' }}>
               
               <div className="service-action-card">
                 <div>
@@ -1925,9 +1940,9 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
+              <div className="service-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
                 <h3 style={{ margin: 0 }}>Daftar Servis Aktif ({tenant?.name})</h3>
-                <div style={{ display: 'flex', gap: '8px', minWidth: '300px' }}>
+                <div className="service-list-search" style={{ display: 'flex', gap: '8px', minWidth: '300px' }}>
                   <input 
                     type="text" 
                     className="input-field" 
@@ -1945,7 +1960,7 @@ export default function AdminDashboard() {
               {(() => {
                 const techIds = [...new Set(services.map(s => s.technician_id))];
                 return (
-                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid var(--border-light)' }}>
+                  <div className="service-filter-row" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid var(--border-light)' }}>
                     <button onClick={() => setServiceTechTab('ALL')} style={{ padding: '6px 12px', border: 'none', background: serviceTechTab === 'ALL' ? 'var(--accent)' : '#e2e8f0', color: serviceTechTab === 'ALL' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Semua Teknisi</button>
                     {techIds.map(tId => {
                       const tech = users.find(u => u.id === tId);
@@ -1959,14 +1974,55 @@ export default function AdminDashboard() {
                 );
               })()}
 
-              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px' }}>
+              <div className="service-filter-row" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px' }}>
                 <button onClick={() => setServiceStatusTab('ALL')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: serviceStatusTab === 'ALL' ? '#334155' : 'white', color: serviceStatusTab === 'ALL' ? 'white' : '#475569', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: serviceStatusTab === 'ALL' ? 'bold' : 'normal' }}>Semua Status</button>
                 {typeof SERVICE_STATUSES !== 'undefined' && SERVICE_STATUSES.map(st => (
                   <button key={st.id} onClick={() => setServiceStatusTab(st.id)} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: serviceStatusTab === st.id ? st.bg : 'white', color: serviceStatusTab === st.id ? 'white' : '#475569', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: serviceStatusTab === st.id ? 'bold' : 'normal' }}>{st.label}</button>
                 ))}
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
+              <div className="service-active-mobile-list">
+                {(() => {
+                  const filteredServices = services.filter((service) => {
+                    const matchQuery = (service.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (service.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (service.device_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
+                    const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !service.technician_id : service.technician_id === serviceTechTab);
+                    const matchStatus = serviceStatusTab === 'ALL' || service.status === serviceStatusTab;
+                    return matchQuery && matchTech && matchStatus;
+                  });
+
+                  if (filteredServices.length === 0) return <p className="service-mobile-empty">Tidak ada servis yang sesuai dengan filter.</p>;
+
+                  return filteredServices.map((service) => {
+                    const technician = users.find((user) => user.id === service.technician_id);
+                    const status = getStatusInfo(service.status);
+                    return (
+                      <article className="service-active-mobile-card" key={`mobile-${service.resi}`}>
+                        <div className="service-mobile-card-top">
+                          <div>
+                            <strong>{service.customer_name}</strong>
+                            <a href={`${window.location.origin}/tracking?resi=${service.resi}`} target="_blank" rel="noreferrer">{service.resi}</a>
+                          </div>
+                          <span style={{ background: status?.bg, color: status?.color }}>{status?.label || service.status || 'PROSES'}</span>
+                        </div>
+                        <p className="service-mobile-device">{service.device_name}</p>
+                        <p className="service-mobile-meta">Teknisi: {technician?.name || 'Belum ditugaskan'}</p>
+                        <label className="service-mobile-status-label">Ubah status
+                          <select className="input-field" value={service.status || 'DITERIMA'} onChange={(event) => updateServiceStatusFromAction(service, event.target.value)}>
+                            {SERVICE_STATUSES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                          </select>
+                        </label>
+                        <div className="service-mobile-actions">
+                          <button className="btn btn-ghost" onClick={() => { setSelectedResi(service.resi); setShowBarcodeModal(true); }}>Stiker</button>
+                          <button className="btn btn-ghost" onClick={() => { setSelectedService(service); setPrintType(service.status === 'SELESAI' || service.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>Nota</button>
+                          {service.customer_phone && <a className="btn btn-primary" target="_blank" rel="noreferrer" href={`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${service.customer_name}, ini link cek servis ${service.device_name} (Resi: ${service.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${service.resi}`)}`}>Kirim WA</a>}
+                        </div>
+                      </article>
+                    );
+                  });
+                })()}
+              </div>
+
+              <div className="service-desktop-table" style={{ overflowX: 'auto' }}>
                 <table className="table">
                  <thead><tr><th>Resi</th><th>Pelanggan</th><th>Perangkat</th><th>Kerusakan</th><th>Garansi</th><th>Teknisi</th><th>Status</th><th>Aksi</th></tr></thead>
                  <tbody>
@@ -2050,12 +2106,12 @@ export default function AdminDashboard() {
               </div>
           </div>
         ) : activeTab === 'master' ? (
-          <div className="glass-panel" style={{ minHeight: '400px' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div className="glass-panel inventory-management" style={{ minHeight: '400px' }}>
+             <div className="inventory-management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                <h3 style={{ margin: 0 }}>Master Barang & Sparepart ({tenant?.name})</h3>
              </div>
              
-             <div style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-light)' }}>
+             <div className="inventory-tabs" style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-light)' }}>
                <button onClick={() => setMasterTab('stok')} className={`tab-btn ${masterTab === 'stok' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'stok' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'stok' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📦 Daftar & Stok Barang</button>
                <button onClick={() => setMasterTab('audit')} className={`tab-btn ${masterTab === 'audit' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'audit' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'audit' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📜 Log Aktivitas Stok</button>
              </div>
@@ -2063,7 +2119,9 @@ export default function AdminDashboard() {
              {masterTab === 'stok' && (
                <>
              {/* FORM TAMBAH BARANG DENGAN UPLOAD GAMBAR */}
-             <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
+             <details className="management-action-disclosure">
+                <summary><Plus size={18} /> Tambah barang atau jasa</summary>
+             <div className="inventory-add-form" style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
                 <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={18} color="var(--accent)" /> Tambah Barang Baru</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
                   <div>
@@ -2136,8 +2194,9 @@ export default function AdminDashboard() {
                   </button>
                 </div>
              </div>
+             </details>
 
-             <table className="table">
+             <div className="inventory-table-wrap"><table className="table inventory-table">
                <thead><tr><th>Foto</th><th>ID</th><th>Nama Barang</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr></thead>
                <tbody>
                  {products.map(p => (
@@ -2191,7 +2250,7 @@ export default function AdminDashboard() {
                  ))}
                  {products.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data barang.</td></tr>}
                </tbody>
-             </table>
+             </table></div>
                </>
              )}
 
@@ -2412,11 +2471,11 @@ export default function AdminDashboard() {
               icon={<Users size={28} />}
             />
           ) :
-          <div className="glass-panel" style={{ minHeight: '400px' }}>
-             <h3 style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
+          <div className="glass-panel employee-management" style={{ minHeight: '400px' }}>
+             <h3 className="employee-management-title" style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
 
              {/* TABS HEADER */}
-             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
+             <div className="employee-management-tabs" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
                <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>👥 Daftar Karyawan</button>
                <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>
                  💰 Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
@@ -2429,7 +2488,9 @@ export default function AdminDashboard() {
              {/* TAB CONTENT: DAFTAR KARYAWAN */}
              {empTab === 'daftar' && (
                <div className="animate-fade-in">
-                 <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                 <details className="management-action-disclosure employee-action-disclosure">
+                   <summary><Plus size={18} /> Tambah karyawan</summary>
+                 <div className="employee-add-form" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1, minWidth: '150px' }} />
                     <input type="text" className="input-field" placeholder="No WhatsApp (Opsional)" id="newEmpPhone" style={{ width: '180px' }} />
                     <input type="text" className="input-field" placeholder="PIN (Angka)" id="newEmpPin" style={{ width: '120px' }} />
@@ -2471,8 +2532,9 @@ export default function AdminDashboard() {
                       <Plus size={18} /> Tambah
                     </button>
                  </div>
+                 </details>
                  <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
-                 <table className="table" style={{ marginTop: '1.5rem' }}>
+                 <div className="employee-table-wrap"><table className="table employee-table" style={{ marginTop: '1.5rem' }}>
                    <thead><tr><th>Nama Karyawan</th><th>No. WA</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
                    <tbody>
                      {users.map(u => (
@@ -2526,7 +2588,7 @@ export default function AdminDashboard() {
                      ))}
                      {users.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan terdaftar.</td></tr>}
                    </tbody>
-                 </table>
+                 </table></div>
                </div>
              )}
 
