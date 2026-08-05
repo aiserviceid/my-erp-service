@@ -32,6 +32,8 @@ export default function EmployeePortal() {
   const printIframeRef = useRef(null);
 
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
+  const sparepartCatalog = products.filter(p => (p.category || '').toUpperCase() !== 'JASA');
+  const jasaCatalog = products.filter(p => (p.category || '').toUpperCase() === 'JASA');
 
   const normalizePhone = (phone) => {
     const cleaned = (phone || '').replace(/\D/g, '');
@@ -42,15 +44,33 @@ export default function EmployeePortal() {
     return cleaned;
   };
 
+  const syncCatalogSelection = (productId, nameFieldId, feeFieldId) => {
+    const product = products.find(p => String(p.id) === String(productId));
+    const nameInput = document.getElementById(nameFieldId);
+    const feeInput = document.getElementById(feeFieldId);
+    if (!nameInput || !feeInput) return;
+
+    if (product) {
+      nameInput.value = product.name || '';
+      feeInput.value = String(product.price || 0);
+    } else {
+      nameInput.value = '';
+      feeInput.value = '0';
+    }
+  };
+
   useEffect(() => {
     if (employee) {
       fetchServices();
       fetchTransactions();
+      const code = tenant?.code || employee.tenant_code;
+      if (code) {
+        apiService.getProducts(code).then(setProducts);
+      }
     }
     if (employee && (employee.role === 'KASIR' || employee.role === 'Kasir')) {
       const code = tenant?.code || employee.tenant_code;
       if (code) {
-        apiService.getProducts(code).then(setProducts);
         apiService.getUsers(code).then(setUsers);
       }
     }
@@ -727,8 +747,8 @@ export default function EmployeePortal() {
 
       {/* Modals */}
       {showSelesaiModal && selectedService && (
-        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '90%', maxWidth: '400px', background: 'var(--bg-light)' }}>
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '760px', background: 'var(--bg-light)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0 }}>Rincian Biaya Servis</h3>
               <button className="btn btn-ghost" onClick={() => setShowSelesaiModal(false)}><X size={20}/></button>
@@ -737,13 +757,29 @@ export default function EmployeePortal() {
               e.preventDefault();
               const fd = new FormData(e.target);
               try {
-                const partFee = parseInt(fd.get('part_fee')) || 0;
-                const jasaFee = parseInt(fd.get('jasa_fee')) || 0;
+                const partCatalogId = fd.get('part_product_id');
+                const jasaCatalogId = fd.get('jasa_product_id');
+                const selectedPartProduct = partCatalogId ? products.find(p => String(p.id) === String(partCatalogId)) : null;
+                const selectedJasaProduct = jasaCatalogId ? products.find(p => String(p.id) === String(jasaCatalogId)) : null;
+                const partManualName = (fd.get('part_name_manual') || '').trim();
+                const jasaManualName = (fd.get('jasa_name_manual') || '').trim();
+                const partFeeRaw = parseInt(fd.get('part_fee'));
+                const jasaFeeRaw = parseInt(fd.get('jasa_fee'));
+                const partFee = Number.isNaN(partFeeRaw) ? (selectedPartProduct?.price || 0) : partFeeRaw;
+                const jasaFee = Number.isNaN(jasaFeeRaw) ? (selectedJasaProduct?.price || 0) : jasaFeeRaw;
                 const diskon = parseInt(fd.get('diskon')) || 0;
-                const partName = fd.get('part_name');
+                const partName = partManualName || selectedPartProduct?.name || '';
+                const jasaName = jasaManualName || selectedJasaProduct?.name || '';
+
+                const currentUser = localStorage.getItem('EMPLOYEE_NAME') || employee?.name || 'Kasir / Teknisi';
+                if (selectedPartProduct && Number(selectedPartProduct.stock || 0) <= 0) {
+                  alert(`Stok ${selectedPartProduct.name} sedang habis.`);
+                  return;
+                }
                 
                 let updatedIssue = selectedService.issue || '';
                 if (partName) updatedIssue += `\n[Sparepart diganti: ${partName}]`;
+                if (jasaName) updatedIssue += `\n[Jasa Servis: ${jasaName}]`;
                 if (diskon > 0) updatedIssue += `\n[Diskon: Rp ${diskon}]`;
 
                 await apiService.post('/services/finish', {
@@ -754,6 +790,19 @@ export default function EmployeePortal() {
                   technician_id: employee.id,
                   issue: updatedIssue
                 });
+
+                if (selectedPartProduct) {
+                  const currentStock = Number(selectedPartProduct.stock || 0);
+                  const nextStock = Math.max(0, currentStock - 1);
+                  await apiService.updateProduct(
+                    selectedPartProduct.id,
+                    { stock: nextStock },
+                    currentStock,
+                    currentUser,
+                    `Dipakai untuk servis resi ${selectedService.resi}`
+                  );
+                  setProducts(prev => prev.map(p => String(p.id) === String(selectedPartProduct.id) ? { ...p, stock: nextStock } : p));
+                }
                 
                 const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
@@ -781,23 +830,65 @@ export default function EmployeePortal() {
                 alert('Berhasil disimpan & Notifikasi WA diproses!');
                 setShowSelesaiModal(false);
                 fetchServices();
+                if (selectedPartProduct) fetchTransactions();
               } catch (err) { alert('Gagal update status'); }
             }}>
               <p style={{ fontSize: '0.9rem', marginBottom: '15px' }}>Resi: {selectedService.resi}</p>
-              
-              <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Sparepart (Kosongkan jika tidak ada):</label>
-              <input type="text" name="part_name" className="input-field" placeholder="Misal: LCD Samsung J2" style={{ marginBottom: '10px' }} />
-              
-              <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Biaya Sparepart (Rp):</label>
-              <input type="number" name="part_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '10px' }} />
-              
-              <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Biaya Jasa (Rp):</label>
-              <input type="number" name="jasa_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '10px' }} />
-              
-              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)' }}>Diskon Khusus (Rp):</label>
-              <input type="number" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '20px' }} />
-              
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Simpan & Tandai Selesai</button>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '14px' }}>
+                <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '10px', background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.08)' }}>
+                  <h4 style={{ margin: '0 0 10px 0' }}>Sparepart</h4>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Pilih dari Daftar Barang</label>
+                  <select
+                    name="part_product_id"
+                    className="input-field"
+                    style={{ marginBottom: '10px' }}
+                    defaultValue=""
+                    onChange={(e) => syncCatalogSelection(e.target.value, 'partNameManualInput', 'partFeeInput')}
+                  >
+                    <option value="">-- Manual / Tidak ada sparepart --</option>
+                    {sparepartCatalog.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} | Stok: {p.stock ?? 0} | Rp {Number(p.price || 0).toLocaleString('id-ID')}
+                      </option>
+                    ))}
+                  </select>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Sparepart Manual</label>
+                  <input type="text" id="partNameManualInput" name="part_name_manual" className="input-field" placeholder="Misal: LCD Samsung J2" style={{ marginBottom: '10px' }} />
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Biaya Sparepart (Rp)</label>
+                  <input type="number" id="partFeeInput" name="part_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '0' }} />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '10px', background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.08)' }}>
+                  <h4 style={{ margin: '0 0 10px 0' }}>Jasa</h4>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Pilih dari Daftar Jasa</label>
+                  <select
+                    name="jasa_product_id"
+                    className="input-field"
+                    style={{ marginBottom: '10px' }}
+                    defaultValue=""
+                    onChange={(e) => syncCatalogSelection(e.target.value, 'jasaNameManualInput', 'jasaFeeInput')}
+                  >
+                    <option value="">-- Manual / Tidak ada jasa katalog --</option>
+                    {jasaCatalog.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} | Rp {Number(p.price || 0).toLocaleString('id-ID')}
+                      </option>
+                    ))}
+                  </select>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Jasa Manual</label>
+                  <input type="text" id="jasaNameManualInput" name="jasa_name_manual" className="input-field" placeholder="Misal: Reball chipset / install ulang" style={{ marginBottom: '10px' }} />
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Biaya Jasa (Rp)</label>
+                  <input type="number" id="jasaFeeInput" name="jasa_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '0' }} />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)' }}>Diskon Khusus (Rp)</label>
+                  <input type="number" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '0' }} />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px' }}>Simpan & Tandai Selesai</button>
             </form>
           </div>
         </div>
