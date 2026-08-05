@@ -139,6 +139,9 @@ export default function LandingPage() {
               Mulai kelola toko <ArrowRight size={19} />
             </button>
             <button className="unitpro-button secondary" onClick={startDemo}>Lihat demo langsung</button>
+            <a className="unitpro-button secondary" href="/downloads/UnitPro-debug.apk" download>
+              <Download size={18} /> Unduh APK Android
+            </a>
           </div>
           <div className="unitpro-hero-proof">
             <span><Check size={15} /> Tanpa kartu kredit</span>
