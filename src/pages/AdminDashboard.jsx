@@ -1284,6 +1284,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* WA BLAST CAMPAIGN GENERATOR BOX */}
+            <details className="customer-blast-disclosure" id="customerBlastComposer">
+              <summary>Atur pesan WA Blast promo atau pengingat</summary>
             <div className="customer-blast-card" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', padding: '1.5rem', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>💬</span>
@@ -1327,6 +1329,7 @@ export default function AdminDashboard() {
                 💡 Klik tombol <strong>Kirim WA Blast 📲</strong> pada daftar pelanggan di bawah untuk mengirimkan pesan promo ke nomor WA masing-masing pelanggan.
               </p>
             </div>
+            </details>
 
             {/* TABEL DATABASE PELANGGAN */}
             {/* TABEL DATABASE PELANGGAN */}
