@@ -439,6 +439,7 @@
 }
 
 .service-wizard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.service-wizard-back { min-width: 40px; padding: 8px; }
 .service-wizard-header p { margin: 0 0 4px; color: #087a75; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
 .service-wizard-header h3 { margin: 0; color: #0f172a; font-size: 20px; }
 .service-wizard-close { min-width: 40px; padding: 8px; }

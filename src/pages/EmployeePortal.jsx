@@ -1018,6 +1018,7 @@ export default function EmployeePortal() {
         <div className="modal-backdrop service-wizard-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
           <div className="glass-panel service-wizard-dialog" style={{ width: '100%', maxWidth: '480px', background: 'var(--bg-light)' }}>
             <div className="service-wizard-header">
+              <button type="button" className="btn btn-ghost service-wizard-back" onClick={() => serviceWizardStep > 1 ? moveServiceWizard(-1) : closeServiceWizard()} aria-label={serviceWizardStep > 1 ? 'Kembali ke langkah sebelumnya' : 'Kembali ke menu'}><ChevronLeft size={22} /></button>
               <div>
                 <p>INPUT SERVIS</p>
                 <h3>Buat Servis & Tugaskan</h3>

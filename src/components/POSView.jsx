@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Package, Trash, Printer, X, ShoppingCart, Camera, Search, Minus, Plus, Receipt, CreditCard, Banknote, Smartphone, AlertTriangle, ChevronDown, Clock, CheckCircle } from 'lucide-react';
+import { Package, Trash, Printer, X, ShoppingCart, Camera, Search, Minus, Plus, Receipt, CreditCard, Banknote, Smartphone, AlertTriangle, ChevronDown, Clock, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiService } from '../services/api';
 import BarcodeScanner from './BarcodeScanner';
 import { PAYMENT_METHODS, isWithinLimit } from '../config/tierLimits';
@@ -12,6 +12,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   const [customerPhone, setCustomerPhone] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState(1);
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [discount, setDiscount] = useState(0);
@@ -147,6 +148,16 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     }
   };
 
+  const openCheckout = () => {
+    setCheckoutStep(1);
+    setShowCheckout(true);
+  };
+
+  const closeCheckout = () => {
+    setShowCheckout(false);
+    setCheckoutStep(1);
+  };
+
   // Handle checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -170,8 +181,8 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       storeName: settings.storeName || tenant?.name || 'Toko'
     };
 
-    const posCustName = document.getElementById('posCustomerName')?.value || '';
-    const posCustPhone = document.getElementById('posCustomerPhone')?.value || '';
+    const posCustName = customerName.trim();
+    const posCustPhone = customerPhone.trim();
     const custString = posCustName ? ` | Cust: ${posCustName}` : '';
     const phoneString = posCustPhone ? ` | WA: ${posCustPhone}` : '';
 
@@ -202,7 +213,9 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       clearCart();
       setDiscount(0);
       setCashReceived('');
-      setShowCheckout(false);
+      closeCheckout();
+      setCustomerName('');
+      setCustomerPhone('');
       setShowReceipt(true);
 
       // Notify parent
@@ -614,7 +627,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
               </div>
             </div>
             <button
-              onClick={() => setShowCheckout(true)}
+              onClick={openCheckout}
               style={{
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: 'white', border: 'none', padding: '14px 28px', borderRadius: '14px',
@@ -645,10 +658,19 @@ export default function POSView({ products, transactions = [], onTransactionCrea
           }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900' }}>Pembayaran</h3>
-              <button onClick={() => setShowCheckout(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer' }}>
+              <button onClick={() => checkoutStep > 1 ? setCheckoutStep((step) => step - 1) : closeCheckout()} aria-label={checkoutStep > 1 ? 'Kembali ke langkah sebelumnya' : 'Kembali ke kasir'} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer' }}>
+                <ChevronLeft size={20} color="#475569" />
+              </button>
+              <div style={{ flex: 1, paddingLeft: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900' }}>Pembayaran</h3>
+                <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '700' }}>Langkah {checkoutStep} dari 3</span>
+              </div>
+              <button onClick={closeCheckout} aria-label="Tutup pembayaran" style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer' }}>
                 <X size={20} color="#64748b" />
               </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '20px' }}>
+              {[1, 2, 3].map((step) => <span key={step} style={{ height: '4px', borderRadius: '4px', background: step <= checkoutStep ? '#0284c7' : '#e2e8f0' }} />)}
             </div>
 
             {/* Total Display */}
@@ -665,8 +687,17 @@ export default function POSView({ products, transactions = [], onTransactionCrea
               </div>
             </div>
 
+            {/* Customer Info */}
+            {checkoutStep === 1 && <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '10px', display: 'block' }}>Data Pelanggan <span style={{ color: '#94a3b8', fontWeight: '600' }}>(opsional)</span></label>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <input type="text" className="input-field" placeholder="Nama pelanggan" value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoFocus />
+                <input type="tel" inputMode="numeric" className="input-field" placeholder="Nomor WhatsApp" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
+              </div>
+            </div>}
+
             {/* Payment Method Selection */}
-            <div style={{ marginBottom: '20px' }}>
+            {checkoutStep === 2 && <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '10px', display: 'block' }}>
                 Metode Pembayaran
               </label>
@@ -689,22 +720,10 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Customer Info (Optional) */}
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '6px' }}>Nama Pelanggan (Opsional)</label>
-                <input type="text" id="posCustomerName" className="input-field" placeholder="Nama..." style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '6px' }}>No. WA (Opsional)</label>
-                <input type="text" id="posCustomerPhone" className="input-field" placeholder="08..." style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-              </div>
-            </div>
+            </div>}
 
             {/* Cash Input (only for TUNAI) */}
-            {paymentMethod === 'TUNAI' && (
+            {checkoutStep === 3 && paymentMethod === 'TUNAI' && (
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '8px', display: 'block' }}>
                   Uang Diterima
@@ -760,7 +779,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
               </div>
             )}
 
-            {paymentMethod !== 'TUNAI' && (
+            {checkoutStep === 3 && paymentMethod !== 'TUNAI' && (
               <div style={{
                 padding: '16px', borderRadius: '14px', marginBottom: '20px',
                 background: '#f0f9ff', border: '1px solid #bae6fd', textAlign: 'center',
@@ -772,6 +791,12 @@ export default function POSView({ products, transactions = [], onTransactionCrea
             )}
 
             {/* Checkout Button */}
+            {checkoutStep < 3 ? (
+              <button onClick={() => setCheckoutStep((step) => step + 1)} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: 'white', border: 'none', fontWeight: '900', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                Lanjut <ChevronRight size={20} />
+              </button>
+            ) : (
+              <>
             <button
               onClick={handleCheckout}
               disabled={checkoutLoading || (paymentMethod === 'TUNAI' && cashReceivedNum < grandTotal)}
@@ -792,6 +817,8 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                 </>
               )}
             </button>
+              </>
+            )}
           </div>
         </div>
       )}
