@@ -319,14 +319,26 @@ export const apiService = {
         ];
       }
 
-      const { data, error } = await supabase
+      const supabaseQuery = supabase
         .from('users')
-        .select('id, name, role, is_active, created_at, tenant_code, settings, pin, phone')
+        .select('id, name, role, pin, phone, tenant_code')
         .eq('tenant_code', tenantCode)
         .order('name');
-      
-      if (error) throw error;
-      return data || [];
+
+      const { data, error } = await supabaseQuery;
+      if (!error) {
+        return data || [];
+      }
+
+      console.warn('Supabase getUsers failed, falling back to backend:', error);
+
+      const res = await fetch(`${API_BASE_URL}/users/${tenantCode}`, {
+        headers: apiService.getHeaders()
+      });
+      if (!res.ok) throw new Error('Gagal memuat data karyawan');
+
+      const backendUsers = await res.json();
+      return Array.isArray(backendUsers) ? backendUsers : [];
     } catch (e) {
       console.error(e);
       return [];
