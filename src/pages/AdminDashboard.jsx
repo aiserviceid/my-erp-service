@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
@@ -49,6 +51,16 @@ export default function AdminDashboard() {
   const [serviceTechTab, setServiceTechTab] = useState('ALL');
   const [serviceStatusTab, setServiceStatusTab] = useState('ALL');
   const [customerTab, setCustomerTab] = useState('servis');
+  const appVersion = '1.1.0';
+  const latestApkUrl = 'https://unitproid.vercel.app/downloads/UnitPro-debug.apk';
+
+  const openAppUpdate = async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url: latestApkUrl });
+      return;
+    }
+    window.open(latestApkUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const handleImageUpload = (file, callback) => {
     if (!file) return;
@@ -1371,6 +1383,7 @@ export default function AdminDashboard() {
                   <button onClick={() => setSettingTab('rekening')} className={`btn ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
                   <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
                   <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? '#f59e0b' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>📢 Iklan & Promo</button>
+                  <button onClick={() => setSettingTab('aplikasi')} className={`btn ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
                   <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
                   <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#ef4444', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>⚠️ Reset Data</button>
                 </div>
@@ -1730,6 +1743,28 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {settingTab === 'aplikasi' && (
+                  <div style={{ maxWidth: '580px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '0.5rem', color: '#0f172a' }}>Update Aplikasi UnitPro</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+                      Perbarui aplikasi Android untuk mendapatkan fitur dan perbaikan terbaru. File dibuka langsung untuk diunduh, tanpa melalui landing page.
+                    </p>
+                    <div style={{ border: '1px solid #99f6e4', background: '#f0fdfa', borderRadius: '8px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '1rem' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#0f766e', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Smartphone size={24} /></div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: '800', color: '#134e4a' }}>UnitPro Android</div>
+                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi terbaru: {appVersion}</div>
+                      </div>
+                    </div>
+                    <button type="button" className="btn" onClick={openAppUpdate} style={{ width: '100%', justifyContent: 'center', background: '#0f766e', color: '#fff', border: 'none', padding: '12px 16px' }}>
+                      <Download size={18} /> Unduh Update Android
+                    </button>
+                    <p style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: '1.5', margin: '12px 0 0' }}>
+                      Setelah selesai diunduh, buka file APK dan pilih Perbarui. Data toko dan akun Anda tetap tersimpan.
+                    </p>
                   </div>
                 )}
 
