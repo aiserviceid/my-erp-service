@@ -122,3 +122,24 @@ ALTER TABLE forum_posts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_wallet DISABLE ROW LEVEL SECURITY;
 ALTER TABLE withdrawals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE stock_movements DISABLE ROW LEVEL SECURITY;
+
+-- 11. Public platform reviews
+CREATE TABLE IF NOT EXISTS platform_reviews (
+  id BIGSERIAL PRIMARY KEY,
+  author_name TEXT NOT NULL,
+  author_role TEXT,
+  rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  content TEXT NOT NULL,
+  is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_platform_reviews_created_at ON platform_reviews (created_at DESC);
+ALTER TABLE platform_reviews ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON platform_reviews TO anon, authenticated;
+GRANT USAGE, SELECT ON SEQUENCE platform_reviews_id_seq TO anon, authenticated;
+REVOKE UPDATE, DELETE ON platform_reviews FROM anon, authenticated;
+CREATE POLICY "public can read visible platform reviews"
+  ON platform_reviews FOR SELECT USING (is_visible = TRUE);
+CREATE POLICY "public can submit platform reviews"
+  ON platform_reviews FOR INSERT WITH CHECK (is_visible = TRUE);

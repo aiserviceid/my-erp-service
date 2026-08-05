@@ -23,6 +23,8 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 
 // Configure Multer
 const storage = multer.diskStorage({
@@ -44,6 +46,9 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_local_testing_secret_key_2026';
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Serve uploads folder statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -60,6 +65,53 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+const requireSuperAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) return res.status(401).json({ error: 'Sesi Super Admin tidak ditemukan.' });
+
+  try {
+    const user = jwt.verify(token, JWT_SECRET);
+    if (user.role !== 'super_admin') return res.status(403).json({ error: 'Akses khusus Super Admin diperlukan.' });
+    req.user = user;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Sesi Super Admin tidak valid atau sudah berakhir.' });
+  }
+};
+
+const passwordMatches = (input, expected) => {
+  if (!input || !expected) return false;
+  const inputBuffer = Buffer.from(input);
+  const expectedBuffer = Buffer.from(expected);
+  return inputBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(inputBuffer, expectedBuffer);
+};
+
+const getSupabaseAdmin = () => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+};
+
+app.post('/api/verify-admin', (req, res) => {
+  if (!SUPER_ADMIN_PASSWORD) return res.status(503).json({ error: 'SUPER_ADMIN_PASSWORD belum diatur di server.' });
+  if (!passwordMatches(req.body?.password, SUPER_ADMIN_PASSWORD)) return res.status(401).json({ valid: false });
+
+  const token = jwt.sign({ role: 'super_admin' }, JWT_SECRET, { expiresIn: '8h' });
+  return res.json({ valid: true, token });
+});
+
+app.delete('/api/admin/reviews/:id', requireSuperAdmin, async (req, res) => {
+  const reviewId = Number(req.params.id);
+  if (!Number.isInteger(reviewId) || reviewId < 1) return res.status(400).json({ error: 'ID komentar tidak valid.' });
+
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return res.status(503).json({ error: 'Supabase service role belum dikonfigurasi di server.' });
+
+  const { error } = await supabaseAdmin.from('platform_reviews').delete().eq('id', reviewId);
+  if (error) return res.status(500).json({ error: 'Gagal menghapus komentar.' });
+  return res.json({ success: true });
+});
 
 // Middleware to enforce Tenant Isolation (Security)
 const enforceTenantAccess = (req, res, next) => {

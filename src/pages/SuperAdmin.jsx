@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ============================================================
@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 // tabel app_config (key='super_admin_hash').
 // ============================================================
 const SESSION_KEY = 'SA_SESSION';
+const API_TOKEN_KEY = 'SA_API_TOKEN';
 const FAIL_KEY = 'SA_FAIL';
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 jam
 const MAX_ATTEMPTS = 5;                          // maks percobaan salah
@@ -62,6 +63,21 @@ async function verifyAdminPassword(inputPassword) {
   }
 }
 
+async function getAdminServerToken(password) {
+  try {
+    const response = await fetch('/api/verify-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    return result.valid ? result.token || null : null;
+  } catch {
+    return null;
+  }
+}
+
 function isSessionValid() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
@@ -73,12 +89,14 @@ function isSessionValid() {
   }
 }
 
-function createSession() {
+function createSession(apiToken = null) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ expiry: Date.now() + SESSION_DURATION_MS }));
+  if (apiToken) localStorage.setItem(API_TOKEN_KEY, apiToken);
 }
 
 function destroySession() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(API_TOKEN_KEY);
 }
 
 function getFailData() {
@@ -134,8 +152,9 @@ function SuperAdminLoginGate({ onSuccess }) {
     const isValid = await verifyAdminPassword(input);
     
     if (isValid) {
+      const apiToken = await getAdminServerToken(input);
       setFailData({ count: 0, lockedUntil: 0 });
-      createSession();
+      createSession(apiToken);
       onSuccess();
     } else {
       const fail = getFailData();
@@ -446,6 +465,7 @@ export default function SuperAdmin() {
   const [authenticated, setAuthenticated] = useState(isSessionValid());
   const [stats, setStats] = useState({ tenants: [], withdrawals: [], platform_balance: 0 });
   const [affData, setAffData] = useState({ affiliates: [], commissions: [] });
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [updatingCode, setUpdatingCode] = useState(null);
@@ -456,10 +476,14 @@ export default function SuperAdmin() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const data = await apiService.getAdminStats();
+      const [data, affResult, reviewData] = await Promise.all([
+        apiService.getAdminStats(),
+        apiService.getAffiliateAdminData(),
+        apiService.getAdminPlatformReviews(),
+      ]);
       setStats(data);
-      const affResult = await apiService.getAffiliateAdminData();
       setAffData(affResult);
+      setReviews(reviewData);
     } catch (e) {
       console.error(e);
     }
@@ -599,6 +623,16 @@ export default function SuperAdmin() {
     }
   };
 
+  const handleDeleteReview = async (review) => {
+    if (!window.confirm(`Hapus komentar dari ${review.author_name}? Komentar yang dihapus tidak dapat ditampilkan kembali.`)) return;
+    try {
+      await apiService.deletePlatformReview(review.id, localStorage.getItem(API_TOKEN_KEY));
+      setReviews((current) => current.filter((item) => item.id !== review.id));
+    } catch (e) {
+      alert('Gagal menghapus komentar: ' + e.message);
+    }
+  };
+
   const handlePlatformWithdraw = () => {
     if (stats.platform_balance === 0) return alert('Saldo komisi kosong.');
     if (!window.confirm(`Tarik seluruh saldo komisi platform sebesar Rp ${stats.platform_balance.toLocaleString('id-ID')} ke Rekening Pribadi Anda?`)) return;
@@ -684,6 +718,20 @@ export default function SuperAdmin() {
             }}
           >
             <Contact size={18} /> CRM Pelanggan ({stats.tenants.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('reviews')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
+              background: activeTab === 'reviews' ? '#0f766e' : '#ffffff', color: activeTab === 'reviews' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'reviews' ? '0 4px 12px rgba(15, 118, 110, 0.25)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'reviews' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <MessageSquare size={18} /> Komentar & Rating
+            {reviews.length > 0 && <span style={{ marginLeft: 'auto', background: activeTab === 'reviews' ? 'rgba(255,255,255,0.2)' : '#d1fae5', color: activeTab === 'reviews' ? '#fff' : '#047857', padding: '2px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800' }}>{reviews.length}</span>}
           </button>
 
           <button 
@@ -880,6 +928,38 @@ export default function SuperAdmin() {
           {/* 2B. CRM PELANGGAN — dikelompokkan berdasarkan paket */}
           {activeTab === 'crm' && (
             <CrmPelangganPanel tenants={stats.tenants} onRefresh={loadStats} />
+          )}
+
+          {activeTab === 'reviews' && (
+            <div style={{ padding: '2rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>Komentar & Rating Landing Page</h2>
+                  <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '0.88rem' }}>Moderasi komentar publik dari calon dan pengguna UnitPro.</p>
+                </div>
+                <button onClick={loadStats} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.82rem' }}><RefreshCw size={15} /> Refresh</button>
+              </div>
+              {reviews.length === 0 ? (
+                <div style={{ padding: '2.5rem 1rem', color: '#94a3b8', textAlign: 'center', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>Belum ada komentar publik.</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  {reviews.map((review) => (
+                    <article key={review.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '16px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#fff' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <strong style={{ color: '#0f172a' }}>{review.author_name}</strong>
+                          {review.author_role && <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{review.author_role}</span>}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#b7791f', fontWeight: '800', fontSize: '0.82rem' }}><Star size={14} fill="currentColor" /> {review.rating}/5</span>
+                        </div>
+                        <p style={{ margin: '9px 0 0', color: '#475569', fontSize: '0.9rem', lineHeight: '1.55', whiteSpace: 'pre-wrap' }}>{review.content}</p>
+                        <span style={{ display: 'block', marginTop: '8px', color: '#94a3b8', fontSize: '0.75rem' }}>{new Date(review.created_at).toLocaleString('id-ID')}</span>
+                      </div>
+                      <button type="button" onClick={() => handleDeleteReview(review)} title="Hapus komentar" aria-label={`Hapus komentar dari ${review.author_name}`} style={{ alignSelf: 'start', display: 'inline-grid', placeItems: 'center', width: '34px', height: '34px', border: '1px solid #fecaca', borderRadius: '7px', background: '#fff1f2', color: '#dc2626', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* 3. WITHDRAWALS MANAGEMENT */}

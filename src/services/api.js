@@ -538,7 +538,69 @@ export const apiService = {
     }
   },
 
-  // 8. Forum
+  // 8. Public landing page reviews
+  getPlatformReviews: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_reviews')
+        .select('*')
+        .eq('is_visible', true)
+        .order('created_at', { ascending: false })
+        .limit(24);
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('Platform reviews are unavailable:', e.message);
+      return [];
+    }
+  },
+
+  createPlatformReview: async ({ name, role = '', rating, content }) => {
+    const authorName = (name || '').trim();
+    const authorRole = (role || '').trim();
+    const reviewContent = (content || '').trim();
+    const reviewRating = Number(rating);
+
+    if (authorName.length < 2 || authorName.length > 50) throw new Error('Nama harus berisi 2-50 karakter.');
+    if (authorRole.length > 80) throw new Error('Nama usaha atau peran maksimal 80 karakter.');
+    if (reviewContent.length < 10 || reviewContent.length > 500) throw new Error('Komentar harus berisi 10-500 karakter.');
+    if (!Number.isInteger(reviewRating) || reviewRating < 1 || reviewRating > 5) throw new Error('Pilih rating dari 1 sampai 5 bintang.');
+
+    const { data, error } = await supabase
+      .from('platform_reviews')
+      .insert({ author_name: authorName, author_role: authorRole || null, rating: reviewRating, content: reviewContent })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  getAdminPlatformReviews: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('Admin platform reviews are unavailable:', e.message);
+      return [];
+    }
+  },
+
+  deletePlatformReview: async (reviewId, adminToken) => {
+    if (!adminToken) throw new Error('Sesi moderasi tidak ditemukan. Keluar lalu masuk kembali ke Super Admin.');
+    const response = await fetch(`${API_BASE_URL}/admin/reviews/${reviewId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Gagal menghapus komentar.');
+    return result;
+  },
+
+  // 9. Forum
   getForumThreads: async (category = 'ALL', search = '') => {
     try {
       let query = supabase.from('forum_threads').select('*').order('created_at', { ascending: false });
