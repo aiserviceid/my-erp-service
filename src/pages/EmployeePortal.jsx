@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiService } from '../services/api';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
@@ -28,6 +28,11 @@ export default function EmployeePortal() {
   const [showPersetujuanModal, setShowPersetujuanModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [serviceWizardStep, setServiceWizardStep] = useState(1);
+  const [serviceWizardError, setServiceWizardError] = useState('');
+  const [serviceForm, setServiceForm] = useState({
+    name: '', phone: '', device: '', kelengkapan: '', issue: '', technician_id: ''
+  });
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
@@ -75,6 +80,38 @@ export default function EmployeePortal() {
   const normalizeMoneyInput = (value) => {
     const parsed = parseInt(String(value || '').replace(/[^\d-]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const openServiceWizard = () => {
+    setServiceForm({ name: '', phone: '', device: '', kelengkapan: '', issue: '', technician_id: '' });
+    setServiceWizardStep(1);
+    setServiceWizardError('');
+    setShowServiceModal(true);
+  };
+
+  const closeServiceWizard = () => {
+    setShowServiceModal(false);
+    setServiceWizardError('');
+  };
+
+  const updateServiceForm = (field, value) => {
+    setServiceForm((current) => ({ ...current, [field]: value }));
+    setServiceWizardError('');
+  };
+
+  const moveServiceWizard = (direction) => {
+    const requiredFields = {
+      1: ['name', 'phone'],
+      2: ['device', 'kelengkapan'],
+      3: ['issue'],
+      4: ['technician_id'],
+    };
+    const missing = (requiredFields[serviceWizardStep] || []).some((field) => !String(serviceForm[field] || '').trim());
+    if (direction > 0 && missing) {
+      setServiceWizardError('Lengkapi data pada langkah ini sebelum melanjutkan.');
+      return;
+    }
+    setServiceWizardStep((step) => Math.min(4, Math.max(1, step + direction)));
   };
 
   useEffect(() => {
@@ -415,7 +452,7 @@ export default function EmployeePortal() {
   const employeeMobileTabs = isKasir
     ? [
         { id: 'pos', name: 'Kasir', icon: ShoppingCart },
-        { id: 'servis', name: 'Servis', icon: Wrench },
+        { id: 'servis', name: 'Servis & Teknisi', icon: Wrench },
       ]
     : [
         { id: 'tugas', name: 'Tugas', icon: Wrench },
@@ -456,8 +493,13 @@ export default function EmployeePortal() {
         activeTab={employeeMobileActiveTab}
         primaryTabIds={employeeMobileTabs.map((tab) => tab.id)}
         onChange={(tabId) => {
-          if (isKasir) setKasirTab(tabId);
-          else setActiveTab(tabId);
+          if (isKasir) {
+            if (tabId === 'servis') {
+              openServiceWizard();
+              return;
+            }
+            setKasirTab(tabId);
+          } else setActiveTab(tabId);
         }}
       />
 
@@ -500,7 +542,7 @@ export default function EmployeePortal() {
               Kasir POS
             </button>
             <button className={`btn ${kasirTab === 'servis' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('servis')}>
-              Buat Servis Baru
+              Servis & Teknisi
             </button>
           </div>
 
@@ -516,7 +558,7 @@ export default function EmployeePortal() {
                       Buat servis baru, cetak nota, lalu tugaskan ke teknisi yang tersedia.
                     </p>
                   </div>
-                  <button className="btn btn-primary" onClick={() => setShowServiceModal(true)}>
+                  <button className="btn btn-primary" onClick={openServiceWizard}>
                     <Plus size={18} /> Buat Servis Baru
                   </button>
                 </div>
@@ -998,41 +1040,37 @@ export default function EmployeePortal() {
       )}
 
       {showServiceModal && (
-        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '720px', background: 'var(--bg-light)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <div className="modal-backdrop service-wizard-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
+          <div className="glass-panel service-wizard-dialog" style={{ width: '100%', maxWidth: '480px', background: 'var(--bg-light)' }}>
+            <div className="service-wizard-header">
               <div>
-                <h3 style={{ margin: 0 }}>Buat Servis Baru</h3>
-                <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  Isi data pelanggan, pilih teknisi, lalu sistem akan menyiapkan nota dan tugas servis.
-                </p>
+                <p>INPUT SERVIS</p>
+                <h3>Buat Servis & Tugaskan</h3>
               </div>
-              <button className="btn btn-ghost" onClick={() => setShowServiceModal(false)}><X size={20} /></button>
+              <button type="button" className="btn btn-ghost service-wizard-close" onClick={closeServiceWizard} aria-label="Tutup formulir"><X size={20} /></button>
             </div>
+            <div className="service-wizard-progress" aria-label={`Langkah ${serviceWizardStep} dari 4`}>
+              {[1, 2, 3, 4].map((step) => <span key={step} className={step <= serviceWizardStep ? 'active' : ''} />)}
+            </div>
+            <form onSubmit={handleAddService}>
+              <input type="hidden" name="name" value={serviceForm.name} />
+              <input type="hidden" name="phone" value={serviceForm.phone} />
+              <input type="hidden" name="device" value={serviceForm.device} />
+              <input type="hidden" name="kelengkapan" value={serviceForm.kelengkapan} />
+              <input type="hidden" name="issue" value={serviceForm.issue} />
+              <input type="hidden" name="technician_id" value={serviceForm.technician_id} />
 
-            <form onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '14px' }}>
-              <input type="text" name="name" className="input-field" placeholder="Nama Pelanggan" required />
-              <input type="text" name="phone" className="input-field" placeholder="No. WA (08...)" required />
-              <input type="text" name="device" className="input-field" placeholder="Perangkat (Misal: Laptop ASUS)" required />
-              <input type="text" name="kelengkapan" className="input-field" placeholder="Kelengkapan (Misal: Tas, Charger)" required />
-              <div style={{ gridColumn: '1 / -1' }}>
-                <input type="text" name="issue" className="input-field" placeholder="Keluhan / Kerusakan Lengkap" required />
+              <div className="service-wizard-step">
+                <span>Langkah {serviceWizardStep} dari 4</span>
+                {serviceWizardStep === 1 && <><h4>Data pelanggan</h4><p>Mulai dari orang yang menitipkan unit.</p><input type="text" className="input-field" placeholder="Nama pelanggan" value={serviceForm.name} onChange={(event) => updateServiceForm('name', event.target.value)} autoFocus /><input type="tel" inputMode="numeric" className="input-field" placeholder="Nomor WhatsApp" value={serviceForm.phone} onChange={(event) => updateServiceForm('phone', event.target.value)} /></>}
+                {serviceWizardStep === 2 && <><h4>Data unit</h4><p>Catat perangkat dan barang yang ikut dititipkan.</p><input type="text" className="input-field" placeholder="Perangkat, misalnya Laptop ASUS" value={serviceForm.device} onChange={(event) => updateServiceForm('device', event.target.value)} autoFocus /><input type="text" className="input-field" placeholder="Kelengkapan, misalnya charger dan tas" value={serviceForm.kelengkapan} onChange={(event) => updateServiceForm('kelengkapan', event.target.value)} /></>}
+                {serviceWizardStep === 3 && <><h4>Keluhan servis</h4><p>Jelaskan kerusakan yang disampaikan pelanggan.</p><textarea className="input-field" rows="4" placeholder="Contoh: layar berkedip saat dinyalakan" value={serviceForm.issue} onChange={(event) => updateServiceForm('issue', event.target.value)} autoFocus /></>}
+                {serviceWizardStep === 4 && <><h4>Tugaskan teknisi</h4><p>Pilih teknisi yang menerima pekerjaan ini.</p><select className="input-field" value={serviceForm.technician_id} onChange={(event) => updateServiceForm('technician_id', event.target.value)} autoFocus><option value="">Pilih teknisi</option>{technicianUsers.map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.phone ? ` - ${technician.phone}` : ''}</option>)}</select>{technicianUsers.length === 0 && <p className="service-wizard-warning">Belum ada teknisi. Tambahkan akun teknisi dari dashboard terlebih dahulu.</p>}</>}
               </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <select name="technician_id" className="input-field" required>
-                  <option value="">-- Pilih Teknisi yang Akan Mengerjakan --</option>
-                  {technicianUsers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}{t.phone ? ` (${t.phone})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowServiceModal(false)}>
-                  Batal
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Plus size={18} /> Daftarkan Servis & Tugaskan Teknisi
-                </button>
+              {serviceWizardError && <p className="service-wizard-error">{serviceWizardError}</p>}
+              <div className="service-wizard-actions">
+                {serviceWizardStep > 1 ? <button type="button" className="btn btn-ghost" onClick={() => moveServiceWizard(-1)}><ChevronLeft size={18} /> Kembali</button> : <button type="button" className="btn btn-ghost" onClick={closeServiceWizard}>Batal</button>}
+                {serviceWizardStep < 4 ? <button type="button" className="btn btn-primary" onClick={() => moveServiceWizard(1)}>Lanjut <ChevronRight size={18} /></button> : <button type="submit" className="btn btn-primary"><Plus size={18} /> Simpan Servis</button>}
               </div>
             </form>
           </div>
