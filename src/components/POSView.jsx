@@ -183,6 +183,12 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
     const posCustName = customerName.trim();
     const posCustPhone = customerPhone.trim();
+    if (posCustPhone && !/^(?:\+?62|0)8\d{7,12}$/.test(posCustPhone)) {
+      setCheckoutStep(1);
+      setCheckoutLoading(false);
+      alert('Nomor WhatsApp pelanggan belum valid. Gunakan format 08xxxxxxxxxx.');
+      return;
+    }
     const custString = posCustName ? ` | Cust: ${posCustName}` : '';
     const phoneString = posCustPhone ? ` | WA: ${posCustPhone}` : '';
 
@@ -692,7 +698,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
               <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '10px', display: 'block' }}>Data Pelanggan <span style={{ color: '#94a3b8', fontWeight: '600' }}>(opsional)</span></label>
               <div style={{ display: 'grid', gap: '10px' }}>
                 <input type="text" className="input-field" placeholder="Nama pelanggan" value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoFocus />
-                <input type="tel" inputMode="numeric" className="input-field" placeholder="Nomor WhatsApp" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
+                <input type="tel" inputMode="numeric" className="input-field" placeholder="Nomor WhatsApp (08xxxxxxxxxx)" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
               </div>
             </div>}
 

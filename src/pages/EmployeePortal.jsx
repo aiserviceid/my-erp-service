@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search } from 'lucide-react';
 import { apiService } from '../services/api';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
@@ -22,12 +23,15 @@ export default function EmployeePortal() {
   
   const [activeTab, setActiveTab] = useState('tugas');
   const [kasirTab, setKasirTab] = useState('pos');
+  const [cashierServiceSearch, setCashierServiceSearch] = useState('');
 
   // Modals
   const [showSelesaiModal, setShowSelesaiModal] = useState(false);
   const [showPersetujuanModal, setShowPersetujuanModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showBonModal, setShowBonModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferService, setTransferService] = useState(null);
   const [transferTechnicianId, setTransferTechnicianId] = useState('');
@@ -115,6 +119,10 @@ export default function EmployeePortal() {
     const missing = (requiredFields[serviceWizardStep] || []).some((field) => !String(serviceForm[field] || '').trim());
     if (direction > 0 && missing) {
       setServiceWizardError('Lengkapi data pada langkah ini sebelum melanjutkan.');
+      return;
+    }
+    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\\+?62|0)8\\d{7,12}$/.test(serviceForm.phone.trim())) {
+      setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
     }
     setServiceWizardStep((step) => Math.min(4, Math.max(1, step + direction)));
@@ -239,6 +247,12 @@ export default function EmployeePortal() {
   const handleAddService = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    const customerPhone = String(fd.get('phone') || '').trim();
+    if (!/^(?:\\+?62|0)8\\d{7,12}$/.test(customerPhone)) {
+      setServiceWizardStep(1);
+      setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
+      return;
+    }
     const kelengkapan = fd.get('kelengkapan') || '-';
     const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}`;
     const resiGenerated = 'TRX-' + Date.now();
@@ -247,7 +261,7 @@ export default function EmployeePortal() {
       tenant_code: employee.tenant_code || tenant.code,
       resi: resiGenerated,
       customer_name: fd.get('name'),
-      customer_phone: fd.get('phone'),
+      customer_phone: customerPhone,
       device_name: fd.get('device'),
       issue: issueText,
       technician_id: technician_id,
@@ -298,11 +312,10 @@ export default function EmployeePortal() {
     }
   };
 
-  const handleBon = async () => {
-    const amountStr = prompt('Masukkan nominal Kasbon / Pinjaman (Rp):');
-    if (!amountStr) return;
-    const amount = parseInt(amountStr);
-    if (isNaN(amount) || amount <= 0) return alert('Nominal tidak valid');
+  const handleBon = async (event) => {
+    event.preventDefault();
+    const amount = Number(new FormData(event.currentTarget).get('amount'));
+    if (!Number.isInteger(amount) || amount <= 0) return alert('Masukkan nominal kasbon yang valid.');
     
     try {
       await apiService.post('/transactions', {
@@ -312,6 +325,7 @@ export default function EmployeePortal() {
         description: `EMP_${employee.id}`
       });
       alert('Kasbon berhasil dicatat!');
+      setShowBonModal(false);
       fetchTransactions();
     } catch (e) {
       alert('Gagal mencatat kasbon');
@@ -435,6 +449,18 @@ export default function EmployeePortal() {
     setShowPrintModal(false);
   };
 
+  const doPrintBarcode = () => {
+    if (!selectedService) return;
+    const barcodeMarkup = document.getElementById('cashier-service-barcode')?.innerHTML || '';
+    if (!barcodeMarkup) return;
+    const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow.document;
+    const storeName = settings.storeName || tenant?.name || 'Toko Servis';
+    doc.open();
+    doc.write(`<!doctype html><html><head><title>Stiker ${selectedService.resi}</title><style>body{margin:0;padding:12px;font-family:Arial,sans-serif;color:#0f172a}.sticker{width:280px;text-align:center}.sticker h3{margin:0 0 4px;font-size:15px}.sticker p{margin:3px 0;font-size:11px}.barcode{margin:10px 0 5px}.resi{font-weight:800;letter-spacing:.04em}@media print{body{padding:0}}</style></head><body onload="window.print();window.close()"><div class="sticker"><h3>${storeName}</h3><p>TANDA TERIMA SERVIS</p><div class="barcode">${barcodeMarkup}</div><p class="resi">${selectedService.resi}</p><p>${selectedService.customer_name || '-'} · ${selectedService.device_name || '-'}</p></div></body></html>`);
+    doc.close();
+    setShowBarcodeModal(false);
+  };
+
   if (!employee) {
     return (
       <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
@@ -507,6 +533,14 @@ export default function EmployeePortal() {
   const sisaBersih = mySalary + totalKomisi - totalBon;
 
   const isKasir = employee.role === 'Kasir' || employee.role === 'KASIR';
+  const cashierServices = services.filter((service) => {
+    const technician = technicianUsers.find((user) => String(user.id) === String(service.technician_id));
+    const searchText = [service.resi, service.customer_name, service.device_name, technician?.name, service.status]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return searchText.includes(cashierServiceSearch.trim().toLowerCase());
+  });
 
   const todayDateStr = new Date().toDateString();
   const myAttendanceToday = transactions.filter(t => t.description === `ATTENDANCE_EMP_${employee.id}` && new Date(t.created_at).toDateString() === todayDateStr);
@@ -558,7 +592,7 @@ export default function EmployeePortal() {
         onChange={(tabId) => {
           if (isKasir) {
             if (tabId === 'servis') {
-              openServiceWizard();
+              setKasirTab('servis');
               return;
             }
             setKasirTab(tabId);
@@ -626,7 +660,7 @@ export default function EmployeePortal() {
                     </p>
                   </div>
                   <button className="btn btn-primary" onClick={openServiceWizard}>
-                    <Plus size={18} /> Buat Servis Baru
+                    <Plus size={18} /> Daftarkan & Tugaskan
                   </button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginTop: '1.25rem' }}>
@@ -646,15 +680,32 @@ export default function EmployeePortal() {
               </div>
 
               <div className="glass-panel">
-                <h3 style={{ marginBottom: '1rem' }}>Servis Terbaru</h3>
+                <div className="cashier-service-list-header">
+                  <div>
+                    <h3>Daftar Servis</h3>
+                    <p>Semua servis dari kasir dan teknisi tersedia untuk dicetak.</p>
+                  </div>
+                  <label className="cashier-service-search">
+                    <Search size={17} />
+                    <input
+                      type="search"
+                      className="input-field"
+                      placeholder="Cari resi, pelanggan, perangkat..."
+                      value={cashierServiceSearch}
+                      onChange={(event) => setCashierServiceSearch(event.target.value)}
+                    />
+                  </label>
+                </div>
                 {services.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data servis.</p>
+                ) : cashierServices.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada servis yang sesuai dengan pencarian.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {services.slice(0, 8).map(s => {
+                    {cashierServices.map(s => {
                       const tech = technicianUsers.find(t => String(t.id) === String(s.technician_id));
                       return (
-                        <div key={s.resi} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)' }}>
+                        <div key={s.resi} className="cashier-recent-service" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: '220px' }}>
                               <div style={{ fontWeight: 'bold' }}>{s.customer_name} <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>({s.resi})</span></div>
@@ -664,6 +715,14 @@ export default function EmployeePortal() {
                             <div style={{ display: 'flex', alignItems: 'center' }}>
                               <span className="badge badge-info">{s.status || 'PROSES'}</span>
                             </div>
+                          </div>
+                          <div className="cashier-service-actions">
+                            <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DIAMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>
+                              <Printer size={15} /> Cetak Nota
+                            </button>
+                            <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowBarcodeModal(true); }}>
+                              Barcode
+                            </button>
                           </div>
                         </div>
                       );
@@ -857,7 +916,7 @@ export default function EmployeePortal() {
                 <div style={{ padding: '1.5rem', background: 'var(--primary)', color: 'white', borderRadius: '12px', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 10px 0', opacity: 0.9 }}>Take Home Pay (THP)</p>
                   <h2 style={{ margin: 0 }}>Rp {sisaBersih.toLocaleString('id-ID')}</h2>
-                  <button className="btn" style={{ background: 'white', color: 'var(--primary)', marginTop: '10px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={handleBon}>
+                  <button className="btn" style={{ background: 'white', color: 'var(--primary)', marginTop: '10px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={() => setShowBonModal(true)}>
                     <Wallet size={14} style={{ marginRight: '5px', display: 'inline' }}/> Ajukan Kasbon
                   </button>
                 </div>
@@ -1083,6 +1142,48 @@ export default function EmployeePortal() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showBarcodeModal && selectedService && (
+        <div className="modal-backdrop service-wizard-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
+          <div className="glass-panel service-wizard-dialog cashier-barcode-dialog" style={{ width: '100%', maxWidth: '360px', background: 'var(--bg-light)', textAlign: 'center' }}>
+            <div className="service-wizard-header">
+              <div style={{ textAlign: 'left' }}><p>STIKER SERVIS</p><h3>Cetak Barcode</h3></div>
+              <button type="button" className="btn btn-ghost service-wizard-close" onClick={() => setShowBarcodeModal(false)} aria-label="Tutup barcode"><X size={20} /></button>
+            </div>
+            <div id="cashier-service-barcode" className="cashier-service-barcode">
+              <p>{settings.storeName || tenant?.name || 'Toko Servis'}</p>
+              <Barcode value={selectedService.resi} width={1.35} height={46} fontSize={13} margin={0} />
+              <strong>{selectedService.resi}</strong>
+              <span>{selectedService.customer_name} · {selectedService.device_name}</span>
+            </div>
+            <button className="btn btn-primary" style={{ width: '100%', marginTop: '18px' }} onClick={doPrintBarcode}><Printer size={17} /> Cetak Stiker</button>
+          </div>
+        </div>
+      )}
+
+      {showBonModal && (
+        <div className="modal-backdrop service-wizard-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1110, padding: '1rem' }}>
+          <form className="glass-panel service-wizard-dialog" onSubmit={handleBon} style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-light)' }}>
+            <div className="service-wizard-header">
+              <div>
+                <p>PENGAJUAN KARYAWAN</p>
+                <h3>Ajukan Kasbon</h3>
+              </div>
+              <button type="button" className="btn btn-ghost service-wizard-close" onClick={() => setShowBonModal(false)} aria-label="Tutup formulir"><X size={20} /></button>
+            </div>
+            <div className="service-wizard-step">
+              <h4>Nominal kasbon</h4>
+              <p>Masukkan jumlah yang diajukan. Pengajuan akan tercatat untuk persetujuan pemilik atau admin.</p>
+              <label className="service-transfer-label" htmlFor="bon-amount">Nominal (Rp)</label>
+              <input id="bon-amount" name="amount" type="number" min="1000" step="1000" inputMode="numeric" className="input-field" placeholder="Contoh: 100000" required autoFocus />
+            </div>
+            <div className="service-wizard-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowBonModal(false)}>Batal</button>
+              <button type="submit" className="btn btn-primary"><Wallet size={18} /> Kirim Pengajuan</button>
+            </div>
+          </form>
         </div>
       )}
 
