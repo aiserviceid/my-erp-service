@@ -71,6 +71,11 @@ export default function EmployeePortal() {
     }
   };
 
+  const normalizeMoneyInput = (value) => {
+    const parsed = parseInt(String(value || '').replace(/[^\d-]/g, ''));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
   useEffect(() => {
     if (employee) {
       fetchServices();
@@ -624,6 +629,10 @@ export default function EmployeePortal() {
                                   setSelectedService(s);
                                   setShowSelesaiModal(true);
                                 } else if (newStatus === 'DI AMBIL') {
+                                  if (!s.part_fee && !s.jasa_fee) {
+                                    alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Di Ambil.');
+                                    return;
+                                  }
                                   if(confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')) {
                                     try {
                                       let updatedIssue = s.issue;
@@ -777,13 +786,31 @@ export default function EmployeePortal() {
                 const selectedJasaProduct = jasaCatalogId ? products.find(p => String(p.id) === String(jasaCatalogId)) : null;
                 const partManualName = (fd.get('part_name_manual') || '').trim();
                 const jasaManualName = (fd.get('jasa_name_manual') || '').trim();
-                const partFeeRaw = parseInt(fd.get('part_fee'));
-                const jasaFeeRaw = parseInt(fd.get('jasa_fee'));
-                const partFee = Number.isNaN(partFeeRaw) ? (selectedPartProduct?.price || 0) : partFeeRaw;
-                const jasaFee = Number.isNaN(jasaFeeRaw) ? (selectedJasaProduct?.price || 0) : jasaFeeRaw;
-                const diskon = parseInt(fd.get('diskon')) || 0;
+                const partFeeRaw = normalizeMoneyInput(fd.get('part_fee'));
+                const jasaFeeRaw = normalizeMoneyInput(fd.get('jasa_fee'));
+                const partFee = partFeeRaw || (selectedPartProduct?.price || 0);
+                const jasaFee = jasaFeeRaw || (selectedJasaProduct?.price || 0);
+                const diskon = normalizeMoneyInput(fd.get('diskon'));
                 const partName = partManualName || selectedPartProduct?.name || '';
                 const jasaName = jasaManualName || selectedJasaProduct?.name || '';
+
+                const errors = [];
+                if (partCatalogId && !selectedPartProduct) errors.push('Sparepart katalog belum dipilih dengan benar.');
+                if (jasaCatalogId && !selectedJasaProduct) errors.push('Jasa katalog belum dipilih dengan benar.');
+                if ((partCatalogId || partManualName) && !partName) errors.push('Nama sparepart wajib diisi jika ada sparepart.');
+                if ((jasaCatalogId || jasaManualName) && !jasaName) errors.push('Nama jasa wajib diisi jika ada jasa.');
+                if (partFee > 0 && !partName) errors.push('Nama sparepart wajib diisi jika ada biaya sparepart.');
+                if (jasaFee > 0 && !jasaName) errors.push('Nama jasa wajib diisi jika ada biaya jasa.');
+                if ((partCatalogId || partManualName) && partFee <= 0) errors.push('Biaya sparepart harus lebih besar dari 0.');
+                if ((jasaCatalogId || jasaManualName) && jasaFee <= 0) errors.push('Biaya jasa harus lebih besar dari 0.');
+                if (!partName && !jasaName) errors.push('Isi minimal sparepart atau jasa sebelum menandai selesai.');
+                if (diskon > partFee + jasaFee) errors.push('Diskon tidak boleh lebih besar dari total biaya.');
+                if (partFee < 0 || jasaFee < 0 || diskon < 0) errors.push('Nominal biaya tidak boleh negatif.');
+
+                if (errors.length > 0) {
+                  alert(errors.join('\n'));
+                  return;
+                }
 
                 const currentUser = localStorage.getItem('EMPLOYEE_NAME') || employee?.name || 'Kasir / Teknisi';
                 if (selectedPartProduct && Number(selectedPartProduct.stock || 0) <= 0) {

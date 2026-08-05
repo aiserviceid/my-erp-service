@@ -21,6 +21,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   const [cashReceived, setCashReceived] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showEditReceipt, setShowEditReceipt] = useState(false);
   const printIframeRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -61,6 +62,64 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   const grandTotal = Math.max(0, subtotal - discountAmount);
   const cashReceivedNum = parseInt(cashReceived) || 0;
   const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashReceivedNum - grandTotal) : 0;
+
+  const normalizeMoneyInput = (value) => {
+    const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const handleReceiptEdit = async (event) => {
+    event.preventDefault();
+    if (!lastReceipt) return;
+
+    const fd = new FormData(event.currentTarget);
+    const updatedItems = lastReceipt.items.map((item, index) => ({
+      ...item,
+      price: normalizeMoneyInput(fd.get(`item_price_${index}`)),
+      qty: Math.max(1, normalizeMoneyInput(fd.get(`item_qty_${index}`)) || 1),
+    }));
+    const newSubtotal = updatedItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const newDiscount = normalizeMoneyInput(fd.get('receipt_discount'));
+    const newTotal = Math.max(0, newSubtotal - newDiscount);
+    const newCashReceived = lastReceipt.paymentMethod === 'TUNAI'
+      ? normalizeMoneyInput(fd.get('receipt_cash_received'))
+      : newTotal;
+
+    if (newDiscount > newSubtotal) {
+      alert('Diskon tidak boleh lebih besar dari subtotal nota.');
+      return;
+    }
+    if (lastReceipt.paymentMethod === 'TUNAI' && newCashReceived < newTotal) {
+      alert('Nominal bayar tidak boleh kurang dari total nota.');
+      return;
+    }
+
+    const updatedReceipt = {
+      ...lastReceipt,
+      items: updatedItems,
+      subtotal: newSubtotal,
+      discount: newDiscount,
+      total: newTotal,
+      cashReceived: newCashReceived,
+      change: lastReceipt.paymentMethod === 'TUNAI' ? Math.max(0, newCashReceived - newTotal) : 0,
+      edited: true,
+    };
+
+    try {
+      if (lastReceipt.transactionDbId) {
+        await apiService.post(`/transactions/${lastReceipt.transactionDbId}/update`, {
+          amount: newTotal,
+          description: `POS: ${updatedItems.length} item (${lastReceipt.transactionId}) | Koreksi Nota | Bayar: ${lastReceipt.paymentMethod}${newDiscount > 0 ? ` | Diskon: Rp${newDiscount.toLocaleString('id-ID')}` : ''}`
+        });
+      }
+      setLastReceipt(updatedReceipt);
+      setShowEditReceipt(false);
+      if (onTransactionCreated) onTransactionCreated();
+      alert('Nota berhasil dikoreksi.');
+    } catch (err) {
+      alert('Gagal menyimpan koreksi nota: ' + err.message);
+    }
+  };
 
   // Today's sales summary
   const todaySales = useMemo(() => {
@@ -118,12 +177,13 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
     try {
       // 1. Create transaction
-      await apiService.post('/transactions', {
+      const savedTransaction = await apiService.post('/transactions', {
         tenant_code: tenant.code,
         type: 'POS_SALES',
         amount: grandTotal,
         description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
       });
+      receiptData.transactionDbId = savedTransaction?.id;
 
       // 2. Update stock for each item
       const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
@@ -785,6 +845,14 @@ export default function POSView({ products, transactions = [], onTransactionCrea
               )}
             </div>
 
+            <button onClick={() => setShowEditReceipt(true)} style={{
+              width: '100%', padding: '10px', borderRadius: '12px',
+              background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8',
+              fontWeight: '800', fontSize: '0.88rem', cursor: 'pointer', marginBottom: '10px',
+            }}>
+              Edit Nota
+            </button>
+
             {/* Print Options */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
               <button onClick={() => doPrintReceipt('thermal')} style={{
@@ -816,6 +884,67 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       )}
 
       {/* ── HISTORY MODAL ── */}
+      {showEditReceipt && lastReceipt && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1100, padding: '1rem',
+        }}>
+          <form onSubmit={handleReceiptEdit} style={{
+            background: 'white', borderRadius: '18px', padding: '22px',
+            width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto',
+            boxShadow: '0 20px 45px rgba(15,23,42,0.25)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '900', color: '#0f172a' }}>Edit Nota Penjualan</h3>
+              <button type="button" onClick={() => setShowEditReceipt(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '10px', padding: '8px', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px', marginBottom: '14px' }}>
+              {lastReceipt.items.map((item, index) => (
+                <div key={`${item.id || item.name}-${index}`} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#f8fafc' }}>
+                  <div style={{ fontWeight: '800', color: '#0f172a', marginBottom: '8px', fontSize: '0.9rem' }}>{item.name}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>
+                      Qty
+                      <input name={`item_qty_${index}`} type="number" min="1" className="input-field" defaultValue={item.qty} style={{ marginTop: '4px' }} required />
+                    </label>
+                    <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>
+                      Harga
+                      <input name={`item_price_${index}`} type="number" min="0" className="input-field" defaultValue={item.price} style={{ marginTop: '4px' }} required />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: lastReceipt.paymentMethod === 'TUNAI' ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '16px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>
+                Diskon Nota
+                <input name="receipt_discount" type="number" min="0" className="input-field" defaultValue={lastReceipt.discount || 0} style={{ marginTop: '4px' }} />
+              </label>
+              {lastReceipt.paymentMethod === 'TUNAI' && (
+                <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>
+                  Nominal Bayar
+                  <input name="receipt_cash_received" type="number" min="0" className="input-field" defaultValue={lastReceipt.cashReceived || 0} style={{ marginTop: '4px' }} required />
+                </label>
+              )}
+            </div>
+
+            <button type="submit" style={{
+              width: '100%', padding: '12px', borderRadius: '12px',
+              background: '#0f172a', color: 'white', border: 'none',
+              fontWeight: '900', cursor: 'pointer',
+            }}>
+              Simpan Koreksi Nota
+            </button>
+          </form>
+        </div>
+      )}
+
       {showHistory && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
