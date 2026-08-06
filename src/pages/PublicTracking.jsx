@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Package, Clock, CheckCircle, AlertTriangle, ArrowLeft, Sparkles, Phone } from 'lucide-react';
 import { apiService } from '../services/api';
 import { SERVICE_STATUSES, getStatusInfo } from '../config/tierLimits';
+import { getTenantLogoUrl } from '../utils/branding';
 
 export default function PublicTracking() {
   const navigate = useNavigate();
@@ -73,6 +74,9 @@ export default function PublicTracking() {
   const tenantSettings = tenantInfo?.settings 
     ? (typeof tenantInfo.settings === 'string' ? JSON.parse(tenantInfo.settings) : tenantInfo.settings)
     : {};
+  const tenantTier = tenantInfo?.tier || 'free';
+  const tenantLogoUrl = getTenantLogoUrl(tenantTier, tenantSettings);
+  const tenantLogoOpacity = 1;
 
   return (
     <div style={{
@@ -90,17 +94,7 @@ export default function PublicTracking() {
         backdropFilter: 'blur(12px)', backgroundColor: 'rgba(255,255,255,0.92)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {tenantSettings.logoUrl ? (
-            <img src={tenantSettings.logoUrl} alt="Logo" style={{ height: '36px', borderRadius: '8px' }} />
-          ) : (
-            <div style={{
-              width: '36px', height: '36px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Sparkles size={18} color="white" />
-            </div>
-          )}
+          <img src={tenantLogoUrl} alt="Logo" style={{ height: '36px', maxWidth: '126px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
               {tenantSettings.storeName || tenantInfo?.name || 'UnitPro'}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -8,12 +8,14 @@ import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
+import { compressImageFile } from '../utils/imageCompressor';
 import ForumCommunity from '../components/ForumCommunity';
 import POSView from '../components/POSView';
 import BarcodeScanner from '../components/BarcodeScanner';
 import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
+import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -52,6 +54,16 @@ export default function AdminDashboard() {
   const [serviceTechTab, setServiceTechTab] = useState('ALL');
   const [serviceStatusTab, setServiceStatusTab] = useState('ALL');
   const [customerTab, setCustomerTab] = useState('servis');
+  const [newProdName, setNewProdName] = useState('');
+  const [newProdCat, setNewProdCat] = useState('SPAREPART');
+  const [newProdPrice, setNewProdPrice] = useState('');
+  const [newProdStock, setNewProdStock] = useState('0');
+  const [newProdImage, setNewProdImage] = useState('');
+  const [isUploadingProdImage, setIsUploadingProdImage] = useState(false);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [showEditProductModal, setShowEditProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
   const appVersion = '1.1.0';
   const latestApkUrl = 'https://unitproid.vercel.app/downloads/UnitPro.apk';
 
@@ -345,7 +357,9 @@ export default function AdminDashboard() {
     const css = `
       <style>
         body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; background: #fff; }
-        .receipt-container { max-width: ${printerType === 'thermal' ? '300px' : '700px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '12px' : '40px'}; border-radius: 12px; }
+        .receipt-container { position: relative; overflow: hidden; max-width: ${printerType === 'thermal' ? '300px' : '700px'}; margin: 0 auto; background: #fff; border: ${printerType === 'thermal' ? 'none' : '1px solid #e2e8f0'}; padding: ${printerType === 'thermal' ? '12px' : '40px'}; border-radius: 12px; }
+        .free-watermark { position: absolute; left: 50%; top: 54%; width: ${printerType === 'thermal' ? '230px' : '500px'}; max-width: 86%; transform: translate(-50%, -50%) rotate(-14deg); opacity: ${printerType === 'thermal' ? '0.08' : '0.07'}; pointer-events: none; z-index: 0; }
+        .receipt-container > :not(.free-watermark) { position: relative; z-index: 1; }
         .header { text-align: center; margin-bottom: 24px; }
         .header-title-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
         .logo { max-height: ${printerType === 'thermal' ? '35px' : '50px'}; }
@@ -371,12 +385,14 @@ export default function AdminDashboard() {
       </style>
     `;
     
-    const activeLogoUrl = tenant?.settings?.logoUrl || '/favicon.svg';
+    const activeLogoUrl = getTenantLogoUrl(tenant?.tier, tenant?.settings);
+    const freeWatermarkHtml = isFree ? `<img src="${UNITPRO_LOGO_URL}" class="free-watermark" alt="" />` : '';
     const logoHtml = `<img src="${activeLogoUrl}" class="logo" alt="Logo" />`;
 
     if (printType === 'pendaftaran') {
       htmlContent = `
         <div class="receipt-container">
+          ${freeWatermarkHtml}
           <div class="header">
             <div class="header-title-row">
               ${logoHtml}
@@ -420,6 +436,7 @@ export default function AdminDashboard() {
       
       htmlContent = `
         <div class="receipt-container">
+          ${freeWatermarkHtml}
           <div class="header">
             <div class="header-title-row">
               ${logoHtml}
@@ -496,6 +513,16 @@ export default function AdminDashboard() {
     const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
   };
+  const handleImageUpload = async (file, callback) => {
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 800, 0.7);
+      if (compressed && callback) callback(compressed);
+    } catch (err) {
+      console.error('Error uploading/compressing image:', err);
+      alert('Gagal memproses gambar. Pastikan format gambar valid.');
+    }
+  };
   const getServiceDiscount = (issue = '') => {
     const match = issue.match(/\[Diskon: Rp (.*?)\]/);
     if (!match) return 0;
@@ -542,6 +569,9 @@ export default function AdminDashboard() {
   };
   const isFree = tenant?.tier === 'free';
   const isEnterprise = tenant?.tier === 'enterprise';
+  const canUseCustomBranding = hasFeature(tenant?.tier, 'customBranding');
+  const tenantLogoUrl = getTenantLogoUrl(tenant?.tier, settings);
+  const tenantLogoOpacity = 1;
 
   const trialDaysLeft = settings.trial_ends_at 
     ? Math.max(0, Math.ceil((settings.trial_ends_at - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -688,13 +718,7 @@ export default function AdminDashboard() {
       {/* MOBILE TOP BAR (Visible only on mobile) */}
       <header className="mobile-top-bar native-app-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {settings.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" style={{ height: '32px', borderRadius: '6px' }} />
-          ) : (
-            <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
-              {settings.storeName?.charAt(0) || 'A'}
-            </div>
-          )}
+          <img src={tenantLogoUrl} alt="Logo" style={{ height: '32px', maxWidth: '110px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
           <div>
             <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem' }}>{settings.storeName || 'UnitPro'}</h3>
             <div style={{ fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -717,7 +741,7 @@ export default function AdminDashboard() {
       {/* SIDEBAR (Desktop only) */}
       <div className="sidebar animate-slide-in">
         <div style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid var(--border-light)', marginBottom: '1rem' }}>
-          <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ height: '45px', borderRadius: '8px', display: 'block', margin: '0 auto 0.5rem auto' }} />
+          <img src={tenantLogoUrl} alt="Logo" style={{ height: '45px', maxWidth: '160px', objectFit: 'contain', opacity: tenantLogoOpacity, display: 'block', margin: '0 auto 0.5rem auto' }} />
           <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.05rem' }}>{settings.storeName || 'UnitPro'}</h3>
           
           {/* Active Branch Badge */}
@@ -1478,9 +1502,10 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <label className="label">Logo Toko (Opsional - Otomatis disesuaikan)</label>
-                      <input type="file" accept="image/*" className="input-field"
+                      <label className="label">Logo Toko {canUseCustomBranding ? '(Opsional - Otomatis disesuaikan)' : '(Paket Pro / Enterprise)'}</label>
+                      <input type="file" accept="image/*" className="input-field" disabled={!canUseCustomBranding}
                         onChange={(e) => {
+                          if (!canUseCustomBranding) return;
                           const file = e.target.files[0];
                           if(file) {
                              handleImageUpload(file, (base64) => {
@@ -1489,7 +1514,12 @@ export default function AdminDashboard() {
                           }
                         }} 
                       />
-                      {settings.logoUrl && (
+                      {!canUseCustomBranding && (
+                        <div style={{ marginTop: '10px', padding: '12px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.82rem' }}>
+                          Paket Free otomatis memakai watermark UnitPro tipis di logo dan nota.
+                        </div>
+                      )}
+                      {canUseCustomBranding && settings.logoUrl && (
                         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center' }}>
                           <img src={settings.logoUrl} alt="Logo" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid #e2e8f0' }} />
                           <button className="btn" style={{ padding: '4px 10px', marginLeft: '10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }} onClick={() => updateTenantSettings({ logoUrl: '' })}>Hapus Logo</button>
@@ -1731,13 +1761,14 @@ export default function AdminDashboard() {
                             <button onClick={() => setPreviewTab('servis')} className={`btn ${previewTab === 'servis' ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.8rem', background: previewTab === 'servis' ? '#0ea5e9' : '#e2e8f0', color: previewTab === 'servis' ? 'white' : '#475569', border: 'none', borderRadius: '6px' }}>Servis</button>
                             <button onClick={() => setPreviewTab('pos')} className={`btn ${previewTab === 'pos' ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.8rem', background: previewTab === 'pos' ? '#0ea5e9' : '#e2e8f0', color: previewTab === 'pos' ? 'white' : '#475569', border: 'none', borderRadius: '6px' }}>Kasir (POS)</button>
                           </div>
-                          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
-                            
+                          <div style={{ position: 'relative', overflow: 'hidden', background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
+                            {isFree && <img src={UNITPRO_LOGO_URL} alt="" aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '52%', width: '82%', transform: 'translate(-50%, -50%) rotate(-14deg)', opacity: 0.07, pointerEvents: 'none' }} />}
+                            <div style={{ position: 'relative', zIndex: 1 }}>
                             {previewTab === 'servis' ? (
                               <>
                                 <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
-                                    <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '35px' }} />
+                                    <img src={tenantLogoUrl} alt="Logo" style={{ maxHeight: '35px', maxWidth: '130px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
                                     <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
                                   </div>
                                   <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
@@ -1776,7 +1807,7 @@ export default function AdminDashboard() {
                               <>
                                 <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
-                                    <img src={settings.logoUrl || '/favicon.svg'} alt="Logo" style={{ maxHeight: '35px' }} />
+                                    <img src={tenantLogoUrl} alt="Logo" style={{ maxHeight: '35px', maxWidth: '130px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
                                     <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
                                   </div>
                                   <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>STRUK PENJUALAN</div>
@@ -1814,6 +1845,7 @@ export default function AdminDashboard() {
                                 </div>
                               </>
                             )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2017,6 +2049,7 @@ export default function AdminDashboard() {
                         <div className="service-mobile-actions">
                           <button className="btn btn-ghost" onClick={() => { setSelectedResi(service.resi); setShowBarcodeModal(true); }}>Stiker</button>
                           <button className="btn btn-ghost" onClick={() => { setSelectedService(service); setPrintType(service.status === 'SELESAI' || service.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>Nota</button>
+                          <button className="btn btn-ghost" style={{ color: '#0284c7', fontWeight: 'bold' }} onClick={() => { setSelectedService(service); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
                           {service.customer_phone && <a className="btn btn-primary" target="_blank" rel="noreferrer" href={`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${service.customer_name}, ini link cek servis ${service.device_name} (Resi: ${service.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${service.resi}`)}`}>Kirim WA</a>}
                         </div>
                       </article>
@@ -2026,87 +2059,89 @@ export default function AdminDashboard() {
               </div>
 
               <div className="service-desktop-table" style={{ overflowX: 'auto' }}>
-                <table className="table">
-                 <thead><tr><th>Resi</th><th>Pelanggan</th><th>Perangkat</th><th>Kerusakan</th><th>Garansi</th><th>Teknisi</th><th>Status</th><th>Aksi</th></tr></thead>
-                 <tbody>
-                   {(() => {
-                     const filteredServices = services.filter(s => {
-                       const matchQuery = (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
-                       const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !s.technician_id : s.technician_id === serviceTechTab);
-                       const matchStatus = serviceStatusTab === 'ALL' || s.status === serviceStatusTab;
-                       return matchQuery && matchTech && matchStatus;
-                     });
+                 <table className="table">
+                  <thead><tr><th>Resi</th><th>Pelanggan</th><th>Perangkat</th><th>Kerusakan</th><th>Garansi</th><th>Teknisi</th><th>Status</th><th>Aksi</th></tr></thead>
+                  <tbody>
+                    {(() => {
+                      const filteredServices = services.filter(s => {
+                        const matchQuery = (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
+                        const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !s.technician_id : s.technician_id === serviceTechTab);
+                        const matchStatus = serviceStatusTab === 'ALL' || s.status === serviceStatusTab;
+                        return matchQuery && matchTech && matchStatus;
+                      });
 
-                     if (filteredServices.length === 0) {
-                       return <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{serviceSearchQuery ? 'Tidak ada hasil pencarian.' : 'Belum ada data servis di tab ini.'}</td></tr>;
-                     }
+                      if (filteredServices.length === 0) {
+                        return <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{serviceSearchQuery ? 'Tidak ada hasil pencarian.' : 'Belum ada data servis di tab ini.'}</td></tr>;
+                      }
 
-                     return filteredServices.map(s => {
-                       const tech = users.find(u => u.id === s.technician_id);
-                       const garansiMatch = (s.issue || '').match(/\[Masa Garansi Servis: s\/d (.*?)\]/);
-                       const garansiStatus = garansiMatch ? garansiMatch[1] : '-';
-                       const cleanIssue = (s.issue || '').replace(/\[Masa Garansi Servis: s\/d .*?\]/, '').trim();
-                       return (
-                      <tr key={s.resi}>
-                        <td>
-                          <a 
-                            href={`${window.location.origin}/tracking?resi=${s.resi}`} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
-                            title="Klik untuk membuka link tracking otomatis"
-                          >
-                            {s.resi} 🔗
-                          </a>
-                        </td>
-                        <td>{s.customer_name} <br/><small style={{color: 'var(--text-muted)'}}>{s.customer_phone}</small></td>
-                        <td>{s.device_name}</td>
-                        <td style={{ whiteSpace: 'pre-wrap', maxWidth: '200px' }}>{cleanIssue}</td>
-                        <td>{garansiStatus !== '-' ? <span className="badge badge-success" style={{background: '#dcfce7', color: '#16a34a'}}>s/d {garansiStatus}</span> : '-'}</td>
-                        <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
-                        <td>
-                          <select 
-                            className="input-field" 
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: '130px', background: getStatusInfo(s.status)?.bg, color: getStatusInfo(s.status)?.color, fontWeight: 'bold' }}
-                            value={s.status}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value;
-                              try {
-                                await apiService.post('/services/update', { resi: s.resi, status: newStatus });
-                                setServices(services.map(srv => srv.resi === s.resi ? { ...srv, status: newStatus } : srv));
-                                if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
-                                  const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
-                                  const trackingUrl = `${window.location.origin}/tracking?resi=${s.resi}`;
-                                  const msg = `Halo Kak ${s.customer_name}, ini update status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${storeName}* saat ini: *${getStatusInfo(newStatus).label}*.\n\nKlik link ini untuk cek status langsung dari HP:\n${trackingUrl}`;
-                                  window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');
-                                }
-                              } catch(err) { alert('Gagal update status'); }
-                            }}
-                          >
-                            {SERVICE_STATUSES.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                            <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
-                            <button className="btn btn-primary" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', background: '#0ea5e9' }}>Cetak Nota</button>
-                            <a 
-                              href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${s.resi}`)}`} 
-                              target="_blank" 
-                              rel="noreferrer" 
-                              className="btn btn-accent" 
-                              style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}
-                            >
-                              Kirim WA 📲
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                     );
-                   })})()}
-                 </tbody>
-               </table>
-              </div>
+                      return filteredServices.map(s => {
+                        const tech = users.find(u => u.id === s.technician_id);
+                        const garansiMatch = (s.issue || '').match(/\[Masa Garansi Servis: s\/d (.*?)\]/);
+                        const garansiStatus = garansiMatch ? garansiMatch[1] : '-';
+                        const cleanIssue = (s.issue || '').replace(/\[Masa Garansi Servis: s\/d .*?\]/, '').trim();
+                        return (
+                          <tr key={s.resi}>
+                            <td>
+                              <a 
+                                href={`${window.location.origin}/tracking?resi=${s.resi}`} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
+                                title="Klik untuk membuka link tracking otomatis"
+                              >
+                                {s.resi} 🔗
+                              </a>
+                            </td>
+                            <td>{s.customer_name} <br/><small style={{color: 'var(--text-muted)'}}>{s.customer_phone}</small></td>
+                            <td>{s.device_name}</td>
+                            <td style={{ whiteSpace: 'pre-wrap', maxWidth: '200px' }}>{cleanIssue}</td>
+                            <td>{garansiStatus !== '-' ? <span className="badge badge-success" style={{background: '#dcfce7', color: '#16a34a'}}>s/d {garansiStatus}</span> : '-'}</td>
+                            <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
+                            <td>
+                              <select 
+                                className="input-field" 
+                                style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: '130px', background: getStatusInfo(s.status)?.bg, color: getStatusInfo(s.status)?.color, fontWeight: 'bold' }}
+                                value={s.status}
+                                onChange={async (e) => {
+                                  const newStatus = e.target.value;
+                                  try {
+                                    await apiService.post('/services/update', { resi: s.resi, status: newStatus });
+                                    setServices(services.map(srv => srv.resi === s.resi ? { ...srv, status: newStatus } : srv));
+                                    if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
+                                      const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
+                                      const trackingUrl = `${window.location.origin}/tracking?resi=${s.resi}`;
+                                      const msg = `Halo Kak ${s.customer_name}, ini update status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${storeName}* saat ini: *${getStatusInfo(newStatus).label}*.\n\nKlik link ini untuk cek status langsung dari HP:\n${trackingUrl}`;
+                                      window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');
+                                    }
+                                  } catch(err) { alert('Gagal update status'); }
+                                }}
+                              >
+                                {SERVICE_STATUSES.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
+                              </select>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
+                                <button className="btn btn-primary" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', background: '#0ea5e9' }}>Cetak Nota</button>
+                                <button className="btn btn-warning" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', fontWeight: 'bold' }}>✏️ Edit Nota</button>
+                                <a 
+                                  href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${s.resi}`)}`} 
+                                  target="_blank" 
+                                  rel="noreferrer" 
+                                  className="btn btn-accent" 
+                                  style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}
+                                >
+                                  Kirim WA 📲
+                                </a>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+               </div>
           </div>
         ) : activeTab === 'master' ? (
           <div className="glass-panel inventory-management" style={{ minHeight: '400px' }}>
@@ -2123,77 +2158,141 @@ export default function AdminDashboard() {
                <>
              {/* FORM TAMBAH BARANG DENGAN UPLOAD GAMBAR */}
              <details className="management-action-disclosure">
-                <summary><Plus size={18} /> Tambah barang atau jasa</summary>
+                <summary><Plus size={18} /> Tambah barang atau jasa baru</summary>
              <div className="inventory-add-form" style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
                 <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}><Package size={18} color="var(--accent)" /> Tambah Barang Baru</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
                   <div>
                     <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Nama Barang/Jasa <span style={{color: 'red'}}>*</span></label>
-                    <input type="text" className="input-field" placeholder="Ketik nama barang..." id="newProductName" />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Ketik nama barang..." 
+                      value={newProdName}
+                      onChange={(e) => setNewProdName(e.target.value)}
+                    />
                   </div>
                   <div>
                     <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Kategori</label>
-                    <select className="input-field" id="newProductCat">
+                    <select 
+                      className="input-field" 
+                      value={newProdCat}
+                      onChange={(e) => setNewProdCat(e.target.value)}
+                    >
                       <option value="SPAREPART">Sparepart</option>
                       <option value="AKSESORIS">Aksesoris</option>
                       <option value="JASA">Jasa Servis</option>
-                      <option value="UNIT">Unit/Laptop</option>
+                      <option value="UNIT">Unit/Laptop/HP</option>
                     </select>
                   </div>
                   <div>
                     <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Harga Jual (Rp) <span style={{color: 'red'}}>*</span></label>
-                    <input type="number" className="input-field" placeholder="0" id="newProductPrice" />
+                    <input 
+                      type="number" 
+                      className="input-field" 
+                      placeholder="0" 
+                      value={newProdPrice}
+                      onChange={(e) => setNewProdPrice(e.target.value)}
+                    />
                   </div>
                   <div>
                     <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Stok Awal</label>
-                    <input type="number" className="input-field" placeholder="0" id="newProductStock" />
+                    <input 
+                      type="number" 
+                      className="input-field" 
+                      placeholder="0" 
+                      value={newProdStock}
+                      onChange={(e) => setNewProdStock(e.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '250px' }}>
-                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>URL / Link Foto Produk (Opsional)</label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input type="text" className="input-field" placeholder="https://... atau klik tombol dikanan" id="newProductImage" style={{ flex: 1 }} />
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '0 15px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #bae6fd', whiteSpace: 'nowrap' }}>
-                        📷 Upload Foto
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => { document.getElementById('newProductImage').value = reader.result; };
-                            reader.readAsDataURL(file);
-                          }
-                        }} />
+                    <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Foto Produk (Upload dari Galeri / Kamera / URL)</label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      {newProdImage ? (
+                        <div style={{ position: 'relative', width: '48px', height: '48px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #0284c7', flexShrink: 0 }}>
+                          <img src={newProdImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button 
+                            type="button" 
+                            onClick={() => setNewProdImage('')} 
+                            style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '0 0 0 8px', padding: '2px 4px', cursor: 'pointer' }}
+                            title="Hapus foto"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : null}
+                      <input 
+                        type="text" 
+                        className="input-field" 
+                        placeholder="https://... atau klik Upload Foto" 
+                        value={newProdImage}
+                        onChange={(e) => setNewProdImage(e.target.value)}
+                        style={{ flex: 1 }} 
+                      />
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: isUploadingProdImage ? '#cbd5e1' : '#e0f2fe', color: '#0369a1', padding: '0 15px', height: '42px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold', cursor: isUploadingProdImage ? 'not-allowed' : 'pointer', border: '1px solid #bae6fd', whiteSpace: 'nowrap' }}>
+                        {isUploadingProdImage ? <RefreshCw size={16} className="animate-spin" /> : <Camera size={16} />}
+                        {isUploadingProdImage ? 'Memproses...' : 'Upload Foto'}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          style={{ display: 'none' }} 
+                          disabled={isUploadingProdImage}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                setIsUploadingProdImage(true);
+                                const compressedBase64 = await compressImageFile(file, 800, 800, 0.7);
+                                setNewProdImage(compressedBase64);
+                              } catch (err) {
+                                alert('Gagal memproses gambar. Pastikan format gambar valid.');
+                              } finally {
+                                setIsUploadingProdImage(false);
+                              }
+                            }
+                          }} 
+                        />
                       </label>
                     </div>
                   </div>
-                  <button className="btn btn-primary" style={{ padding: '0 25px', fontWeight: 'bold', height: '45px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={async () => {
-                    const name = document.getElementById('newProductName').value;
-                    const priceStr = document.getElementById('newProductPrice').value;
-                    const price = parseInt(priceStr);
-                    const stock = parseInt(document.getElementById('newProductStock').value);
-                    const category = document.getElementById('newProductCat').value;
-                    const imageUrl = document.getElementById('newProductImage').value;
-                    
-                    if (!name || !priceStr) return alert('Nama dan Harga wajib diisi!');
-                    
-                    const isDuplicate = products.some(p => p.name.toLowerCase() === name.toLowerCase());
-                    if (isDuplicate) return alert(`⚠️ Peringatan: Barang dengan nama "${name}" sudah ada di data stok Anda! Silakan gunakan nama lain atau edit barang yang sudah ada.`);
-                    
-                    try {
-                      const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
-                      const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
-                      setProducts([...products, { ...newProd, imageUrl }]);
-                      document.getElementById('newProductName').value = '';
-                      document.getElementById('newProductPrice').value = '';
-                      document.getElementById('newProductStock').value = '';
-                      document.getElementById('newProductImage').value = '';
-                    } catch (e) {
-                      alert('Gagal menambah barang');
-                    }
-                  }}>
-                    <Plus size={18} /> Simpan Barang
+                  <button 
+                    className="btn btn-primary" 
+                    disabled={isAddingProduct}
+                    style={{ padding: '0 25px', fontWeight: 'bold', height: '42px', display: 'flex', alignItems: 'center', gap: '8px' }} 
+                    onClick={async () => {
+                      const name = newProdName.trim();
+                      const price = parseInt(newProdPrice);
+                      const stock = parseInt(newProdStock) || 0;
+                      const category = newProdCat;
+                      const imageUrl = newProdImage;
+                      
+                      if (!name || isNaN(price)) return alert('Nama dan Harga wajib diisi!');
+                      
+                      const isDuplicate = products.some(p => p.name.toLowerCase() === name.toLowerCase());
+                      if (isDuplicate) return alert(`⚠️ Peringatan: Barang dengan nama "${name}" sudah ada di data stok Anda! Silakan gunakan nama lain atau edit barang yang sudah ada.`);
+                      
+                      try {
+                        setIsAddingProduct(true);
+                        const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
+                        const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
+                        setProducts([...products, { ...newProd, imageUrl }]);
+                        setNewProdName('');
+                        setNewProdPrice('');
+                        setNewProdStock('0');
+                        setNewProdImage('');
+                        alert('✅ Barang berhasil ditambahkan ke Master Data!');
+                      } catch (e) {
+                        alert('Gagal menambah barang: ' + (e.message || 'Error'));
+                      } finally {
+                        setIsAddingProduct(false);
+                      }
+                    }}
+                  >
+                    {isAddingProduct ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+                    {isAddingProduct ? 'Menyimpan...' : 'Simpan Barang'}
                   </button>
                 </div>
              </div>
@@ -2224,61 +2323,62 @@ export default function AdminDashboard() {
                      </td>
                      <td>
                         <div style={{ display: 'flex', gap: '5px' }}>
-                          <button className="btn btn-warning" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={async () => {
-                            const newName = prompt('Nama Barang:', p.name);
-                            if (newName === null) return;
-                            const newPrice = prompt('Harga (Rp):', p.price);
-                            if (newPrice === null) return;
-                            const newStock = prompt('Stok:', p.stock);
-                            if (newStock === null) return;
-                            const newImg = prompt('URL Gambar:', p.imageUrl || '');
-                            if (newImg === null) return;
-                            try {
-                              const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
-                              await apiService.updateProduct(p.id, { name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg }, p.stock, currentUser, 'Edit Manual Stok (Master Data)');
-                              setProducts(products.map(x => x.id === p.id ? { ...x, name: newName, price: parseInt(newPrice), stock: parseInt(newStock), imageUrl: newImg } : x));
-                            } catch(e) { alert('Gagal edit barang'); }
-                          }}>Edit</button>
-                          <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={async () => {
-                            if(confirm('Yakin ingin menghapus barang ini?')) {
-                              try {
-                                await apiService.deleteProduct(p.id);
-                                setProducts(products.filter(x => x.id !== p.id));
-                              } catch(e) { alert('Gagal hapus barang'); }
-                            }
-                          }}>Hapus</button>
+                          <button 
+                            className="btn btn-warning" 
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
+                            onClick={() => {
+                              setEditingProduct({ ...p });
+                              setShowEditProductModal(true);
+                            }}
+                          >
+                            <Edit size={12} /> Edit
+                          </button>
+                          <button 
+                            className="btn btn-danger" 
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
+                            onClick={async () => {
+                              if(confirm(`Yakin ingin menghapus "${p.name}"?`)) {
+                                try {
+                                  await apiService.deleteProduct(p.id);
+                                  setProducts(products.filter(x => x.id !== p.id));
+                                } catch(e) { alert('Gagal hapus barang'); }
+                              }
+                            }}
+                          >
+                            <Trash size={12} /> Hapus
+                          </button>
                         </div>
                      </td>
                    </tr>
                  ))}
                  {products.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada data barang.</td></tr>}
-               </tbody>
-             </table></div>
-               </>
-             )}
+                </tbody>
+              </table></div>
+                </>
+              )}
 
-             {masterTab === 'audit' && (
-               <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', overflowX: 'auto' }}>
-                  <h4 style={{ margin: '0 0 1rem 0' }}>Riwayat Pergerakan Stok</h4>
-                  <table className="table" style={{ width: '100%', minWidth: '700px' }}>
-                    <thead><tr><th>Waktu</th><th>Nama Barang</th><th>Karyawan</th><th>Perubahan</th><th>Keterangan</th></tr></thead>
-                    <tbody>
-                      {auditLogs.length > 0 ? auditLogs.map((log) => (
-                        <tr key={log.id}>
-                          <td>{new Date(log.created_at).toLocaleString('id-ID')}</td>
-                          <td style={{ fontWeight: 'bold' }}>{log.products?.name || '-'}</td>
-                          <td>{log.user_name}</td>
-                          <td style={{ color: log.change_amount > 0 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
-                            {log.change_amount > 0 ? '+' : ''}{log.change_amount}
-                          </td>
-                          <td>{log.description}</td>
-                        </tr>
-                      )) : <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada aktivitas stok.</td></tr>}
-                    </tbody>
-                  </table>
-               </div>
-             )}
-          </div>
+              {masterTab === 'audit' && (
+                <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', overflowX: 'auto' }}>
+                   <h4 style={{ margin: '0 0 1rem 0' }}>Riwayat Pergerakan Stok</h4>
+                   <table className="table" style={{ width: '100%', minWidth: '700px' }}>
+                     <thead><tr><th>Waktu</th><th>Nama Barang</th><th>Karyawan</th><th>Perubahan</th><th>Keterangan</th></tr></thead>
+                     <tbody>
+                       {auditLogs.length > 0 ? auditLogs.map((log) => (
+                         <tr key={log.id}>
+                           <td>{new Date(log.created_at).toLocaleString('id-ID')}</td>
+                           <td style={{ fontWeight: 'bold' }}>{log.products?.name || '-'}</td>
+                           <td>{log.user_name}</td>
+                           <td style={{ color: log.change_amount > 0 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                             {log.change_amount > 0 ? '+' : ''}{log.change_amount}
+                           </td>
+                           <td>{log.description}</td>
+                         </tr>
+                       )) : <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada aktivitas stok.</td></tr>}
+                     </tbody>
+                   </table>
+                </div>
+              )}
+           </div>
         ) : activeTab === 'keuangan' ? (
           (() => {
             const currentMonth = new Date().getMonth();

@@ -4,6 +4,7 @@ import { Package, Trash, Printer, X, ShoppingCart, Camera, Search, Minus, Plus, 
 import { apiService } from '../services/api';
 import BarcodeScanner from './BarcodeScanner';
 import { PAYMENT_METHODS, isWithinLimit } from '../config/tierLimits';
+import { UNITPRO_LOGO_URL, getTenantLogoUrl, isFreeTier } from '../utils/branding';
 
 export default function POSView({ products, transactions = [], onTransactionCreated }) {
   const { tenant, cart, addToCart, removeFromCart, clearCart, updateCartQty } = useStore();
@@ -28,6 +29,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
   const tier = tenant?.tier || 'free';
   const settings = tenant?.settings || {};
+  const isFree = isFreeTier(tier);
   const paymentInfoText = (() => {
     const bankName = settings.bank_name || '';
     const bankAccount = settings.bank_account || '';
@@ -260,7 +262,9 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     const css = `
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: ${isThermal ? '8px' : '20px'}; }
-        .receipt { max-width: ${isThermal ? '300px' : '600px'}; margin: 0 auto; }
+        .receipt { position: relative; overflow: hidden; max-width: ${isThermal ? '300px' : '600px'}; margin: 0 auto; }
+        .free-watermark { position: absolute; left: 50%; top: 54%; width: ${isThermal ? '230px' : '440px'}; max-width: 86%; transform: translate(-50%, -50%) rotate(-14deg); opacity: ${isThermal ? '0.08' : '0.07'}; pointer-events: none; z-index: 0; }
+        .receipt > :not(.free-watermark) { position: relative; z-index: 1; }
         .header { text-align: center; margin-bottom: 15px; border-bottom: 2px dashed #ccc; padding-bottom: 12px; }
         .header h2 { margin: 0; font-size: ${isThermal ? '1.2rem' : '1.6rem'}; font-weight: 900; text-transform: uppercase; }
         .header p { margin: 4px 0 0; color: #666; font-size: ${isThermal ? '0.75rem' : '0.9rem'}; }
@@ -289,13 +293,15 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
     const payLabel = PAYMENT_METHODS.find(m => m.id === lastReceipt.paymentMethod)?.label || 'Tunai';
 
-    const activeLogoUrl = settings?.logoUrl || '/favicon.svg';
+    const activeLogoUrl = getTenantLogoUrl(tier, settings);
+    const freeWatermarkHtml = isFree ? `<img src="${UNITPRO_LOGO_URL}" class="free-watermark" alt="" />` : '';
 
     const html = `
       <div class="receipt">
+        ${freeWatermarkHtml}
         <div class="header">
           <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
-            <img src="${activeLogoUrl}" alt="Logo" style="max-height: ${isThermal ? '30px' : '45px'};" />
+            <img src="${activeLogoUrl}" alt="Logo" style="max-height: ${isThermal ? '30px' : '45px'}; max-width: ${isThermal ? '120px' : '170px'}; object-fit: contain;" />
             <h2 style="margin: 0; font-size: ${isThermal ? '1.2rem' : '1.6rem'}; font-weight: 900; text-transform: uppercase;">${lastReceipt.storeName}</h2>
           </div>
           <p>STRUK PENJUALAN</p>

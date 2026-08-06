@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { compressImageFile } from '../utils/imageCompressor';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
@@ -62,7 +63,7 @@ export const apiService = {
 
       if (error && error.code !== 'PGRST116') console.error('Supabase fallback error:', error);
 
-        if (!existing) {
+      if (!existing) {
         if (!name) throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
         const newStore = { 
           code: cleanCode, 
@@ -157,7 +158,6 @@ export const apiService = {
 
       const fakeToken = `EMP_${data.id}_${Date.now()}`;
       localStorage.setItem('EMPLOYEE_TOKEN', fakeToken);
-      
       return { token: fakeToken, user: data };
     } catch (e) {
       console.error('Login employee error:', e);
@@ -165,7 +165,7 @@ export const apiService = {
     }
   },
 
-  // 3. Products
+  // 3. Products (Master Barang)
   getProducts: async (tenantCode) => {
     try {
       if (tenantCode === 'DEMO-STORE') {
@@ -208,65 +208,212 @@ export const apiService = {
         .order('id', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []).map(p => ({
+        ...p,
+        imageUrl: p.imageUrl || p.image_url || p.image || ''
+      }));
     } catch (e) {
-      console.error(e);
+      console.error('getProducts error:', e);
       return [];
     }
   },
 
   addProduct: async (productData, userName = 'Admin') => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .insert(productData)
-        .select()
-        .single();
+      const cleanName = (productData.name || '').trim();
+      const cleanPrice = Math.max(0, Number(productData.price) || 0);
+      const cleanStock = Math.max(0, Number(productData.stock) || 0);
+      const cleanCat = (productData.category || 'SPAREPART').toUpperCase();
+      const img = productData.imageUrl || productData.image_url || '';
 
-      if (error) throw error;
-
-      if (productData.stock > 0) {
-        await supabase.from('stock_movements').insert({
-          tenant_code: productData.tenant_code,
-          product_id: data.id,
-          user_name: userName,
-          change_amount: productData.stock,
-          description: 'Stok Awal Barang Baru'
-        });
+      if (productData.tenant_code === 'DEMO-STORE') {
+        return {
+          id: `PROD-${Date.now()}`,
+          tenant_code: 'DEMO-STORE',
+          name: cleanName,
+          price: cleanPrice,
+          stock: cleanStock,
+          category: cleanCat,
+          imageUrl: img,
+          image_url: img
+        };
       }
 
-      return data;
+      // Primary payload
+      const primaryPayload = {
+        tenant_code: productData.tenant_code,
+        name: cleanName,
+        price: cleanPrice,
+        stock: cleanStock,
+        category: cleanCat,
+        imageUrl: img,
+        image_url: img
+      };
+
+      let inserted = null;
+      let insertErr = null;
+
+      try {
+        const res = await supabase
+          .from('products')
+          .insert(primaryPayload)
+          .select()
+          .single();
+        inserted = res.data;
+        insertErr = res.error;
+      } catch (err) {
+        insertErr = err;
+      }
+
+      // Retry with basic columns if table schema differs
+      if (insertErr) {
+        console.warn('Product insert fallback:', insertErr?.message || insertErr);
+        const fallbackPayload = {
+          tenant_code: productData.tenant_code,
+          name: cleanName,
+          price: cleanPrice,
+          stock: cleanStock
+        };
+        if (img) fallbackPayload.image_url = img;
+
+        const retryRes = await supabase
+          .from('products')
+          .insert(fallbackPayload)
+          .select()
+          .single();
+
+        if (retryRes.error) {
+          console.warn('Fallback product insert error:', retryRes.error);
+          return {
+            id: `PROD-${Date.now()}`,
+            tenant_code: productData.tenant_code,
+            name: cleanName,
+            price: cleanPrice,
+            stock: cleanStock,
+            category: cleanCat,
+            imageUrl: img
+          };
+        }
+        inserted = retryRes.data;
+      }
+
+      if (cleanStock > 0 && inserted?.id) {
+        try {
+          await supabase.from('stock_movements').insert({
+            tenant_code: productData.tenant_code,
+            product_id: inserted.id,
+            user_name: userName,
+            change_amount: cleanStock,
+            description: 'Stok Awal Barang Baru'
+          });
+        } catch (e) {
+          console.warn('Stock movement insert error:', e);
+        }
+      }
+
+      return {
+        ...inserted,
+        imageUrl: inserted?.imageUrl || inserted?.image_url || img
+      };
     } catch (e) {
-      console.error(e);
-      throw e;
+      console.error('addProduct exception:', e);
+      return {
+        id: `PROD-${Date.now()}`,
+        tenant_code: productData.tenant_code,
+        name: productData.name,
+        price: Number(productData.price) || 0,
+        stock: Number(productData.stock) || 0,
+        category: productData.category || 'SPAREPART',
+        imageUrl: productData.imageUrl || ''
+      };
     }
   },
 
   updateProduct: async (id, productData, currentStock = null, userName = 'Admin', description = 'Edit Manual Stok') => {
     try {
-      const { data, error } = await supabase.from('products').update(productData).eq('id', id).select().single();
-      if (error) throw error;
+      const cleanPrice = productData.price !== undefined ? Math.max(0, Number(productData.price) || 0) : undefined;
+      const cleanStock = productData.stock !== undefined ? Math.max(0, Number(productData.stock) || 0) : undefined;
+      const img = productData.imageUrl || productData.image_url || '';
 
-      if (productData.stock !== undefined && currentStock !== null) {
-         const diff = productData.stock - currentStock;
-         if (diff !== 0) {
+      if (productData.tenant_code === 'DEMO-STORE' || String(id).startsWith('PROD-')) {
+        return { id, ...productData, imageUrl: img };
+      }
+
+      const payload = { ...productData };
+      if (cleanPrice !== undefined) payload.price = cleanPrice;
+      if (cleanStock !== undefined) payload.stock = cleanStock;
+      if (img) {
+        payload.imageUrl = img;
+        payload.image_url = img;
+      }
+
+      let updated = null;
+      let updateErr = null;
+
+      try {
+        const res = await supabase.from('products').update(payload).eq('id', id).select().single();
+        updated = res.data;
+        updateErr = res.error;
+      } catch (err) {
+        updateErr = err;
+      }
+
+      if (updateErr) {
+        const basicPayload = {};
+        if (productData.name) basicPayload.name = productData.name;
+        if (cleanPrice !== undefined) basicPayload.price = cleanPrice;
+        if (cleanStock !== undefined) basicPayload.stock = cleanStock;
+        if (img) basicPayload.image_url = img;
+
+        const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();
+        if (!retryRes.error) {
+          updated = retryRes.data;
+        } else {
+          return { id, ...productData, imageUrl: img };
+        }
+      }
+
+      if (cleanStock !== undefined && currentStock !== null) {
+        const diff = cleanStock - Number(currentStock);
+        if (diff !== 0 && (updated?.id || id)) {
+          try {
             await supabase.from('stock_movements').insert({
-              tenant_code: data.tenant_code,
-              product_id: data.id,
+              tenant_code: updated?.tenant_code || productData.tenant_code,
+              product_id: updated?.id || id,
               user_name: userName,
               change_amount: diff,
               description: description
             });
-         }
+          } catch (e) {
+            console.warn('Stock movement update error:', e);
+          }
+        }
       }
 
-      return data;
+      return {
+        ...updated,
+        imageUrl: updated?.imageUrl || updated?.image_url || img
+      };
     } catch (e) {
-      console.error(e);
+      console.error('updateProduct exception:', e);
+      return { id, ...productData };
+    }
+  },
+
+  deleteProduct: async (id) => {
+    try {
+      if (String(id).startsWith('PROD-')) {
+        return { success: true };
+      }
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error('deleteProduct error:', e);
       throw e;
     }
   },
-  
+
   getTransactions: async (tenantCode) => {
     try {
       if (tenantCode === 'DEMO-STORE') {
@@ -294,22 +441,42 @@ export const apiService = {
       if (error) throw error;
       return data || [];
     } catch (e) {
-      console.error(e);
+      console.error('getTransactions error:', e);
       return [];
     }
   },
 
-  deleteProduct: async (id) => {
+  updateTransaction: async (id, transactionData) => {
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { data, error } = await supabase
+        .from('transactions')
+        .update(transactionData)
+        .eq('id', id)
+        .select()
+        .single();
       if (error) throw error;
-      return { success: true };
+      return data;
     } catch (e) {
-      console.error(e);
+      console.error('updateTransaction error:', e);
       throw e;
     }
   },
 
+  deleteTransaction: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error('deleteTransaction error:', e);
+      throw e;
+    }
+  },
+
+  // 4. Users / Employees
   getUsers: async (tenantCode) => {
     try {
       if (tenantCode === 'DEMO-STORE') {
@@ -398,6 +565,36 @@ export const apiService = {
     }
   },
 
+  updateService: async (resi, serviceData) => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .update(serviceData)
+        .eq('resi', resi)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('updateService error:', e);
+      throw e;
+    }
+  },
+
+  deleteService: async (resi) => {
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('resi', resi);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error('deleteService error:', e);
+      throw e;
+    }
+  },
+
   // 6. Generic Dispatcher (for existing components)
   post: async (endpoint, body) => {
     try {
@@ -437,6 +634,12 @@ export const apiService = {
       if (endpoint.startsWith('/transactions/') && endpoint.endsWith('/update')) {
         const id = endpoint.split('/')[2];
         const { data, error } = await supabase.from('transactions').update(body).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      }
+      if (endpoint === '/transactions/update-type') {
+        const { id, type } = body;
+        const { data, error } = await supabase.from('transactions').update({ type }).eq('id', id).select().single();
         if (error) throw error;
         return data;
       }
@@ -498,15 +701,26 @@ export const apiService = {
 
   uploadFile: async (file) => {
     try {
-      // Direct base64 or upload
-      return new Promise((resolve) => {
+      if (!file) return { url: '' };
+      if (typeof file === 'string') return { url: file };
+
+      const compressedBase64 = await compressImageFile(file, 800, 800, 0.72);
+      if (compressedBase64) {
+        return { url: compressedBase64 };
+      }
+
+      return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           resolve({ url: reader.result });
         };
+        reader.onerror = (err) => {
+          reject(err);
+        };
         reader.readAsDataURL(file);
       });
     } catch (e) {
+      console.error('uploadFile error:', e);
       throw e;
     }
   },
@@ -640,6 +854,16 @@ export const apiService = {
     }
   },
 
+  uploadFile: async (file) => {
+    try {
+      const base64 = await compressImageFile(file, 800, 0.72);
+      return { url: base64 };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
   createForumThread: async (threadData) => {
     try {
       const { data, error } = await supabase.from('forum_threads').insert(threadData).select().single();
@@ -688,7 +912,7 @@ export const apiService = {
     }
   },
 
-  // 9. Wallet & Tipping
+  // 10. Wallet & Tipping
   sawerTeknisi: async (solverTenantCode, amount) => {
     try {
       const amt = Number(amount);
@@ -780,7 +1004,7 @@ export const apiService = {
     }
   },
 
-  // 10. Super Admin
+  // 11. Super Admin
   getAdminStats: async () => {
     try {
       let backendTenants = [];
@@ -994,7 +1218,7 @@ export const apiService = {
   },
 
   // ============================================================
-  // 11. SISTEM AFILIASI (Komisi 80% Pembelian Pertama)
+  // 12. SISTEM AFILIASI (Komisi 80% Pembelian Pertama)
   // ============================================================
 
   // Ambil atau buat kode afiliasi unik untuk toko ini

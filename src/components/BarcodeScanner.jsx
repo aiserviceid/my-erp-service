@@ -14,7 +14,9 @@ export default function BarcodeScanner({ onScan, onClose }) {
     
     scanner.render((decodedText) => {
       onScan(decodedText);
-      scanner.clear();
+      try {
+        scanner.clear().catch(() => {});
+      } catch (err) {}
       onClose();
     }, (error) => {
       // ignore scanning errors
@@ -24,7 +26,9 @@ export default function BarcodeScanner({ onScan, onClose }) {
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => console.error("Failed to clear scanner", e));
+        try {
+          scannerRef.current.clear().catch(() => {});
+        } catch (err) {}
       }
     };
   }, [onScan, onClose]);
