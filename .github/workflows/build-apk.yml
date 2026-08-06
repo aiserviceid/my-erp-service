@@ -22,6 +22,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Read App Version
+        id: app_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Install Dependencies & Build Web
         run: |
           npm install
@@ -40,31 +46,31 @@ jobs:
         run: |
           npx cap sync android
 
-      - name: Build Debug APK
+      - name: Build Release APK
         working-directory: ./android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
       - name: Name APK for Distribution
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/UnitPro.apk
+          cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/UnitPro.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: my-erp-service-apk
-          path: android/app/build/outputs/apk/debug/UnitPro.apk
+          name: UnitPro-v${{ steps.app_version.outputs.version }}-apk
+          path: android/app/build/outputs/apk/release/UnitPro.apk
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.0.0
-          name: "Rilis v1.0.0 Aplikasi ERP Kasir & Tracking"
-          body: "Unduh file APK Android terbaru resmi untuk aplikasi ERP Servis & Kasir POS."
+          tag_name: v${{ steps.app_version.outputs.version }}
+          name: "Rilis v${{ steps.app_version.outputs.version }} UnitPro"
+          body: "Unduh file APK Android resmi UnitPro v${{ steps.app_version.outputs.version }}."
           draft: false
           prerelease: false
-          files: android/app/build/outputs/apk/debug/UnitPro.apk
+          files: android/app/build/outputs/apk/release/UnitPro.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

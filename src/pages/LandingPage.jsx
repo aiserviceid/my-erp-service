@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
+import { APP_VERSION, APK_DOWNLOAD_PATH, APK_FILE_NAME } from '../config/appInfo';
 import UnitProLogo from '../components/UnitProLogo';
 import heroImage from '../assets/unitpro-hero.png';
 import './LandingPage.css';
@@ -17,7 +18,7 @@ const features = [
   { icon: BarChart3, title: 'Kontrol toko dari satu layar', description: 'Pantau servis, penjualan, stok, nota, QRIS, dan laporan tanpa rekap berulang.' },
 ];
 
-const apkDownloadUrl = 'https://unitproid.vercel.app/downloads/UnitPro.apk';
+const apkDownloadUrl = APK_DOWNLOAD_PATH;
 
 function UnitProMark() {
   return <UnitProLogo size={38} />;
@@ -124,7 +125,7 @@ export default function LandingPage() {
           <div className="unitpro-hero-actions">
             <button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}>Mulai kelola toko <ArrowRight size={19} /></button>
             <button className="unitpro-button secondary" onClick={startDemo}>Lihat demo</button>
-            <a className="unitpro-button secondary" href={apkDownloadUrl} target="_blank" rel="noreferrer"><Download size={18} /> Unduh APK</a>
+            <a className="unitpro-button secondary" href={apkDownloadUrl} download={APK_FILE_NAME}><Download size={18} /> Unduh APK (v{APP_VERSION})</a>
           </div>
         </div>
       </section>

@@ -15,6 +15,7 @@ import BarcodeScanner from '../components/BarcodeScanner';
 import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
+import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 
 export default function AdminDashboard() {
@@ -64,8 +65,8 @@ export default function AdminDashboard() {
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
-  const appVersion = '1.1.0';
-  const latestApkUrl = 'https://unitproid.vercel.app/downloads/UnitPro.apk';
+  const appVersion = APP_VERSION;
+  const latestApkUrl = APK_PUBLIC_URL;
 
   const openAppUpdate = async () => {
     if (Capacitor.isNativePlatform()) {
