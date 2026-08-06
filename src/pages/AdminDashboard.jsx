@@ -75,34 +75,15 @@ export default function AdminDashboard() {
     window.open(latestApkUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleImageUpload = (file, callback) => {
+  const handleImageUpload = async (file, callback) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 800;
-
-        if (width > height) {
-          if (width > maxDim) { height *= maxDim / width; width = maxDim; }
-        } else {
-          if (height > maxDim) { width *= maxDim / height; height = maxDim; }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        const compressedBase64 = canvas.toDataURL('image/webp', 0.6);
-        callback(compressedBase64);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageFile(file, 800, 0.7);
+      if (compressed && callback) callback(compressed);
+    } catch (err) {
+      console.error('Error uploading/compressing image:', err);
+      alert('Gagal memproses gambar. Pastikan format gambar valid.');
+    }
   };
 
   const handleCreateService = async (event) => {
@@ -512,16 +493,6 @@ export default function AdminDashboard() {
   const normalizeMoneyInput = (value) => {
     const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
-  };
-  const handleImageUpload = async (file, callback) => {
-    if (!file) return;
-    try {
-      const compressed = await compressImageFile(file, 800, 0.7);
-      if (compressed && callback) callback(compressed);
-    } catch (err) {
-      console.error('Error uploading/compressing image:', err);
-      alert('Gagal memproses gambar. Pastikan format gambar valid.');
-    }
   };
   const getServiceDiscount = (issue = '') => {
     const match = issue.match(/\[Diskon: Rp (.*?)\]/);

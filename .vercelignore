@@ -1,0 +1,9 @@
+.git
+.agents
+.gradle
+android
+node_modules
+*.log
+*.apk
+generate-pdf.js
+ChatGPT Image*
