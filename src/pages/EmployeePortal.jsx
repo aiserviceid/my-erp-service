@@ -29,6 +29,7 @@ export default function EmployeePortal() {
   const [showSelesaiModal, setShowSelesaiModal] = useState(false);
   const [showPersetujuanModal, setShowPersetujuanModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showEditServiceNota, setShowEditServiceNota] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showBonModal, setShowBonModal] = useState(false);
@@ -87,9 +88,56 @@ export default function EmployeePortal() {
     }
   };
 
-  const normalizeMoneyInput = (value) => {
+    const normalizeMoneyInput = (value) => {
     const parsed = parseInt(String(value || '').replace(/[^\d-]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const getServiceDiscount = (issue = '') => {
+    const match = issue.match(/\[Diskon: Rp (.*?)\]/);
+    if (!match) return 0;
+    return normalizeMoneyInput(match[1]);
+  };
+
+  const buildIssueWithDiscount = (issue = '', discount = 0) => {
+    const cleanIssue = issue.replace(/\n?\[Diskon: Rp .*?\]/g, '').trim();
+    return discount > 0 ? `${cleanIssue}\n[Diskon: Rp ${discount}]`.trim() : cleanIssue;
+  };
+
+  const handleServiceNotaEdit = async (event) => {
+    event.preventDefault();
+    if (!selectedService) return;
+
+    const fd = new FormData(event.currentTarget);
+    const partFee = normalizeMoneyInput(fd.get('part_fee'));
+    const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));
+    const discount = normalizeMoneyInput(fd.get('discount'));
+
+    if (partFee < 0 || jasaFee < 0 || discount < 0) {
+      alert('Nominal tidak boleh negatif.');
+      return;
+    }
+    if (discount > partFee + jasaFee) {
+      alert('Diskon tidak boleh lebih besar dari total biaya.');
+      return;
+    }
+
+    const updatedIssue = buildIssueWithDiscount(selectedService.issue || '', discount);
+    try {
+      const updatedService = await apiService.post('/services/update', {
+        resi: selectedService.resi,
+        part_fee: partFee,
+        jasa_fee: jasaFee,
+        issue: updatedIssue
+      });
+      const nextService = { ...selectedService, ...updatedService, part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
+      setSelectedService(nextService);
+      setServices(services.map(s => s.resi === selectedService.resi ? { ...s, ...nextService } : s));
+      setShowEditServiceNota(false);
+      alert('Nota servis berhasil dikoreksi.');
+    } catch (err) {
+      alert('Gagal menyimpan koreksi nota.');
+    }
   };
 
   const openServiceWizard = () => {
@@ -1142,6 +1190,28 @@ export default function EmployeePortal() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+
+      {showEditServiceNota && selectedService && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
+          <form onSubmit={handleServiceNotaEdit} className="glass-panel" style={{ width: '100%', maxWidth: '440px', background: 'var(--bg-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Edit Nota Servis</h3>
+              <button type="button" className="btn btn-ghost" onClick={() => setShowEditServiceNota(false)}><X size={20}/></button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>
+            <label className="label">Biaya Sparepart (Rp)</label>
+            <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} required />
+            <label className="label">Biaya Jasa (Rp)</label>
+            <input name="jasa_fee" type="number" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0} required />
+            <label className="label">Diskon Nota (Rp)</label>
+            <input name="discount" type="number" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')} />
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
+              Simpan Koreksi Nota
+            </button>
+          </form>
         </div>
       )}
 
