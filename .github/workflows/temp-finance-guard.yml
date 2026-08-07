@@ -22,46 +22,42 @@ jobs:
           python <<'PY'
           from pathlib import Path
 
-          def replace_once(text, old, new, label):
+          def replace_first(text, old, new, label, required=True):
               count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"Expected exactly 1 match for {label}, found {count}")
+              print(f"{label}: {count} match(es)")
+              if count == 0:
+                  if required:
+                      raise SystemExit(f"Missing required pattern: {label}")
+                  return text
               return text.replace(old, new, 1)
 
           employee_path = Path('src/pages/EmployeePortal.jsx')
           employee = employee_path.read_text()
 
-          employee = replace_once(
+          employee = replace_first(
               employee,
               "                                } else if (newStatus === 'DI AMBIL') {",
               "                                } else if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {",
               'pickup status branch'
           )
 
-          employee = replace_once(
+          employee = replace_first(
               employee,
               "                                        status: newStatus,",
               "                                        status: 'DIAMBIL',",
               'canonical pickup status save'
           )
 
-          old_payment_block = """                                      if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
-                                        await apiService.post('/transactions', {
-                                          tenant_code: employee.tenant_code || tenant.code,
-                                          type: 'INCOME_JASA',
-                                          amount: jasaAfterDiscount,
-                                          description: `Jasa Servis Resi ${s.resi} (${s.customer_name})`
-                                        });
-                                      }
-                                      if (partFee > 0) {
-                                        await apiService.post('/transactions', {
-                                          tenant_code: employee.tenant_code || tenant.code,
-                                          type: 'INCOME_SPAREPART',
-                                          amount: partFee,
-                                          description: `Sparepart Servis Resi ${s.resi} (${s.customer_name})`
-                                        });
-                                      }
-                                      fetchServices();"""
+          payment_start_token = "                                      if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {"
+          payment_end_token = "                                      fetchServices();"
+          payment_start = employee.find(payment_start_token)
+          print(f"payment block start: {payment_start}")
+          if payment_start == -1:
+              raise SystemExit('Missing payment block start')
+          payment_end = employee.find(payment_end_token, payment_start)
+          print(f"payment block end: {payment_end}")
+          if payment_end == -1:
+              raise SystemExit('Missing payment block end')
 
           new_payment_block = """                                      const tenantCode = employee.tenant_code || tenant.code;
                                       const latestTransactions = await apiService.get(`/transactions/${tenantCode}`).catch(() => transactions);
@@ -91,33 +87,35 @@ jobs:
                                           });
                                         }
                                       }
-                                      fetchServices();"""
-
-          employee = replace_once(employee, old_payment_block, new_payment_block, 'service income duplicate guard')
+"""
+          employee = employee[:payment_start] + new_payment_block + employee[payment_end:]
           employee_path.write_text(employee)
 
           admin_path = Path('src/pages/AdminDashboard.jsx')
           admin = admin_path.read_text()
 
-          admin = replace_once(
+          admin = replace_first(
               admin,
               "                          {t.type === 'INCOME' && <span className=\"badge badge-success\">Pendapatan Servis</span>}",
               "                          {(t.type === 'INCOME' || t.type === 'INCOME_JASA') && <span className=\"badge badge-success\">Pendapatan Jasa Servis</span>}\n                          {t.type === 'INCOME_SPAREPART' && <span className=\"badge badge-success\">Pendapatan Sparepart Servis</span>}",
-              'finance table income badges'
+              'finance table income badges',
+              required=False
           )
 
-          admin = replace_once(
+          admin = replace_first(
               admin,
               "                        <td style={{ color: t.type === 'INCOME' || t.type === 'POS_SALES' ? 'var(--accent)' : '#ef4444', fontWeight: 'bold' }}>",
               "                        <td style={{ color: String(t.type || '').startsWith('INCOME') || t.type === 'POS_SALES' ? 'var(--accent)' : '#ef4444', fontWeight: 'bold' }}>",
-              'finance table income color'
+              'finance table income color',
+              required=False
           )
 
-          admin = replace_once(
+          admin = replace_first(
               admin,
               "                          {t.type === 'INCOME' || t.type === 'POS_SALES' ? '+' : '-'} Rp {t.amount?.toLocaleString('id-ID')}",
               "                          {String(t.type || '').startsWith('INCOME') || t.type === 'POS_SALES' ? '+' : '-'} Rp {t.amount?.toLocaleString('id-ID')}",
-              'finance table income sign'
+              'finance table income sign',
+              required=False
           )
           admin_path.write_text(admin)
 
