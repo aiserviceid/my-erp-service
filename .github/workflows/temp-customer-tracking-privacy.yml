@@ -35,12 +35,7 @@ jobs:
           const trackingPath = 'src/pages/PublicTracking.jsx';
           let tracking = fs.readFileSync(trackingPath, 'utf8');
 
-          tracking = replaceOnce(
-            tracking,
-            "    const cleanResi = (targetResi || '').trim();",
-            "    const cleanResi = sanitizePublicResi(targetResi);",
-            'sanitize search resi'
-          );
+          tracking = replaceOnce(tracking, "    const cleanResi = (targetResi || '').trim();", "    const cleanResi = sanitizePublicResi(targetResi);", 'sanitize search resi', false);
 
           tracking = replaceOnce(
             tracking,
@@ -70,37 +65,14 @@ jobs:
               "    return 'https://wa.me/' + target + '?text=' + encodeURIComponent('Halo, saya ingin menanyakan status servis resi ' + sanitizePublicResi(resiValue));",
               "  };"
             ].join('\n'),
-            'privacy helpers'
+            'privacy helpers',
+            !tracking.includes('const sanitizePublicResi')
           );
 
-          tracking = replaceOnce(
-            tracking,
-            "                onChange={(e) => setResi(e.target.value.toUpperCase())}",
-            "                onChange={(e) => setResi(sanitizePublicResi(e.target.value))}",
-            'sanitize resi input'
-          );
-
-          tracking = replaceOnce(
-            tracking,
-            "                  { label: 'Pelanggan', value: result.customer_name },",
-            "                  { label: 'Pelanggan', value: maskCustomerName(result.customer_name) },",
-            'mask customer name'
-          );
-
-          tracking = replaceOnce(
-            tracking,
-            "                  { label: 'Keluhan', value: (result.issue || '').replace(/\\[.*?\\]/g, '').replace(/\\| Kelengkapan:.*/, '').trim() },",
-            "                  { label: 'Keluhan', value: cleanPublicIssue(result.issue) },",
-            'clean public issue'
-          );
-
-          tracking = replaceOnce(
-            tracking,
-            "                    href={`https://wa.me/${tenantSettings.store_wa.replace(/^0/, '62')}?text=Halo, saya ingin menanyakan status servis resi ${result.resi}`}",
-            "                    href={buildStoreWhatsAppUrl(tenantSettings.store_wa, result.resi)}",
-            'safe store wa url'
-          );
-
+          tracking = replaceOnce(tracking, "                onChange={(e) => setResi(e.target.value.toUpperCase())}", "                onChange={(e) => setResi(sanitizePublicResi(e.target.value))}", 'sanitize resi input', false);
+          tracking = replaceOnce(tracking, "                  { label: 'Pelanggan', value: result.customer_name },", "                  { label: 'Pelanggan', value: maskCustomerName(result.customer_name) },", 'mask customer name', false);
+          tracking = replaceOnce(tracking, "                  { label: 'Keluhan', value: (result.issue || '').replace(/\\[.*?\\]/g, '').replace(/\\| Kelengkapan:.*/, '').trim() },", "                  { label: 'Keluhan', value: cleanPublicIssue(result.issue) },", 'clean public issue', false);
+          tracking = replaceOnce(tracking, "                    href={`https://wa.me/${tenantSettings.store_wa.replace(/^0/, '62')}?text=Halo, saya ingin menanyakan status servis resi ${result.resi}`}", "                    href={buildStoreWhatsAppUrl(tenantSettings.store_wa, result.resi)}", 'safe store wa url', false);
           fs.writeFileSync(trackingPath, tracking);
 
           const apiPath = 'src/services/api.js';
@@ -124,7 +96,8 @@ jobs:
               "        .eq('resi', cleanResi)",
               "        .maybeSingle();"
             ].join('\n'),
-            'public trackService field allowlist'
+            'public trackService field allowlist',
+            false
           );
           fs.writeFileSync(apiPath, api);
 
@@ -140,8 +113,7 @@ jobs:
         run: |
           git config user.name "aiserviceid"
           git config user.email "ai.interiorid@gmail.com"
-          git add src/pages/PublicTracking.jsx src/services/api.js
-          git add -u .github/workflows/temp-customer-tracking-privacy.yml __privacy_trigger__
+          git add -A
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
