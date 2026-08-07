@@ -1288,33 +1288,6 @@ export default function AdminDashboard() {
 
             <CustomerCRMInsights services={services} transactions={transactions} tenant={tenant} settings={settings} />
 
-            {/* CRM Metrics Cards */}
-            <div className="customer-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '2rem' }}>
-              <div className="customer-metric-card" style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #0284c7' }}>
-                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>TOTAL DATABASE PELANGGAN</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0284c7', margin: '2px 0' }}>
-                  {Array.from(new Set(services.map(s => s.customer_phone).concat(transactions.map(t => t.description?.match(/08\d+/)?.[0]).filter(Boolean)))).length} Orang
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: '600' }}>✓ Tersimpan Otomatis di CRM</div>
-              </div>
-
-              <div className="customer-metric-card" style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #16a34a' }}>
-                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>SIAP DI-BLAST WHATSAPP</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#16a34a', margin: '2px 0' }}>
-                  {services.filter(s => s.customer_phone).length} Nomor
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: '600' }}>✓ Nomor WA Terverifikasi</div>
-              </div>
-
-              <div className="customer-metric-card" style={{ background: '#ffffff', padding: '1.2rem', borderRadius: '16px', border: '1px solid #e2e8f0', borderLeft: '4px solid #7c3aed' }}>
-                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>PELANGGAN REPEAT ORDER</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#7c3aed', margin: '2px 0' }}>
-                  {services.filter(s => s.status === 'SELESAI' || s.status === 'DIAMBIL').length} Unit
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#6d28d9', fontWeight: '600' }}>✓ Riwayat Servis Sukses</div>
-              </div>
-            </div>
-
             {/* WHATSAPP MARKETING COMPOSER */}
             <details className="customer-blast-disclosure" id="customerBlastComposer">
               <summary>Atur WhatsApp Marketing promo atau pengingat</summary>
