@@ -529,15 +529,16 @@ export default function AdminDashboard() {
       const updatedService = await apiService.post('/services/update', {
         resi: selectedService.resi,
         tenant_code: selectedService.tenant_code || tenant?.code,
+        ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}),
         part_fee: partFee,
         jasa_fee: jasaFee,
         issue: updatedIssue
       });
-      const nextService = { ...selectedService, ...updatedService, part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
+      const nextService = { ...selectedService, ...updatedService, ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
       setSelectedService(nextService);
       setServices(services.map(s => s.resi === selectedService.resi ? { ...s, ...nextService } : s));
       setShowEditServiceNota(false);
-      alert('Nota servis berhasil dikoreksi.');
+      alert(selectedService.__markSelesaiFromAdmin ? 'Rincian tagihan berhasil disimpan dan status menjadi Selesai.' : 'Nota servis berhasil dikoreksi.');
     } catch (err) {
       alert('Gagal menyimpan koreksi nota.');
     }
@@ -674,6 +675,15 @@ export default function AdminDashboard() {
   const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
   const updateServiceStatusFromAction = async (service, newStatus) => {
+    if (newStatus === 'SELESAI') {
+      setSelectedService({ ...service, __markSelesaiFromAdmin: true });
+      setShowEditServiceNota(true);
+      return;
+    }
+    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') && !service.part_fee && !service.jasa_fee) {
+      alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
+      return;
+    }
     try {
       await apiService.post('/services/update', { resi: service.resi, status: newStatus });
       setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));
@@ -2077,19 +2087,7 @@ export default function AdminDashboard() {
                                 className="input-field" 
                                 style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: '130px', background: getStatusInfo(s.status)?.bg, color: getStatusInfo(s.status)?.color, fontWeight: 'bold' }}
                                 value={s.status}
-                                onChange={async (e) => {
-                                  const newStatus = e.target.value;
-                                  try {
-                                    await apiService.post('/services/update', { resi: s.resi, status: newStatus });
-                                    setServices(services.map(srv => srv.resi === s.resi ? { ...srv, status: newStatus } : srv));
-                                    if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
-                                      const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
-                                      const trackingUrl = `${window.location.origin}/tracking?resi=${s.resi}`;
-                                      const msg = `Halo Kak ${s.customer_name}, ini update status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${storeName}* saat ini: *${getStatusInfo(newStatus).label}*.\n\nKlik link ini untuk cek status langsung dari HP:\n${trackingUrl}`;
-                                      await sendWhatsAppNotification({ tenant, target: s.customer_phone, message: msg, openManual: true });
-                                    }
-                                  } catch(err) { alert('Gagal update status'); }
-                                }}
+                                onChange={(e) => updateServiceStatusFromAction(s, e.target.value)}
                               >
                                 {SERVICE_STATUSES.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
                               </select>
@@ -2253,7 +2251,9 @@ export default function AdminDashboard() {
                         setIsAddingProduct(true);
                         const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
                         const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
-                        setProducts([...products, { ...newProd, imageUrl }]);
+                        const savedProduct = { ...newProd, category: newProd.category || category, imageUrl: newProd.imageUrl || newProd.image_url || imageUrl };
+                        setProducts(prev => [savedProduct, ...prev.filter(p => String(p.id) !== String(savedProduct.id))]);
+                        apiService.getProducts(tenant.code).then(setProducts).catch(() => {});
                         setNewProdName('');
                         setNewProdPrice('');
                         setNewProdStock('0');

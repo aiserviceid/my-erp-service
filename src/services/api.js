@@ -210,6 +210,7 @@ export const apiService = {
       if (error) throw error;
       return (data || []).map(p => ({
         ...p,
+        category: p.category || 'SPAREPART',
         imageUrl: p.imageUrl || p.image_url || p.image || ''
       }));
     } catch (e) {
@@ -284,15 +285,7 @@ export const apiService = {
 
         if (retryRes.error) {
           console.warn('Fallback product insert error:', retryRes.error);
-          return {
-            id: `PROD-${Date.now()}`,
-            tenant_code: productData.tenant_code,
-            name: cleanName,
-            price: cleanPrice,
-            stock: cleanStock,
-            category: cleanCat,
-            imageUrl: img
-          };
+          throw new Error(`Barang gagal disimpan ke database: ${retryRes.error.message || 'schema products tidak cocok'}`);
         }
         inserted = retryRes.data;
       }
@@ -317,15 +310,7 @@ export const apiService = {
       };
     } catch (e) {
       console.error('addProduct exception:', e);
-      return {
-        id: `PROD-${Date.now()}`,
-        tenant_code: productData.tenant_code,
-        name: productData.name,
-        price: Number(productData.price) || 0,
-        stock: Number(productData.stock) || 0,
-        category: productData.category || 'SPAREPART',
-        imageUrl: productData.imageUrl || ''
-      };
+      throw e;
     }
   },
 
