@@ -112,7 +112,7 @@ export default function AdminDashboard() {
         device_name: fd.get('device'),
         issue: issueText,
         technician_id: fd.get('technician_id'),
-        status: 'DITERIMA'
+        status: 'PROSES'
       });
       alert(`Servis berhasil didaftarkan.\nResi: ${resiGenerated}\n\nTugas sudah dikirim ke teknisi yang dipilih.`);
       form.reset();
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
       { resi: 'TRX-1003', customer_name: 'Bambang Wijaya', customer_phone: '081987654321', device_name: 'Lenovo ThinkPad T480', issue: 'Upgrade SSD 512GB & RAM 16GB', status: 'SELESAI', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*12).toISOString() },
       { resi: 'TRX-1004', customer_name: 'Dewi Lestari', customer_phone: '082133445566', device_name: 'Acer Nitro 5 AN515', issue: 'Kipas berisik & panas lemot', status: 'DIAMBIL', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*5).toISOString() },
       { resi: 'TRX-1005', customer_name: 'Rian Pratama', customer_phone: '087811223344', device_name: 'HP Pavilion Gaming 15', issue: 'Keyboard eror pencet sendiri', status: 'MENUNGGU_PART', technician_id: 'EMP-5', created_at: new Date(Date.now() - 3600000*3).toISOString() },
-      { resi: 'TRX-1006', customer_name: 'Fikri Haikal', customer_phone: '081299887766', device_name: 'Dell XPS 13 9360', issue: 'Baterai kembung mati diisi', status: 'DITERIMA', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*1).toISOString() },
+      { resi: 'TRX-1006', customer_name: 'Fikri Haikal', customer_phone: '081299887766', device_name: 'Dell XPS 13 9360', issue: 'Baterai kembung mati diisi', status: 'PROSES', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*1).toISOString() },
       { resi: 'TRX-1007', customer_name: 'Maya Indah', customer_phone: '085244556677', device_name: 'Asus Vivobook A412F', issue: 'Engsel patah & casing pecah', status: 'DIKERJAKAN', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*4).toISOString() },
       { resi: 'TRX-1008', customer_name: 'Guntur Pamungkas', customer_phone: '081377889900', device_name: 'PC Desktop Gaming i5-12400F', issue: 'No display vga tidak terbaca', status: 'DICEK', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*8).toISOString() },
       { resi: 'TRX-1009', customer_name: 'Tania Putri', customer_phone: '089655443322', device_name: 'Lenovo Ideapad Slim 3', issue: 'Install ulang Windows 11 Original', status: 'SELESAI', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*2).toISOString() },
@@ -509,6 +509,7 @@ export default function AdminDashboard() {
     if (!selectedService) return;
 
     const fd = new FormData(event.currentTarget);
+    const note = String(fd.get('note') || '').trim();
     const partFee = normalizeMoneyInput(fd.get('part_fee'));
     const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));
     const discount = normalizeMoneyInput(fd.get('discount'));
@@ -522,10 +523,11 @@ export default function AdminDashboard() {
       return;
     }
 
-    const updatedIssue = buildIssueWithDiscount(selectedService.issue || '', discount);
+    const updatedIssue = buildIssueWithDiscount(note || selectedService.issue || '', discount);
     try {
       const updatedService = await apiService.post('/services/update', {
         resi: selectedService.resi,
+        tenant_code: selectedService.tenant_code || tenant?.code,
         part_fee: partFee,
         jasa_fee: jasaFee,
         issue: updatedIssue
@@ -2877,6 +2879,15 @@ export default function AdminDashboard() {
               <button type="button" className="btn btn-ghost" onClick={() => setShowEditServiceNota(false)}><X size={20}/></button>
             </div>
             <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>
+            <label className="label">Keterangan / Rincian Perbaikan</label>
+            <textarea
+              name="note"
+              className="input-field"
+              rows="4"
+              defaultValue={buildIssueWithDiscount(selectedService.issue || '', 0)}
+              placeholder="Contoh: Ganti LCD, cleaning konektor, unit normal kembali"
+              style={{ marginBottom: '10px', resize: 'vertical' }}
+            />
             <label className="label">Biaya Sparepart (Rp)</label>
             <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} required />
             <label className="label">Biaya Jasa (Rp)</label>

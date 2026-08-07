@@ -615,8 +615,10 @@ export const apiService = {
         return data;
       }
       if (endpoint === '/services/update') {
-        const { resi, ...updates } = body;
-        const { data, error } = await supabase.from('services').update(updates).eq('resi', resi).select().single();
+        const { resi, tenant_code, ...updates } = body;
+        let query = supabase.from('services').update(updates).eq('resi', resi);
+        if (tenant_code) query = query.eq('tenant_code', tenant_code);
+        const { data, error } = await query.select().single();
         if (error) throw error;
         return data;
       }
