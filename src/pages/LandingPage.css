@@ -240,3 +240,17 @@
   .unitpro-footer { grid-template-columns: 1fr; gap: 12px; padding: 28px 20px; }
   .unitpro-footer small { grid-column: auto; margin-top: 8px; }
 }
+
+/* Sales Demo Mode */
+.unitpro-demo-panel { width: min(1120px, calc(100% - 32px)); margin: 34px auto 0; padding: 22px; border-radius: 28px; background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.22); box-shadow: 0 24px 70px rgba(15,23,42,.14); backdrop-filter: blur(18px); display: grid; grid-template-columns: minmax(260px,.88fr) 1.4fr; gap: 20px; align-items: stretch; }
+.unitpro-demo-copy { padding: 18px; border-radius: 22px; background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color: #dbeafe; }
+.unitpro-demo-copy h2 { margin: 8px 0 10px; color: #fff; font-size: clamp(1.4rem,2vw,2rem); line-height: 1.12; }
+.unitpro-demo-copy span { display: block; color: #cbd5e1; line-height: 1.6; font-size: .94rem; }
+.unitpro-demo-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.unitpro-demo-card { border: 1px solid rgba(226,232,240,.95); background: #fff; border-radius: 22px; padding: 18px; text-align: left; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; color: #0f172a; min-height: 190px; display: flex; flex-direction: column; gap: 10px; }
+.unitpro-demo-card:hover { transform: translateY(-4px); border-color: rgba(16,185,129,.55); box-shadow: 0 18px 40px rgba(15,23,42,.12); }
+.unitpro-demo-card span { width: 42px; height: 42px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #ecfdf5; color: #047857; }
+.unitpro-demo-card strong { font-size: 1rem; font-weight: 900; }
+.unitpro-demo-card small { color: #64748b; line-height: 1.45; font-size: .84rem; flex: 1; }
+.unitpro-demo-card em { display: inline-flex; align-items: center; gap: 6px; color: #059669; font-style: normal; font-weight: 800; font-size: .82rem; }
+@media (max-width: 900px) { .unitpro-demo-panel { grid-template-columns: 1fr; } .unitpro-demo-grid { grid-template-columns: 1fr; } .unitpro-demo-card { min-height: auto; } }
