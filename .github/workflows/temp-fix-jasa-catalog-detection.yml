@@ -1,0 +1,74 @@
+name: Fix Jasa Catalog Detection
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - .github/fix-jasa-catalog-detection-trigger.txt
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch jasa catalog detection
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          function replaceRequired(file, from, to, label) {
+            let text = fs.readFileSync(file, 'utf8');
+            if (!text.includes(from)) throw new Error(`${label} not found in ${file}`);
+            text = text.replace(from, to);
+            fs.writeFileSync(file, text);
+          }
+
+          const api = 'src/services/api.js';
+          let apiText = fs.readFileSync(api, 'utf8');
+          if (!apiText.includes('const PRODUCT_CATEGORY_OVERRIDES_KEY')) {
+            apiText = apiText.replace(
+              "const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');",
+              "const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');\n\nconst PRODUCT_CATEGORY_OVERRIDES_KEY = 'UNITPRO_PRODUCT_CATEGORY_OVERRIDES';\n\nconst getProductCategoryOverrides = () => {\n  if (typeof window === 'undefined') return {};\n  try {\n    return JSON.parse(window.localStorage.getItem(PRODUCT_CATEGORY_OVERRIDES_KEY) || '{}');\n  } catch {\n    return {};\n  }\n};\n\nconst getProductCategoryOverride = (tenantCode, product) => {\n  const keyById = `${tenantCode || product?.tenant_code || ''}:${product?.id || ''}`;\n  const keyByName = `${tenantCode || product?.tenant_code || ''}:name:${String(product?.name || '').trim().toLowerCase()}`;\n  const overrides = getProductCategoryOverrides();\n  return overrides[keyById] || overrides[keyByName] || '';\n};\n\nconst saveProductCategoryOverride = (tenantCode, product, category) => {\n  if (typeof window === 'undefined' || !product || !category) return;\n  try {\n    const overrides = getProductCategoryOverrides();\n    const normalized = String(category || '').trim().toUpperCase();\n    if (product.id) overrides[`${tenantCode || product.tenant_code || ''}:${product.id}`] = normalized;\n    if (product.name) overrides[`${tenantCode || product.tenant_code || ''}:name:${String(product.name).trim().toLowerCase()}`] = normalized;\n    window.localStorage.setItem(PRODUCT_CATEGORY_OVERRIDES_KEY, JSON.stringify(overrides));\n  } catch (err) {\n    console.warn('Product category override warning:', err);\n  }\n};"
+            );
+          }
+          apiText = apiText.replace(
+            "        category: p.category || 'SPAREPART',",
+            "        category: p.category || getProductCategoryOverride(tenantCode, p) || 'SPAREPART',"
+          );
+          apiText = apiText.replace(
+            "      return {\n        ...inserted,\n        imageUrl: inserted?.imageUrl || inserted?.image_url || img\n      };",
+            "      if (!inserted?.category && cleanCat) {\n        saveProductCategoryOverride(productData.tenant_code, inserted || { name: cleanName }, cleanCat);\n      }\n\n      return {\n        ...inserted,\n        category: inserted?.category || cleanCat,\n        imageUrl: inserted?.imageUrl || inserted?.image_url || img\n      };"
+          );
+          apiText = apiText.replace(
+            "      return {\n        ...updated,\n        imageUrl: updated?.imageUrl || updated?.image_url || img\n      };",
+            "      return {\n        ...updated,\n        category: updated?.category || productData.category,\n        imageUrl: updated?.imageUrl || updated?.image_url || img\n      };"
+          );
+          fs.writeFileSync(api, apiText);
+
+          const emp = 'src/pages/EmployeePortal.jsx';
+          replaceRequired(emp,
+            "  const sparepartCatalog = products.filter(p => (p.category || '').toUpperCase() !== 'JASA');\n  const jasaCatalog = products.filter(p => (p.category || '').toUpperCase() === 'JASA');",
+            "  const normalizeProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\\s+/g, '_');\n  const isJasaProduct = (product) => {\n    const category = normalizeProductCategory(product);\n    const name = String(product?.name || '').toLowerCase();\n    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;\n    return category === 'JASA'\n      || category === 'SERVIS'\n      || category === 'SERVICE'\n      || category === 'LAYANAN'\n      || category.includes('JASA')\n      || category.includes('SERVIS')\n      || category.includes('SERVICE')\n      || category.includes('LAYANAN')\n      || serviceKeywords.test(name)\n      || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));\n  };\n  const sparepartCatalog = products.filter(p => !isJasaProduct(p));\n  const jasaCatalog = products.filter(p => isJasaProduct(p));",
+            'employee product catalog filters'
+          );
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit and clean
+        if: always()
+        shell: bash
+        run: |
+          git config user.name aiserviceid
+          git config user.email ai.interiorid@gmail.com
+          git add src/services/api.js src/pages/EmployeePortal.jsx
+          git commit -m "fix: detect jasa inventory items in service completion" || echo "nothing to commit"
+          git rm .github/workflows/temp-fix-jasa-catalog-detection.yml .github/fix-jasa-catalog-detection-trigger.txt || true
+          git commit -m "chore: clean jasa catalog temp workflow" || echo "nothing to clean"
+          git push || true
