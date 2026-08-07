@@ -1,0 +1,145 @@
+name: Clean POS Stock Guard
+
+on:
+  push:
+    branches:
+      - agent/pos-stock-guard-clean
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Apply clean POS stock guard patch
+        shell: bash
+        run: |
+          cat > /tmp/pos_stock_clean.py <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/POSView.jsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'POSView.jsx: expected 1 match for {label}, found {count}')
+              text = text.replace(old, new, 1)
+
+          old_precheck = "\n".join([
+              "  const handleCheckout = async () => {",
+              "    if (cart.length === 0) return;",
+              "    if (paymentMethod === 'TUNAI' && cashReceivedNum < grandTotal) {",
+          ])
+          new_precheck = "\n".join([
+              "  const handleCheckout = async () => {",
+              "    if (cart.length === 0) return;",
+              "    const stockProblem = cart.find(item => (item.category || '').toUpperCase() !== 'JASA' && Number(item.stock || 0) < Number(item.qty || 0));",
+              "    if (stockProblem) {",
+              "      alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);",
+              "      return;",
+              "    }",
+              "    if (paymentMethod === 'TUNAI' && cashReceivedNum < grandTotal) {",
+          ])
+          replace_once(old_precheck, new_precheck, 'checkout stock precheck')
+
+          old_block = "\n".join([
+              "      // 1. Create transaction",
+              "      const savedTransaction = await apiService.post('/transactions', {",
+              "        tenant_code: tenant.code,",
+              "        type: 'POS_SALES',",
+              "        amount: grandTotal,",
+              "        description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`",
+              "      });",
+              "      receiptData.transactionDbId = savedTransaction?.id;",
+              "",
+              "      // 2. Update stock for each item",
+              "      const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';",
+              "      for (const item of cart) {",
+              "        const newStock = Math.max(0, item.stock - item.qty);",
+              "        apiService.updateProduct(item.id, {",
+              "          name: item.name,",
+              "          price: item.price,",
+              "          stock: newStock,",
+              "          cost_price: item.cost_price || 0",
+              "        }, item.stock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`).catch(() => {});",
+              "      }",
+          ])
+          new_block = "\n".join([
+              "      // 1. Secure stock first so failed stock updates do not create POS transactions.",
+              "      const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';",
+              "      const stockItems = cart.filter(item => (item.category || '').toUpperCase() !== 'JASA');",
+              "      const updatedStockItems = [];",
+              "      try {",
+              "        for (const item of stockItems) {",
+              "          const originalStock = Number(item.stock || 0);",
+              "          const newStock = originalStock - Number(item.qty || 0);",
+              "          if (newStock < 0) {",
+              "            throw new Error(`Stok ${item.name} tidak cukup.`);",
+              "          }",
+              "          await apiService.updateProduct(item.id, {",
+              "            name: item.name,",
+              "            price: item.price,",
+              "            stock: newStock,",
+              "            cost_price: item.cost_price || 0",
+              "          }, originalStock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`);",
+              "          updatedStockItems.push({ ...item, originalStock, newStock });",
+              "        }",
+              "",
+              "        const savedTransaction = await apiService.post('/transactions', {",
+              "          tenant_code: tenant.code,",
+              "          type: 'POS_SALES',",
+              "          amount: grandTotal,",
+              "          description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`",
+              "        });",
+              "        receiptData.transactionDbId = savedTransaction?.id;",
+              "      } catch (checkoutErr) {",
+              "        if (updatedStockItems.length > 0) {",
+              "          const rollbackResults = await Promise.allSettled(updatedStockItems.map(item =>",
+              "            apiService.updateProduct(item.id, {",
+              "              name: item.name,",
+              "              price: item.price,",
+              "              stock: item.originalStock,",
+              "              cost_price: item.cost_price || 0",
+              "            }, item.newStock, currentUser, `Rollback checkout POS gagal (${receiptData.transactionId})`)",
+              "          ));",
+              "          const rollbackFailed = rollbackResults.some(result => result.status === 'rejected');",
+              "          if (rollbackFailed) {",
+              "            throw new Error(`${checkoutErr.message} Stok sempat berubah dan rollback gagal. Segera koreksi stok manual.`);",
+              "          }",
+              "        }",
+              "        throw checkoutErr;",
+              "      }",
+          ])
+          replace_once(old_block, new_block, 'secure stock before transaction')
+          text = text.replace("      alert('Gagal menyimpan transaksi: ' + err.message);", "      alert('Gagal memproses checkout: ' + err.message);")
+          path.write_text(text, encoding='utf-8')
+          PY
+          python /tmp/pos_stock_clean.py
+
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          rm -f .github/workflows/temp-pos-stock-clean.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/POSView.jsx .github/workflows/temp-pos-stock-clean.yml
+          git commit -m "fix: secure POS stock before transaction"
+          git push origin HEAD:agent/pos-stock-guard-clean
