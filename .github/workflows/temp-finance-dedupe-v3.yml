@@ -1,0 +1,43 @@
+name: finance_dedupe_v3
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - '.github/workflows/temp-finance-dedupe-v3.yml'
+      - '.github/finance-dedupe-v3-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch finance report
+        run: node scripts/fix-finance-dedupe.cjs
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit and cleanup
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/AdminDashboard.jsx
+          git rm --ignore-unmatch .github/workflows/temp-finance-dedupe-v3.yml .github/finance-dedupe-v3-trigger.txt scripts/fix-finance-dedupe.cjs
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "fix: remove duplicate finance report"
+          git pull --rebase origin agent/v1-stabilization-integration
+          git push origin HEAD:agent/v1-stabilization-integration
