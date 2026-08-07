@@ -200,33 +200,49 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     const phoneString = posCustPhone ? ` | WA: ${posCustPhone}` : '';
 
     try {
-      // 1. Create transaction
-      const savedTransaction = await apiService.post('/transactions', {
-        tenant_code: tenant.code,
-        type: 'POS_SALES',
-        amount: grandTotal,
-        description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
-      });
-      receiptData.transactionDbId = savedTransaction?.id;
-
-      // 2. Update stock for each physical item. Do not swallow stock failures.
+      // 1. Secure stock first so failed stock updates do not create POS transactions.
       const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
       const stockItems = cart.filter(item => (item.category || '').toUpperCase() !== 'JASA');
-      const stockUpdateResults = await Promise.allSettled(stockItems.map(item => {
-        const newStock = Number(item.stock || 0) - Number(item.qty || 0);
-        if (newStock < 0) {
-          return Promise.reject(new Error(`Stok ${item.name} tidak cukup.`));
+      const updatedStockItems = [];
+      try {
+        for (const item of stockItems) {
+          const originalStock = Number(item.stock || 0);
+          const newStock = originalStock - Number(item.qty || 0);
+          if (newStock < 0) {
+            throw new Error(`Stok ${item.name} tidak cukup.`);
+          }
+          await apiService.updateProduct(item.id, {
+            name: item.name,
+            price: item.price,
+            stock: newStock,
+            cost_price: item.cost_price || 0
+          }, originalStock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`);
+          updatedStockItems.push({ ...item, originalStock, newStock });
         }
-        return apiService.updateProduct(item.id, {
-          name: item.name,
-          price: item.price,
-          stock: newStock,
-          cost_price: item.cost_price || 0
-        }, item.stock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`);
-      }));
-      const failedStockUpdates = stockUpdateResults.filter(result => result.status === 'rejected');
-      if (failedStockUpdates.length > 0) {
-        throw new Error('Transaksi tersimpan, tetapi update stok gagal. Segera koreksi stok manual sebelum lanjut transaksi berikutnya.');
+
+        const savedTransaction = await apiService.post('/transactions', {
+          tenant_code: tenant.code,
+          type: 'POS_SALES',
+          amount: grandTotal,
+          description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
+        });
+        receiptData.transactionDbId = savedTransaction?.id;
+      } catch (checkoutErr) {
+        if (updatedStockItems.length > 0) {
+          const rollbackResults = await Promise.allSettled(updatedStockItems.map(item =>
+            apiService.updateProduct(item.id, {
+              name: item.name,
+              price: item.price,
+              stock: item.originalStock,
+              cost_price: item.cost_price || 0
+            }, item.newStock, currentUser, `Rollback checkout POS gagal (${receiptData.transactionId})`)
+          ));
+          const rollbackFailed = rollbackResults.some(result => result.status === 'rejected');
+          if (rollbackFailed) {
+            throw new Error(`${checkoutErr.message} Stok sempat berubah dan rollback gagal. Segera koreksi stok manual.`);
+          }
+        }
+        throw checkoutErr;
       }
 
       // 3. Show receipt
@@ -260,7 +276,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       } catch (e) {}
 
     } catch (err) {
-      alert('Gagal menyimpan transaksi: ' + err.message);
+      alert('Gagal memproses checkout: ' + err.message);
     } finally {
       setCheckoutLoading(false);
     }
