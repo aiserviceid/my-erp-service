@@ -1,0 +1,74 @@
+name: Batch 9 Customer Detail Collapse
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - '.github/batch9-collapse-customer-detail-trigger.txt'
+      - '.github/workflows/temp-batch9-collapse-customer-detail.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Collapse customer detail table
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/AdminDashboard.jsx')
+          text = path.read_text()
+
+          text = text.replace('Buka Tab Multi-Blast', 'Buka WhatsApp Campaign')
+
+          start = '''return (\n                <>\n                  <div className="customer-category-tabs"'''
+          replacement = '''return (\n                <details className="customer-detail-disclosure" style={{ marginTop: '1rem', border: '1px solid #dbeafe', borderRadius: '18px', background: '#ffffff', overflow: 'hidden' }}>\n                  <summary style={{ cursor: 'pointer', listStyle: 'none', padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontWeight: 900, color: '#0f172a', borderBottom: '1px solid #e2e8f0' }}>\n                    <span>Detail Riwayat Pelanggan <small style={{ display: 'block', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>Lihat daftar pelanggan, nomor WA, status terakhir, dan sumber data.</small></span>\n                    <span style={{ background: '#ecfeff', color: '#0f766e', borderRadius: '999px', padding: '6px 10px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>Buka Detail</span>\n                  </summary>\n                  <div style={{ padding: '16px 18px' }}>\n                  <div className="customer-category-tabs"'''
+          if start in text and 'customer-detail-disclosure' not in text:
+              text = text.replace(start, replacement, 1)
+              end = '''                </>\n              );'''
+              end_replacement = '''                  </div>\n                </details>\n              );'''
+              pos = text.find(replacement)
+              end_pos = text.find(end, pos)
+              if end_pos == -1:
+                  raise SystemExit('Customer detail fragment closing marker not found')
+              text = text[:end_pos] + end_replacement + text[end_pos + len(end):]
+          elif 'customer-detail-disclosure' in text:
+              print('Customer detail already collapsed')
+          else:
+              raise SystemExit('Customer detail start marker not found')
+
+          path.write_text(text)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit and cleanup
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/AdminDashboard.jsx
+          git rm -f .github/workflows/temp-batch9-collapse-customer-detail.yml .github/batch9-collapse-customer-detail-trigger.txt --ignore-unmatch || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: collapse customer detail table by default"
+          git pull --rebase origin agent/v1-stabilization-integration
+          git push origin HEAD:agent/v1-stabilization-integration
