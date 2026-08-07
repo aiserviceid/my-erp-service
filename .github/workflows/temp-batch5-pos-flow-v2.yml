@@ -1,0 +1,123 @@
+name: Batch 5 POS Flow V2
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - .github/batch5-pos-flow-v2-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch POS flow v2
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'src/components/POSView.jsx';
+          let text = fs.readFileSync(file, 'utf8');
+          function replaceRequired(from, to, label) {
+            if (!text.includes(from)) throw new Error(label + ' not found');
+            text = text.replace(from, to);
+          }
+
+          const helperAnchor = "  const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';\n";
+          if (!text.includes('const isServiceItem = (product) => {')) {
+            replaceRequired(helperAnchor, helperAnchor + [
+              '',
+              "  const getProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\\s+/g, '_');",
+              "  const isServiceItem = (product) => {",
+              "    const category = getProductCategory(product);",
+              "    const name = String(product?.name || '').toLowerCase();",
+              "    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;",
+              "    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));",
+              "  };",
+              "  const getProductImage = (product) => product?.imageUrl || product?.image_url || product?.image || '';",
+              "  const formatMoney = (value) => normalizeMoneyInput(value).toLocaleString('id-ID');"
+            ].join('\n') + '\n', 'helper anchor');
+          }
+
+          replaceRequired(
+            "      const matchCat = selectedCategory === 'SEMUA' || (p.category && p.category.toUpperCase() === selectedCategory.toUpperCase());\n      if (!matchCat) return false;",
+            "      const category = getProductCategory(p);\n      const matchCat = selectedCategory === 'SEMUA'\n        || (selectedCategory === 'JASA' ? isServiceItem(p) : category === selectedCategory.toUpperCase());\n      if (!matchCat) return false;",
+            'filtered category'
+          );
+          replaceRequired(
+            "    if (product) {\n      if (product.stock <= 0) { alert('Stok Habis!'); return; }\n      addToCart(product);\n      setShowScanner(false);\n    } else {",
+            "    if (product) {\n      const currentQty = Number(cart.find(item => String(item.id) === String(product.id))?.qty || 0);\n      if (!isServiceItem(product) && Number(product.stock || 0) <= 0) { alert('Stok Habis!'); return; }\n      if (!isServiceItem(product) && currentQty >= Number(product.stock || 0)) { alert('Jumlah di keranjang sudah mencapai stok tersedia.'); return; }\n      addToCart(product);\n      setShowScanner(false);\n    } else {",
+            'scanner stock guard'
+          );
+          replaceRequired(
+            "  const openCheckout = () => {\n    setCheckoutStep(1);\n    setShowCheckout(true);\n  };",
+            "  const validateCartStock = () => cart.find(item => !isServiceItem(item) && Number(item.stock || 0) < Number(item.qty || 0));\n\n  const openCheckout = () => {\n    const stockProblem = validateCartStock();\n    if (stockProblem) {\n      alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);\n      return;\n    }\n    if (discountAmount > subtotal) {\n      alert('Diskon tidak boleh lebih besar dari subtotal belanja.');\n      return;\n    }\n    setCheckoutStep(1);\n    setShowCheckout(true);\n  };",
+            'open checkout validation'
+          );
+          replaceRequired(
+            "    const stockProblem = cart.find(item => (item.category || '').toUpperCase() !== 'JASA' && Number(item.stock || 0) < Number(item.qty || 0));",
+            "    const stockProblem = validateCartStock();",
+            'checkout stock validation'
+          );
+          replaceRequired(
+            "      const stockItems = cart.filter(item => (item.category || '').toUpperCase() !== 'JASA');",
+            "      const stockItems = cart.filter(item => !isServiceItem(item));",
+            'stock item filter'
+          );
+          replaceRequired(
+            "          const outOfStock = p.stock <= 0;\n          const lowStock = p.stock > 0 && p.stock <= 5;\n          const inCart = cart.find(c => c.id === p.id);",
+            "          const isService = isServiceItem(p);\n          const stockQty = Number(p.stock || 0);\n          const inCart = cart.find(c => String(c.id) === String(p.id));\n          const cartQty = Number(inCart?.qty || 0);\n          const outOfStock = !isService && stockQty <= 0;\n          const lowStock = !isService && stockQty > 0 && stockQty <= 5;\n          const reachedCartLimit = !isService && stockQty > 0 && cartQty >= stockQty;\n          const productImage = getProductImage(p);",
+            'product card flags'
+          );
+          replaceRequired("              disabled={outOfStock}", "              disabled={outOfStock || reachedCartLimit}", 'product disabled');
+          replaceRequired("                if (!outOfStock) addToCart(p);", "                if (outOfStock) return;\n                if (reachedCartLimit) { alert('Jumlah di keranjang sudah mencapai stok tersedia.'); return; }\n                addToCart(p);", 'product click');
+          replaceRequired("                cursor: outOfStock ? 'not-allowed' : 'pointer',\n                opacity: outOfStock ? 0.5 : 1,", "                cursor: (outOfStock || reachedCartLimit) ? 'not-allowed' : 'pointer',\n                opacity: (outOfStock || reachedCartLimit) ? 0.55 : 1,", 'product cursor');
+          replaceRequired(
+            "              {lowStock && !outOfStock && (\n                <div style={{\n                  position: 'absolute', top: '8px', right: '8px',\n                  background: '#f59e0b', color: 'white', fontSize: '0.6rem',\n                  padding: '2px 6px', borderRadius: '4px', fontWeight: '800',\n                }}>Sisa {p.stock}</div>\n              )}",
+            "              {reachedCartLimit && !outOfStock && (\n                <div style={{\n                  position: 'absolute', top: '8px', right: '8px',\n                  background: '#0f172a', color: 'white', fontSize: '0.6rem',\n                  padding: '2px 6px', borderRadius: '4px', fontWeight: '800',\n                }}>MAX</div>\n              )}\n              {lowStock && !outOfStock && !reachedCartLimit && (\n                <div style={{\n                  position: 'absolute', top: '8px', right: '8px',\n                  background: '#f59e0b', color: 'white', fontSize: '0.6rem',\n                  padding: '2px 6px', borderRadius: '4px', fontWeight: '800',\n                }}>Sisa {p.stock}</div>\n              )}",
+            'low stock badge'
+          );
+          replaceRequired("              {p.imageUrl ? (\n                <img src={p.imageUrl} alt={p.name}", "              {productImage ? (\n                <img src={productImage} alt={p.name}", 'product image');
+          replaceRequired("                  Stok: {p.stock}", "                  {isService ? 'Jenis: Jasa' : 'Stok: ' + p.stock}", 'stock label');
+          replaceRequired(
+            "                    if (item.qty < item.stock) {\n                      if (updateCartQty) updateCartQty(item.id, item.qty + 1);\n                      else addToCart(item);\n                    }",
+            "                    if (isServiceItem(item) || item.qty < Number(item.stock || 0)) {\n                      if (updateCartQty) updateCartQty(item.id, item.qty + 1);\n                      else addToCart(item);\n                    } else {\n                      alert('Jumlah di keranjang sudah mencapai stok tersedia.');\n                    }",
+            'cart plus stock guard'
+          );
+          replaceRequired(
+            "              type=\"number\"\n              placeholder=\"0\"\n              value={discount || ''}\n              onChange={(e) => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}",
+            "              type=\"text\"\n              inputMode=\"numeric\"\n              placeholder=\"0\"\n              value={discount ? discount.toLocaleString('id-ID') : ''}\n              onChange={(e) => setDiscount(Math.max(0, normalizeMoneyInput(e.target.value)))}",
+            'discount input format'
+          );
+          replaceRequired(
+            "                  type=\"number\"\n                  placeholder={`Min. Rp ${grandTotal.toLocaleString('id-ID')}`}\n                  value={cashReceived}\n                  onChange={(e) => setCashReceived(e.target.value)}",
+            "                  type=\"text\"\n                  inputMode=\"numeric\"\n                  placeholder={`Min. Rp ${grandTotal.toLocaleString('id-ID')}`}\n                  value={cashReceived ? formatMoney(cashReceived) : ''}\n                  onChange={(e) => setCashReceived(String(normalizeMoneyInput(e.target.value)))}",
+            'cash input format'
+          );
+          fs.writeFileSync(file, text);
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit source and clean
+        shell: bash
+        run: |
+          git config user.name aiserviceid
+          git config user.email ai.interiorid@gmail.com
+          git add src/components/POSView.jsx
+          git commit -m "fix: polish POS checkout stock and money flow" || echo "no source changes"
+          git rm .github/workflows/temp-batch5-pos-flow.yml .github/batch5-pos-flow-trigger.txt .github/workflows/temp-batch5-pos-flow-v2.yml .github/batch5-pos-flow-v2-trigger.txt || true
+          git commit -m "chore: clean batch 5 temp workflows" || echo "nothing to clean"
+          git push origin HEAD:agent/v1-stabilization-integration
