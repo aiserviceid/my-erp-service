@@ -109,6 +109,7 @@ export default function EmployeePortal() {
     if (!selectedService) return;
 
     const fd = new FormData(event.currentTarget);
+    const note = String(fd.get('note') || '').trim();
     const partFee = normalizeMoneyInput(fd.get('part_fee'));
     const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));
     const discount = normalizeMoneyInput(fd.get('discount'));
@@ -122,7 +123,7 @@ export default function EmployeePortal() {
       return;
     }
 
-    const updatedIssue = buildIssueWithDiscount(selectedService.issue || '', discount);
+    const updatedIssue = buildIssueWithDiscount(note, discount);
     try {
       const updatedService = await apiService.post('/services/update', {
         resi: selectedService.resi,
@@ -1202,6 +1203,14 @@ export default function EmployeePortal() {
               <button type="button" className="btn btn-ghost" onClick={() => setShowEditServiceNota(false)}><X size={20}/></button>
             </div>
             <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>
+            <label className="label">Keterangan / Rincian Perbaikan</label>
+            <textarea
+              name="note"
+              className="input-field"
+              rows="4"
+              defaultValue={buildIssueWithDiscount(selectedService.issue || '', 0)}
+              placeholder="Contoh: Ganti LCD, cleaning konektor, unit normal kembali"
+            />
             <label className="label">Biaya Sparepart (Rp)</label>
             <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} required />
             <label className="label">Biaya Jasa (Rp)</label>
