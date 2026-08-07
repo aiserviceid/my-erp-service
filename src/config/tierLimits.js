@@ -50,6 +50,7 @@ export const TIER_CONFIG = {
       // Premium features OFF
       employees: false,
       whatsappNotif: false,
+      whatsappMarketing: false,
       catalog: false,
       detailedReport: false,
       exportExcel: false,
@@ -84,6 +85,7 @@ export const TIER_CONFIG = {
       // Premium ON
       employees: true,
       whatsappNotif: true,
+      whatsappMarketing: true,
       catalog: true,
       detailedReport: true,
       exportExcel: true,
@@ -110,6 +112,7 @@ export const TIER_CONFIG = {
       pos: true, services: true, printReceipt: true, barcode: true,
       publicTracking: true, masterProducts: true, basicReport: true,
       themeSettings: true, employees: true, whatsappNotif: true,
+      whatsappMarketing: true,
       catalog: true, detailedReport: true, exportExcel: true,
       customBranding: true, adsSettings: true, multiBranch: true,
       wallet: false, affiliate: false, forum: true,
@@ -151,12 +154,12 @@ export const PAYMENT_METHODS = [
 
 // ─── TABS VISIBILITY PER TIER ──────────────────────────────
 export const ADMIN_TABS = [
-  { id: 'dashboard',   name: 'Dashboard',          feature: 'basicReport',    iconName: 'LayoutDashboard' },
-  { id: 'servis',      name: 'Servis & Tracking',  feature: 'services',       iconName: 'Wrench' },
-  { id: 'pos',         name: 'Kasir (POS)',        feature: 'pos',            iconName: 'ShoppingCart' },
-  { id: 'master',      name: 'Barang & Stok',      feature: 'masterProducts', iconName: 'Package' },
-  { id: 'pelanggan',   name: 'Pelanggan & WA Blast', feature: 'basicReport',  iconName: 'MessageSquare' },
-  { id: 'keuangan',    name: 'Keuangan',           feature: 'basicReport',    iconName: 'TrendingUp' },
-  { id: 'karyawan',    name: 'Karyawan & PIN',     feature: 'themeSettings',  iconName: 'Users' },
-  { id: 'pengaturan',  name: 'Pengaturan Toko',    feature: 'themeSettings',  iconName: 'Settings' },
+  { id: 'dashboard',   name: 'Ringkasan',          feature: 'basicReport',    iconName: 'LayoutDashboard' },
+  { id: 'servis',      name: 'Servis',             feature: 'services',       iconName: 'Wrench' },
+  { id: 'pos',         name: 'Kasir',              feature: 'pos',            iconName: 'ShoppingCart' },
+  { id: 'master',      name: 'Inventori',          feature: 'masterProducts', iconName: 'Package' },
+  { id: 'pelanggan',   name: 'Pelanggan & WA',     feature: 'basicReport',    iconName: 'MessageSquare' },
+  { id: 'keuangan',    name: 'Laporan',            feature: 'basicReport',    iconName: 'TrendingUp' },
+  { id: 'karyawan',    name: 'Tim',                feature: 'themeSettings',  iconName: 'Users' },
+  { id: 'pengaturan',  name: 'Toko',               feature: 'themeSettings',  iconName: 'Settings' },
 ];
