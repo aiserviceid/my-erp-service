@@ -50,8 +50,15 @@ export default function EmployeePortal() {
   const printIframeRef = useRef(null);
 
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
-  const sparepartCatalog = products.filter(p => (p.category || '').toUpperCase() !== 'JASA');
-  const jasaCatalog = products.filter(p => (p.category || '').toUpperCase() === 'JASA');
+  const normalizeProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
+  const isJasaProduct = (product) => {
+    const category = normalizeProductCategory(product);
+    const name = String(product?.name || '').toLowerCase();
+    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
+    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
+  };
+  const sparepartCatalog = products.filter(p => !isJasaProduct(p));
+  const jasaCatalog = products.filter(p => isJasaProduct(p));
   const settings = tenant?.settings || {};
   const paymentInfoText = (() => {
     const bankName = settings.bank_name || '';

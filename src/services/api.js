@@ -3,6 +3,39 @@ import { compressImageFile } from '../utils/imageCompressor';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
+const PRODUCT_META_OVERRIDES_KEY = 'UNITPRO_PRODUCT_META_OVERRIDES';
+
+const getProductMetaOverrides = () => {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(window.localStorage.getItem(PRODUCT_META_OVERRIDES_KEY) || '{}'); } catch { return {}; }
+};
+const getProductMetaKeys = (tenantCode, product = {}) => {
+  const tenantKey = tenantCode || product.tenant_code || '';
+  const keys = [];
+  if (product.id) keys.push(`${tenantKey}:${product.id}`);
+  if (product.name) keys.push(`${tenantKey}:name:${String(product.name).trim().toLowerCase()}`);
+  return keys;
+};
+const getProductMetaOverride = (tenantCode, product, field) => {
+  const overrides = getProductMetaOverrides();
+  for (const key of getProductMetaKeys(tenantCode, product)) {
+    if (overrides[key] && overrides[key][field]) return overrides[key][field];
+  }
+  return '';
+};
+const saveProductMetaOverride = (tenantCode, product, patch = {}) => {
+  if (typeof window === 'undefined' || !product) return;
+  const cleanPatch = {};
+  if (patch.category) cleanPatch.category = String(patch.category).trim().toUpperCase();
+  if (patch.imageUrl) cleanPatch.imageUrl = patch.imageUrl;
+  if (Object.keys(cleanPatch).length === 0) return;
+  try {
+    const overrides = getProductMetaOverrides();
+    for (const key of getProductMetaKeys(tenantCode, product)) overrides[key] = { ...(overrides[key] || {}), ...cleanPatch };
+    window.localStorage.setItem(PRODUCT_META_OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch (err) { console.warn('Product local metadata fallback warning:', err); }
+};
+
 export const apiService = {
   // Helper to get headers
   getHeaders: () => {
@@ -210,8 +243,8 @@ export const apiService = {
       if (error) throw error;
       return (data || []).map(p => ({
         ...p,
-        category: p.category || 'SPAREPART',
-        imageUrl: p.imageUrl || p.image_url || p.image || ''
+        category: p.category || getProductMetaOverride(tenantCode, p, 'category') || 'SPAREPART',
+        imageUrl: p.imageUrl || p.image_url || p.image || getProductMetaOverride(tenantCode, p, 'imageUrl') || ''
       }));
     } catch (e) {
       console.error('getProducts error:', e);
@@ -304,8 +337,11 @@ export const apiService = {
         }
       }
 
+      saveProductMetaOverride(productData.tenant_code, inserted || { name: cleanName }, { category: cleanCat, imageUrl: img });
+
       return {
         ...inserted,
+        category: inserted?.category || cleanCat,
         imageUrl: inserted?.imageUrl || inserted?.image_url || img
       };
     } catch (e) {
@@ -348,8 +384,6 @@ export const apiService = {
         if (productData.name) basicPayload.name = productData.name;
         if (cleanPrice !== undefined) basicPayload.price = cleanPrice;
         if (cleanStock !== undefined) basicPayload.stock = cleanStock;
-        if (img) basicPayload.image_url = img;
-
         const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();
         if (!retryRes.error) {
           updated = retryRes.data;
@@ -375,8 +409,11 @@ export const apiService = {
         }
       }
 
+      saveProductMetaOverride(productData.tenant_code || updated?.tenant_code, { ...updated, id, name: productData.name || updated?.name }, { category: productData.category, imageUrl: img });
+
       return {
         ...updated,
+        category: updated?.category || productData.category,
         imageUrl: updated?.imageUrl || updated?.image_url || img
       };
     } catch (e) {

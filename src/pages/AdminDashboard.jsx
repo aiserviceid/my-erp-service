@@ -2299,8 +2299,8 @@ export default function AdminDashboard() {
                  {products.map(p => (
                    <tr key={p.id}>
                      <td>
-                       {p.imageUrl ? (
-                         <img src={p.imageUrl} alt={p.name} style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }} />
+                       {(p.imageUrl || p.image_url || p.image) ? (
+                         <img src={p.imageUrl || p.image_url || p.image} alt={p.name} style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }} />
                        ) : (
                          <div style={{ width: '45px', height: '45px', borderRadius: '10px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.75rem', fontWeight: '800' }}>
                            NO IMG
@@ -2919,6 +2919,46 @@ export default function AdminDashboard() {
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
               Simpan Koreksi Nota
             </button>
+          </form>
+        </div>
+      )}
+
+
+      {showEditProductModal && editingProduct && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '1rem' }}>
+          <form onSubmit={async (event) => {
+            event.preventDefault();
+            const fd = new FormData(event.currentTarget);
+            const payload = { tenant_code: tenant.code, name: String(fd.get('name') || '').trim(), category: String(fd.get('category') || 'SPAREPART').toUpperCase(), price: normalizeMoneyInput(fd.get('price')), stock: parseInt(String(fd.get('stock') || '0'), 10) || 0, imageUrl: editingProduct.imageUrl || editingProduct.image_url || '' };
+            if (!payload.name) return alert('Nama barang wajib diisi.');
+            try {
+              setIsUpdatingProduct(true);
+              const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
+              const updated = await apiService.updateProduct(editingProduct.id, payload, editingProduct.stock, currentUser, 'Edit data barang dari Inventori');
+              const nextProduct = { ...editingProduct, ...payload, ...updated, imageUrl: updated?.imageUrl || updated?.image_url || payload.imageUrl };
+              setProducts(prev => prev.map(item => String(item.id) === String(editingProduct.id) ? nextProduct : item));
+              setShowEditProductModal(false); setEditingProduct(null); alert('Barang berhasil diperbarui.');
+            } catch (error) { alert('Gagal memperbarui barang: ' + (error.message || 'Periksa data lalu coba lagi.')); }
+            finally { setIsUpdatingProduct(false); }
+          }} className="glass-panel" style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-light)', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div><h3 style={{ margin: 0 }}>Edit Barang</h3><p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>Perbarui foto, kategori, harga, dan stok inventori.</p></div>
+              <button type="button" className="btn btn-ghost" onClick={() => { setShowEditProductModal(false); setEditingProduct(null); }}><X size={20}/></button>
+            </div>
+            <label className="label">Foto Barang</label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ width: '72px', height: '72px', borderRadius: '14px', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {(editingProduct.imageUrl || editingProduct.image_url || editingProduct.image) ? (<img src={editingProduct.imageUrl || editingProduct.image_url || editingProduct.image} alt={editingProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (<ImageIcon size={24} color="#94a3b8" />)}
+              </div>
+              <div style={{ flex: 1 }}>
+                <input className="input-field" placeholder="URL gambar atau upload foto" value={editingProduct.imageUrl || editingProduct.image_url || ''} onChange={(e) => setEditingProduct(current => ({ ...current, imageUrl: e.target.value, image_url: e.target.value }))} />
+                <label style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', border: '1px solid #bae6fd' }}><Camera size={15} /> Upload Foto Baru<input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const compressedBase64 = await compressImageFile(file, 800, 800, 0.7); setEditingProduct(current => ({ ...current, imageUrl: compressedBase64, image_url: compressedBase64 })); } catch (err) { alert('Gagal memproses gambar. Pastikan format gambar valid.'); } }} /></label>
+              </div>
+            </div>
+            <label className="label">Nama Barang / Jasa</label><input name="name" className="input-field" defaultValue={editingProduct.name || ''} style={{ marginBottom: '10px' }} />
+            <label className="label">Kategori</label><select name="category" className="input-field" defaultValue={editingProduct.category || 'SPAREPART'} style={{ marginBottom: '10px' }}><option value="SPAREPART">Sparepart</option><option value="AKSESORIS">Aksesoris</option><option value="JASA">Jasa</option></select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label className="label">Harga (Rp)</label><input name="price" type="text" inputMode="numeric" className="input-field" defaultValue={editingProduct.price || 0} onInput={handleMoneyInput} /></div><div><label className="label">Stok</label><input name="stock" type="number" min="0" className="input-field" defaultValue={editingProduct.stock || 0} /></div></div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}><button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowEditProductModal(false); setEditingProduct(null); }}>Batal</button><button type="submit" className="btn btn-primary" disabled={isUpdatingProduct} style={{ flex: 1 }}>{isUpdatingProduct ? 'Menyimpan...' : 'Simpan Perubahan'}</button></div>
           </form>
         </div>
       )}
