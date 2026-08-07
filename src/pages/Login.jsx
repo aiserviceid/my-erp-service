@@ -394,7 +394,7 @@ export default function Login() {
               />
             </div>
 
-            {/* Tier Selector — 3 paket: Free, Pro, Enterprise */}
+            {/* Tier Selector — paket publik: Free, Pro, Enterprise. White Label lewat konsultasi partner. */}
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
                 Pilihan Paket Berlangganan
@@ -410,8 +410,9 @@ export default function Login() {
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#059669' : '#0f172a' }}>Gratis</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'free' ? '#059669' : '#0f172a' }}>Free</div>
                   <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: '700' }}>Rp 0</div>
+                  <div style={{ fontSize: '0.66rem', color: '#64748b', marginTop: '4px', lineHeight: 1.25 }}>25 servis · 50 POS · 50 produk</div>
                 </div>
 
                 {/* Pro 149k */}
@@ -428,6 +429,7 @@ export default function Login() {
                   <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
                     {billingCycle === 'yearly' ? 'Rp 590rb/thn' : 'Rp 99rb/bln'}
                   </div>
+                  <div style={{ fontSize: '0.66rem', color: '#64748b', marginTop: '4px', lineHeight: 1.25 }}>Unlimited · tim · WA/CRM</div>
                 </div>
 
                 {/* Enterprise 299k */}
@@ -440,8 +442,22 @@ export default function Login() {
                     textAlign: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Multi Outlet</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.82rem', color: selectedTier === 'enterprise' ? '#7c3aed' : '#0f172a' }}>Enterprise</div>
                   <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '700' }}>{billingCycle === 'yearly' ? 'Rp 2,49jt/thn' : 'Rp 249rb/bln'}</div>
+                  <div style={{ fontSize: '0.66rem', color: '#64748b', marginTop: '4px', lineHeight: 1.25 }}>Multi outlet · 5 cabang</div>
+                </div>
+              </div>
+              <div style={{ marginTop: '10px', padding: '12px', borderRadius: '12px', background: selectedTier === 'free' ? '#ecfdf5' : selectedTier === 'pro' ? '#eff6ff' : '#f5f3ff', border: selectedTier === 'free' ? '1px solid #a7f3d0' : selectedTier === 'pro' ? '1px solid #bfdbfe' : '1px solid #ddd6fe' }}>
+                <div style={{ fontWeight: '900', fontSize: '0.82rem', color: '#0f172a', marginBottom: '6px' }}>
+                  {selectedTier === 'free' ? 'Free cocok untuk coba dulu' : selectedTier === 'pro' ? 'Pro untuk toko servis aktif' : 'Enterprise untuk banyak outlet'}
+                </div>
+                <div style={{ color: '#475569', fontSize: '0.76rem', lineHeight: 1.55, fontWeight: '650' }}>
+                  {selectedTier === 'free' && 'Batas 25 servis/bulan, 50 transaksi POS/bulan, 50 produk, tanpa akun karyawan/teknisi, tanpa WA Marketing, tanpa export Excel.'}
+                  {selectedTier === 'pro' && 'Servis, POS, dan produk unlimited. Tim teknisi aktif, WhatsApp pelanggan/CRM, katalog, laporan owner, dan export Excel aktif.'}
+                  {selectedTier === 'enterprise' && 'Untuk multi outlet: hingga 5 cabang, 50 karyawan, laporan cabang, dan prioritas setup.'}
+                </div>
+                <div style={{ marginTop: '8px', color: '#64748b', fontSize: '0.72rem', lineHeight: 1.45 }}>
+                  White Label / aplikasi brand sendiri tidak tersedia di pendaftaran umum. Hubungi Partner UnitPro untuk konsultasi khusus.
                 </div>
               </div>
             </div>
