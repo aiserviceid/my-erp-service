@@ -1,0 +1,59 @@
+name: finance_dedupe
+
+on:
+  push:
+    branches: [agent/v1-stabilization-integration]
+    paths:
+      - '.github/workflows/temp-finance-dedupe.yml'
+      - '.github/finance-dedupe-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Remove duplicate legacy finance report
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/AdminDashboard.jsx')
+          text = path.read_text()
+          start = text.find("activeTab === 'keuangan' ? (")
+          end = text.find(") : activeTab === 'karyawan' ? (", start)
+          if start == -1 or end == -1:
+              raise SystemExit('finance branch markers not found')
+          replacement = """activeTab === 'keuangan' ? (
+          <div className=\"glass-panel finance-report\" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
+            <PremiumFinanceReport transactions={transactions} services={services} products={products} users={users} tenant={tenant} />
+            <SecurityReadinessPanel tenant={tenant} users={users} products={products} services={services} transactions={transactions} />
+          </div>
+        """
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text)
+          PY
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit and cleanup
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/AdminDashboard.jsx
+          git rm -f .github/workflows/temp-finance-dedupe.yml .github/finance-dedupe-trigger.txt --ignore-unmatch || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: remove duplicate legacy finance report"
+          git pull --rebase origin agent/v1-stabilization-integration
+          git push origin HEAD:agent/v1-stabilization-integration
