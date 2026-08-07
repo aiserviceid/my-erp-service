@@ -8,6 +8,7 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     permissions:
       contents: write
     steps:
@@ -22,7 +23,7 @@ jobs:
       - name: Build production bundle
         run: npm run build
       - name: Run smoke test
-        run: npm run smoke:v1
+        run: timeout 210s npm run smoke:v1
       - name: Cleanup temporary smoke workflow
         if: always()
         run: |
