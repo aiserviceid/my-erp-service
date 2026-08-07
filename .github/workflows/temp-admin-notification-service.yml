@@ -1,0 +1,89 @@
+name: Apply Admin Notification Service Refactor
+
+# rerun from latest branch head
+on:
+  push:
+    branches:
+      - agent/admin-notification-service
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Apply admin notification patch
+        shell: bash
+        run: |
+          cat > /tmp/admin_notification_patch.py <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/AdminDashboard.jsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'AdminDashboard.jsx: expected 1 match for {label}, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "import { apiService } from '../services/api';\n",
+              "import { apiService } from '../services/api';\nimport { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';\n",
+              'notification service import'
+          )
+
+          replace_once(
+              "window.open(`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');",
+              "await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });",
+              'admin customer status notification'
+          )
+
+          replace_once(
+              "window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');",
+              "await sendWhatsAppNotification({ tenant, target: s.customer_phone, message: msg, openManual: true });",
+              'admin row status notification'
+          )
+
+          replace_once(
+              "window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(personalizedMsg)}`, '_blank');",
+              "window.open(buildManualWhatsAppUrl(cleanPhone, personalizedMsg), '_blank');",
+              'admin multi blast manual url'
+          )
+
+          replace_once(
+              "window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}`, '_blank');",
+              "window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');",
+              'admin single blast manual url'
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          python /tmp/admin_notification_patch.py
+
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          rm .github/workflows/temp-admin-notification-service.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/AdminDashboard.jsx .github/workflows/temp-admin-notification-service.yml
+          git commit -m "feat: centralize admin WhatsApp notifications"
+          git push origin HEAD:agent/admin-notification-service
