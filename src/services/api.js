@@ -275,7 +275,7 @@ export const apiService = {
           price: cleanPrice,
           stock: cleanStock
         };
-        if (img) fallbackPayload.image_url = img;
+        // Database lama mungkin belum punya kolom image_url; simpan barang tanpa foto dulu.
 
         const retryRes = await supabase
           .from('products')
