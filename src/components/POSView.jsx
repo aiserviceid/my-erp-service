@@ -397,10 +397,10 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0', minHeight: 'calc(100vh - 200px)' }}>
+    <div className="pos-view-shell" style={{ display: 'flex', flexDirection: 'column', gap: '0', minHeight: 'calc(100vh - 200px)' }}>
       
       {/* ── TODAY'S SUMMARY BAR ── */}
-      <div style={{
+      <div className="pos-summary-bar" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '10px 16px', borderRadius: '12px', marginBottom: '16px',
         background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
@@ -435,7 +435,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       </div>
 
       {/* ── SEARCH BAR ── */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div className="pos-search-row" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <div style={{ flex: 1, position: 'relative' }}>
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input
@@ -468,7 +468,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       </div>
 
       {/* ── CATEGORY FILTER PILLS ── */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div className="pos-category-row" style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
         {['SEMUA', 'SPAREPART', 'AKSESORIS', 'JASA', 'UNIT'].map((cat) => (
           <button
             key={cat}
@@ -493,7 +493,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       </div>
 
       {/* ── PRODUCT GRID ── */}
-      <div style={{
+      <div className="pos-product-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
         gap: '10px',
@@ -596,7 +596,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
       {/* ── CART SECTION ── */}
       {cart.length > 0 && (
-        <div style={{
+        <div className="pos-cart-panel" style={{
           background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0',
           overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
         }}>
@@ -666,7 +666,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
           </div>
 
           {/* Discount Row */}
-          <div style={{ padding: '10px 16px', background: '#fefce8', borderTop: '1px solid #fef08a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="pos-discount-row" style={{ padding: '10px 16px', background: '#fefce8', borderTop: '1px solid #fef08a', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#a16207', whiteSpace: 'nowrap' }}>Diskon:</span>
             <input
               type="text"
@@ -699,7 +699,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
           </div>
 
           {/* Total & Checkout */}
-          <div style={{
+          <div className="pos-total-bar" style={{
             padding: '16px', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
@@ -727,13 +727,13 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
       {/* ── CHECKOUT MODAL ── */}
       {showCheckout && (
-        <div style={{
+        <div className="pos-checkout-backdrop" style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           zIndex: 1000, padding: '0',
         }} onClick={(e) => { if (e.target === e.currentTarget) setShowCheckout(false); }}>
-          <div style={{
+          <div className="pos-checkout-sheet" style={{
             background: 'white', borderRadius: '24px 24px 0 0', padding: '24px',
             width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto',
             animation: 'slideUp 0.3s ease-out',
