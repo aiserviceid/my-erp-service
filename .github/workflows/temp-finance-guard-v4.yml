@@ -1,0 +1,149 @@
+name: Finance Guard V4
+
+on:
+  push:
+    branches:
+      - agent/finance-guard
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/finance-guard
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply finance guard patch
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          function replaceFirst(text, oldValue, newValue, label, required = true) {
+            const count = text.split(oldValue).length - 1;
+            console.log(label + ': ' + count + ' match(es)');
+            if (count === 0) {
+              if (required) throw new Error('Missing required pattern: ' + label);
+              return text;
+            }
+            return text.replace(oldValue, newValue);
+          }
+
+          const employeePath = 'src/pages/EmployeePortal.jsx';
+          let employee = fs.readFileSync(employeePath, 'utf8');
+
+          employee = replaceFirst(
+            employee,
+            "                                } else if (newStatus === 'DI AMBIL') {",
+            "                                } else if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {",
+            'pickup status branch'
+          );
+
+          employee = replaceFirst(
+            employee,
+            "                                        status: newStatus,",
+            "                                        status: 'DIAMBIL',",
+            'canonical pickup status save'
+          );
+
+          const startToken = "                                      if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {";
+          const endToken = "                                      fetchServices();";
+          const start = employee.indexOf(startToken);
+          console.log('payment block start: ' + start);
+          if (start < 0) throw new Error('Missing payment block start');
+          const end = employee.indexOf(endToken, start);
+          console.log('payment block end: ' + end);
+          if (end < 0) throw new Error('Missing payment block end');
+
+          const newPaymentBlock = [
+            "                                      const tenantCode = employee.tenant_code || tenant.code;",
+            "                                      const latestTransactions = await apiService.get('/transactions/' + tenantCode).catch(() => transactions);",
+            "                                      const existingServiceIncome = latestTransactions.filter((transaction) => {",
+            "                                        const type = String(transaction.type || '');",
+            "                                        const description = String(transaction.description || '');",
+            "                                        return ['INCOME', 'INCOME_JASA', 'INCOME_SPAREPART'].includes(type) && description.includes('Resi ' + s.resi);",
+            "                                      });",
+            "",
+            "                                      if (existingServiceIncome.length > 0) {",
+            "                                        alert('Pelunasan resi ' + s.resi + ' sudah pernah tercatat di keuangan. Transaksi tidak dibuat ulang agar omzet tidak dobel.');",
+            "                                      } else {",
+            "                                        if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {",
+            "                                          await apiService.post('/transactions', {",
+            "                                            tenant_code: tenantCode,",
+            "                                            type: 'INCOME_JASA',",
+            "                                            amount: jasaAfterDiscount,",
+            "                                            description: 'Jasa Servis Resi ' + s.resi + ' (' + s.customer_name + ')'",
+            "                                          });",
+            "                                        }",
+            "                                        if (partFee > 0) {",
+            "                                          await apiService.post('/transactions', {",
+            "                                            tenant_code: tenantCode,",
+            "                                            type: 'INCOME_SPAREPART',",
+            "                                            amount: partFee,",
+            "                                            description: 'Sparepart Servis Resi ' + s.resi + ' (' + s.customer_name + ')'",
+            "                                          });",
+            "                                        }",
+            "                                      }"
+          ].join('\n') + '\n';
+          employee = employee.slice(0, start) + newPaymentBlock + employee.slice(end);
+          fs.writeFileSync(employeePath, employee);
+
+          const adminPath = 'src/pages/AdminDashboard.jsx';
+          let admin = fs.readFileSync(adminPath, 'utf8');
+
+          admin = replaceFirst(
+            admin,
+            "                          {t.type === 'INCOME' && <span className=\"badge badge-success\">Pendapatan Servis</span>}",
+            "                          {(t.type === 'INCOME' || t.type === 'INCOME_JASA') && <span className=\"badge badge-success\">Pendapatan Jasa Servis</span>}\n                          {t.type === 'INCOME_SPAREPART' && <span className=\"badge badge-success\">Pendapatan Sparepart Servis</span>}",
+            'finance table income badges',
+            false
+          );
+
+          admin = replaceFirst(
+            admin,
+            "                        <td style={{ color: t.type === 'INCOME' || t.type === 'POS_SALES' ? 'var(--accent)' : '#ef4444', fontWeight: 'bold' }}>",
+            "                        <td style={{ color: String(t.type || '').startsWith('INCOME') || t.type === 'POS_SALES' ? 'var(--accent)' : '#ef4444', fontWeight: 'bold' }}>",
+            'finance table income color',
+            false
+          );
+
+          admin = replaceFirst(
+            admin,
+            "                          {t.type === 'INCOME' || t.type === 'POS_SALES' ? '+' : '-'} Rp {t.amount?.toLocaleString('id-ID')}",
+            "                          {String(t.type || '').startsWith('INCOME') || t.type === 'POS_SALES' ? '+' : '-'} Rp {t.amount?.toLocaleString('id-ID')}",
+            'finance table income sign',
+            false
+          );
+          fs.writeFileSync(adminPath, admin);
+
+          for (const path of [
+            '.github/workflows/temp-finance-guard.yml',
+            '.github/workflows/temp-finance-guard-v2.yml',
+            '.github/workflows/temp-finance-guard-v3.yml',
+            '.github/workflows/temp-finance-guard-v4.yml',
+            '__finance_trigger__',
+            '__finance_trigger_v3__',
+            '__finance_trigger_v4__'
+          ]) {
+            if (fs.existsSync(path)) fs.unlinkSync(path);
+          }
+          NODE
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit source changes
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/EmployeePortal.jsx src/pages/AdminDashboard.jsx
+          git add -u .github/workflows/temp-finance-guard.yml .github/workflows/temp-finance-guard-v2.yml .github/workflows/temp-finance-guard-v3.yml .github/workflows/temp-finance-guard-v4.yml __finance_trigger__ __finance_trigger_v3__ __finance_trigger_v4__
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: guard service finance entries"
+          git push
