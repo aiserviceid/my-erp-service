@@ -19,6 +19,7 @@ import './LandingPage.css';
 
 const salesWhatsapp = import.meta.env.VITE_SALES_WHATSAPP || '6281234567890';
 const whatsappUrl = `https://wa.me/${salesWhatsapp}?text=${encodeURIComponent('Halo UnitPro, saya ingin coba aplikasi untuk toko servis saya.')}`;
+const partnerWhatsappUrl = `https://wa.me/${salesWhatsapp}?text=${encodeURIComponent('Halo UnitPro, saya ingin bahas paket White Label / branding sendiri.')}`;
 
 const coreFeatures = [
   {
@@ -49,10 +50,53 @@ const painPoints = [
   'Pelanggan sering tanya: “HP saya sudah jadi?”',
 ];
 
+const packages = [
+  {
+    name: 'Free',
+    subtitle: 'Untuk mulai coba',
+    price: 'Rp0',
+    period: '/selamanya',
+    features: ['50 servis/bulan', '100 transaksi kasir/bulan', '100 produk/sparepart', 'Nota & tracking dasar'],
+    action: 'Mulai gratis',
+    type: 'free',
+  },
+  {
+    name: 'UnitPro Pro',
+    subtitle: 'Untuk toko servis aktif',
+    price: 'Rp99.000',
+    period: '/bulan',
+    badge: 'Rekomendasi',
+    featured: true,
+    features: ['Servis, kasir, stok unlimited', 'Tim teknisi hingga 20 akun', 'WhatsApp pelanggan & CRM', 'Laporan owner & export Excel'],
+    action: 'Coba Pro',
+    type: 'pro',
+  },
+  {
+    name: 'Enterprise',
+    subtitle: 'Untuk banyak cabang',
+    price: 'Rp299rb+',
+    period: '/bulan',
+    features: ['Hingga 5 cabang/outlet', 'Hingga 50 akun karyawan', 'Laporan cabang', 'Prioritas setup'],
+    action: 'Konsultasi',
+    type: 'enterprise',
+  },
+  {
+    name: 'White Label',
+    subtitle: 'Aplikasi dengan brand sendiri',
+    price: 'Rp2,5jt+',
+    period: 'setup',
+    badge: 'Partner',
+    partner: true,
+    features: ['Logo, warna, domain sendiri', 'APK/branding khusus', 'Panel kelola client/toko', 'Managed service'],
+    action: 'Bahas Partner',
+    type: 'partner',
+  },
+];
+
 function BrandLogo() {
   return (
     <span className="simple-brand-logo">
-      <UnitProLogo size={42} />
+      <UnitProLogo variant="wordmark" size={58} width={230} />
     </span>
   );
 }
@@ -111,12 +155,19 @@ export default function LandingPage() {
   const registerFree = () => navigate('/login', { state: { tab: 'register', tier: 'free' } });
   const login = () => navigate('/login', { state: { tab: 'login' } });
 
+  const handlePackageAction = (type) => {
+    if (type === 'free' || type === 'pro') {
+      navigate('/login', { state: { tab: 'register', tier: type === 'pro' ? 'pro' : 'free' } });
+      return;
+    }
+    window.open(type === 'partner' ? partnerWhatsappUrl : whatsappUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <main className="simple-landing">
       <nav className="simple-nav">
         <button type="button" className="simple-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <BrandLogo />
-          <span>Unit<strong>Pro</strong></span>
         </button>
         <div className="simple-nav-links">
           <a href="#fitur">Fitur</a>
@@ -214,32 +265,29 @@ export default function LandingPage() {
       <section id="harga" className="simple-section simple-pricing-section">
         <div className="simple-section-head">
           <p className="simple-kicker">Harga</p>
-          <h2>Mulai gratis. Upgrade saat toko sudah nyaman pakai.</h2>
+          <h2>Pilih paket sesuai tahap toko atau bisnis partner kamu.</h2>
         </div>
-        <div className="simple-pricing-grid">
-          <article className="simple-price-card">
-            <h3>Gratis</h3>
-            <p className="simple-price">Rp0</p>
-            <ul>
-              <li><Check size={16} /> Catat servis dasar</li>
-              <li><Check size={16} /> Tracking pelanggan</li>
-              <li><Check size={16} /> Kasir dan stok dasar</li>
-            </ul>
-            <button type="button" className="simple-btn secondary full" onClick={registerFree}>Mulai gratis</button>
-          </article>
-
-          <article className="simple-price-card featured">
-            <span className="simple-badge">Rekomendasi</span>
-            <h3>UnitPro Pro</h3>
-            <p className="simple-price">Rp99.000<span>/bulan</span></p>
-            <ul>
-              <li><Check size={16} /> Servis, kasir, stok, teknisi</li>
-              <li><Check size={16} /> Nota dan QR tracking</li>
-              <li><Check size={16} /> WhatsApp pelanggan</li>
-              <li><Check size={16} /> Laporan owner</li>
-            </ul>
-            <button type="button" className="simple-btn primary full" onClick={registerFree}>Coba Pro</button>
-          </article>
+        <div className="simple-pricing-grid four">
+          {packages.map((item) => (
+            <article className={`simple-price-card ${item.featured ? 'featured' : ''} ${item.partner ? 'partner' : ''}`} key={item.name}>
+              {item.badge && <span className={`simple-badge ${item.partner ? 'neutral' : ''}`}>{item.badge}</span>}
+              <h3>{item.name}</h3>
+              <p className="simple-price">{item.price}<span>{item.period}</span></p>
+              <small>{item.subtitle}</small>
+              <ul>
+                {item.features.map((feature) => (
+                  <li key={feature}><Check size={16} /> {feature}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className={`simple-btn ${item.featured || item.partner ? 'primary' : 'secondary'} full`}
+                onClick={() => handlePackageAction(item.type)}
+              >
+                {item.action}
+              </button>
+            </article>
+          ))}
         </div>
       </section>
 
