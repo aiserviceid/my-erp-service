@@ -16,6 +16,7 @@ import BarcodeScanner from '../components/BarcodeScanner';
 import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
 import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
+import CustomerCRMInsights from '../components/CustomerCRMInsights';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
@@ -1277,13 +1278,15 @@ export default function AdminDashboard() {
             <div className="customer-management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', color: '#0f172a' }}>
-                  👥 Database Pelanggan & WhatsApp Blast CRM
+                  👥 Pelanggan & WhatsApp Marketing
                 </h3>
                 <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>
-                  Kelola database seluruh pelanggan toko dan kirim pesan promosi / pengingat via WhatsApp massal.
+                  Pantau pelanggan, segmentasi follow-up, dan siapkan WhatsApp Marketing sebagai fitur Pro.
                 </p>
               </div>
             </div>
+
+            <CustomerCRMInsights services={services} transactions={transactions} tenant={tenant} settings={settings} />
 
             {/* CRM Metrics Cards */}
             <div className="customer-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '2rem' }}>
@@ -1312,14 +1315,14 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* WA BLAST CAMPAIGN GENERATOR BOX */}
+            {/* WHATSAPP MARKETING COMPOSER */}
             <details className="customer-blast-disclosure" id="customerBlastComposer">
-              <summary>Atur pesan WA Blast promo atau pengingat</summary>
+              <summary>Atur WhatsApp Marketing promo atau pengingat</summary>
             <div className="customer-blast-card" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', padding: '1.5rem', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>💬</span>
                 <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#166534' }}>
-                  Kirim Broadcast WA Blast Promo / Reminder
+                  WhatsApp Marketing Promo / Reminder
                 </h4>
               </div>
 
@@ -1355,7 +1358,7 @@ export default function AdminDashboard() {
               </div>
 
               <p style={{ fontSize: '0.78rem', color: '#15803d', margin: 0, fontWeight: '600' }}>
-                💡 Klik tombol <strong>Kirim WA Blast 📲</strong> pada daftar pelanggan di bawah untuk mengirimkan pesan promo ke nomor WA masing-masing pelanggan.
+                💡 Klik tombol <strong>Kirim WA 📲</strong> pada daftar pelanggan di bawah untuk mengirimkan pesan promo ke nomor WA masing-masing pelanggan.
               </p>
             </div>
             </details>
@@ -1399,7 +1402,7 @@ export default function AdminDashboard() {
                           alert('Berhasil disalin!\n\nSilakan "Paste" nomor-nomor ini di HP Anda untuk membuat Broadcast List WhatsApp.\n\nTotal: ' + [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].length + ' Nomor');
                         }}
                       >
-                        📋 Salin Semua Nomor (Broadcast WA)
+                        📋 Salin Semua Nomor (WhatsApp Marketing)
                       </button>
                       <button 
                         className="btn"
@@ -1412,7 +1415,7 @@ export default function AdminDashboard() {
                           const uniqueServices = displayedCustomers.filter((v,i,a)=>a.findIndex(t=>(t.customer_phone === v.customer_phone))===i).filter(s => s.customer_phone);
                           if(uniqueServices.length === 0) return alert('Tidak ada nomor WA yang valid untuk dikirim.');
                           
-                          if(!confirm(`PERINGATAN POPUP: Aksi ini akan membuka ${uniqueServices.length} tab WhatsApp secara berurutan.\n\nPastikan fitur "Popup Blocker" di browser Anda sudah DIIZINKAN (Allow Popups) untuk situs ini.\n\nLanjutkan mengirim WA Blast?`)) return;
+                          if(!confirm(`PERINGATAN POPUP: Aksi ini akan membuka ${uniqueServices.length} tab WhatsApp secara berurutan.\n\nPastikan fitur "Popup Blocker" di browser Anda sudah DIIZINKAN (Allow Popups) untuk situs ini.\n\nLanjutkan mengirim WhatsApp Marketing?`)) return;
                           
                           uniqueServices.forEach((s, idx) => {
                             setTimeout(() => {
@@ -1434,7 +1437,7 @@ export default function AdminDashboard() {
                           <th>Nama Pelanggan</th>
                           <th>Nomor WhatsApp</th>
                           <th>Terakhir Transaksi</th>
-                          <th>Aksi Broadcast WA</th>
+                          <th>Aksi WhatsApp Marketing</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1459,7 +1462,7 @@ export default function AdminDashboard() {
                                         window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');
                                       }}
                                     >
-                                      Kirim WA Blast 📲
+                                      Kirim WA 📲
                                     </button>
                                   ) : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Tanpa No. WA</span>}
                                 </td>

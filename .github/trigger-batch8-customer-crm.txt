@@ -1,1 +1,0 @@
-run batch 8 customer crm
