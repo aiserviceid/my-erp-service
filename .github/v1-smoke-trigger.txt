@@ -1,1 +1,1 @@
-trigger v1 smoke gate
+trigger hardened v1 smoke gate
