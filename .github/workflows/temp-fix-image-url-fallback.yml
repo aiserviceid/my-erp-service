@@ -1,0 +1,43 @@
+name: Fix Image URL Fallback
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+
+jobs:
+  patch-build-clean:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch api product fallback
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          path = Path('src/services/api.js')
+          text = path.read_text()
+          old = "        if (img) fallbackPayload.image_url = img;\n\n        const retryRes = await supabase"
+          new = "        // Database lama mungkin belum punya kolom image_url; simpan barang tanpa foto dulu.\n\n        const retryRes = await supabase"
+          if old not in text:
+              raise SystemExit('image_url fallback line not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit fix and clean temp files
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          rm -f .github/workflows/temp-fix-image-url-fallback.yml .github/fix-image-url-fallback-trigger.txt
+          git add -A
+          git commit -m "fix: save products when image_url column is missing"
+          git push
