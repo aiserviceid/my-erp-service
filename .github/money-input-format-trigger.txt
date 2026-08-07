@@ -1,1 +1,1 @@
-trigger money input format workflow v2
+trigger money input format workflow v3
