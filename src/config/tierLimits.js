@@ -1,6 +1,6 @@
 /**
- * AISERVICE.ID — Tier Limits & Configuration
- * Central config for Free vs Pro feature gating
+ * UnitPro — Tier Limits & Configuration
+ * Central config for Free / Pro / Enterprise / White Label feature gating
  */
 
 // ─── SERVICE STATUS FLOW ────────────────────────────────
@@ -21,22 +21,26 @@ export const getStatusInfo = (statusId) => {
 export const getNextStatuses = (currentStatus) => {
   const idx = SERVICE_STATUSES.findIndex(s => s.id === currentStatus);
   if (idx === -1) return SERVICE_STATUSES;
-  // Can go forward, or jump to DIBATALKAN
   return SERVICE_STATUSES.filter((s, i) => i > idx || s.id === 'DIBATALKAN');
 };
 
 // ─── TIER LIMITS ─────────────────────────────────────────
 export const TIER_CONFIG = {
   free: {
-    label: 'Starter (Gratis)',
+    label: 'Free',
     badge: 'FREE',
     color: '#64748b',
+    headline: 'Untuk mulai coba',
+    price: 'Rp0',
+    period: '/selamanya',
+    description: 'Cocok untuk toko kecil yang ingin merapikan pencatatan servis dasar sebelum upgrade.',
     limits: {
       maxServicesPerMonth: 50,
       maxTransactionsPerMonth: 100,
       maxProducts: 100,
-      maxEmployees: 0,       // No multi-user
+      maxEmployees: 0,
       maxBranches: 1,
+      maxCustomers: 100,
     },
     features: {
       pos: true,
@@ -47,7 +51,6 @@ export const TIER_CONFIG = {
       masterProducts: true,
       basicReport: true,
       themeSettings: true,
-      // Premium features OFF
       employees: false,
       whatsappNotif: false,
       whatsappMarketing: false,
@@ -55,23 +58,39 @@ export const TIER_CONFIG = {
       detailedReport: false,
       exportExcel: false,
       customBranding: false,
+      whiteLabel: false,
+      customDomain: false,
+      brandedApk: false,
+      clientManagement: false,
       adsSettings: false,
       multiBranch: false,
       wallet: false,
       affiliate: false,
-      forum: true,  // Read & write for all
-    }
+      forum: true,
+    },
+    marketingFeatures: [
+      '50 servis per bulan',
+      '100 transaksi kasir per bulan',
+      '100 produk/sparepart',
+      'Nota dan tracking pelanggan dasar',
+    ],
   },
   pro: {
-    label: 'Pro Titan',
+    label: 'UnitPro Pro',
     badge: 'PRO',
     color: '#0284c7',
+    headline: 'Untuk toko servis aktif',
+    price: 'Rp99.000',
+    period: '/bulan',
+    yearlyPromo: 'Promo Rp590.000/tahun pertama',
+    description: 'Paket utama untuk toko servis yang ingin kasir, teknisi, stok, pelanggan, dan laporan berjalan dalam satu sistem.',
     limits: {
       maxServicesPerMonth: Infinity,
       maxTransactionsPerMonth: Infinity,
       maxProducts: Infinity,
       maxEmployees: 20,
       maxBranches: 1,
+      maxCustomers: Infinity,
     },
     features: {
       pos: true,
@@ -82,7 +101,6 @@ export const TIER_CONFIG = {
       masterProducts: true,
       basicReport: true,
       themeSettings: true,
-      // Premium ON
       employees: true,
       whatsappNotif: true,
       whatsappMarketing: true,
@@ -90,34 +108,122 @@ export const TIER_CONFIG = {
       detailedReport: true,
       exportExcel: true,
       customBranding: true,
+      whiteLabel: false,
+      customDomain: false,
+      brandedApk: false,
+      clientManagement: false,
       adsSettings: true,
-      multiBranch: false,  // Fase 3
-      wallet: false,       // Fase 3
-      affiliate: false,    // Fase 3
+      multiBranch: false,
+      wallet: false,
+      affiliate: false,
       forum: true,
-    }
+    },
+    marketingFeatures: [
+      'Servis, kasir, stok, dan teknisi unlimited',
+      'WhatsApp pelanggan dan CRM marketing',
+      'Laporan owner dan export Excel',
+      'Katalog online dan branding toko di nota',
+    ],
   },
   enterprise: {
     label: 'Enterprise',
     badge: 'ENTERPRISE',
     color: '#7c3aed',
+    headline: 'Untuk banyak cabang',
+    price: 'Mulai Rp299.000',
+    period: '/bulan',
+    description: 'Untuk pemilik yang ingin mengendalikan beberapa outlet servis dengan standar operasional yang sama.',
     limits: {
       maxServicesPerMonth: Infinity,
       maxTransactionsPerMonth: Infinity,
       maxProducts: Infinity,
       maxEmployees: 50,
       maxBranches: 5,
+      maxCustomers: Infinity,
     },
     features: {
-      pos: true, services: true, printReceipt: true, barcode: true,
-      publicTracking: true, masterProducts: true, basicReport: true,
-      themeSettings: true, employees: true, whatsappNotif: true,
+      pos: true,
+      services: true,
+      printReceipt: true,
+      barcode: true,
+      publicTracking: true,
+      masterProducts: true,
+      basicReport: true,
+      themeSettings: true,
+      employees: true,
+      whatsappNotif: true,
       whatsappMarketing: true,
-      catalog: true, detailedReport: true, exportExcel: true,
-      customBranding: true, adsSettings: true, multiBranch: true,
-      wallet: false, affiliate: false, forum: true,
-    }
-  }
+      catalog: true,
+      detailedReport: true,
+      exportExcel: true,
+      customBranding: true,
+      whiteLabel: false,
+      customDomain: false,
+      brandedApk: false,
+      clientManagement: false,
+      adsSettings: true,
+      multiBranch: true,
+      wallet: false,
+      affiliate: false,
+      forum: true,
+    },
+    marketingFeatures: [
+      'Hingga 5 cabang/outlet',
+      'Hingga 50 akun karyawan',
+      'Kontrol multi-cabang dan laporan cabang',
+      'Prioritas setup dan pendampingan',
+    ],
+  },
+  white_label: {
+    label: 'White Label',
+    badge: 'PARTNER',
+    color: '#0f766e',
+    headline: 'Aplikasi dengan brand sendiri',
+    price: 'Mulai Rp2,5 juta',
+    period: 'setup',
+    monthly: 'Maintenance mulai Rp299.000/bulan',
+    description: 'Untuk partner, distributor, komunitas, atau konsultan yang ingin menjual sistem servis dengan merek sendiri tanpa membeli source code.',
+    limits: {
+      maxServicesPerMonth: Infinity,
+      maxTransactionsPerMonth: Infinity,
+      maxProducts: Infinity,
+      maxEmployees: 100,
+      maxBranches: 20,
+      maxCustomers: Infinity,
+    },
+    features: {
+      pos: true,
+      services: true,
+      printReceipt: true,
+      barcode: true,
+      publicTracking: true,
+      masterProducts: true,
+      basicReport: true,
+      themeSettings: true,
+      employees: true,
+      whatsappNotif: true,
+      whatsappMarketing: true,
+      catalog: true,
+      detailedReport: true,
+      exportExcel: true,
+      customBranding: true,
+      whiteLabel: true,
+      customDomain: true,
+      brandedApk: true,
+      clientManagement: true,
+      adsSettings: true,
+      multiBranch: true,
+      wallet: false,
+      affiliate: true,
+      forum: true,
+    },
+    marketingFeatures: [
+      'Logo, warna, nama aplikasi, dan domain sendiri',
+      'APK/branding khusus sesuai merek partner',
+      'Panel partner untuk kelola client/toko',
+      'Managed service: sistem tetap kami rawat',
+    ],
+  },
 };
 
 // ─── HELPER FUNCTIONS ────────────────────────────────────
@@ -160,6 +266,6 @@ export const ADMIN_TABS = [
   { id: 'master',      name: 'Inventori',          feature: 'masterProducts', iconName: 'Package' },
   { id: 'pelanggan',   name: 'Pelanggan & WA',     feature: 'basicReport',    iconName: 'MessageSquare' },
   { id: 'keuangan',    name: 'Laporan',            feature: 'basicReport',    iconName: 'TrendingUp' },
-  { id: 'karyawan',    name: 'Tim',                feature: 'themeSettings',  iconName: 'Users' },
+  { id: 'karyawan',    name: 'Tim',                feature: 'employees',      iconName: 'Users' },
   { id: 'pengaturan',  name: 'Toko',               feature: 'themeSettings',  iconName: 'Settings' },
 ];
