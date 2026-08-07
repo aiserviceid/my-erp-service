@@ -697,7 +697,7 @@ export default function AdminDashboard() {
     try {
       await apiService.post('/services/update', { resi: service.resi, status: newStatus });
       setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));
-      if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
+      if (hasFeature(tenant?.tier, 'whatsappNotif') && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WhatsApp pelanggan?', message: 'Status berhasil disimpan. Kirim update status ke WhatsApp pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'info' }) : Promise.resolve(window.confirm('Kirim update status ke WhatsApp pelanggan?')))) {
         const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
         const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
         const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(newStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
@@ -2322,7 +2322,7 @@ export default function AdminDashboard() {
                             className="btn btn-danger" 
                             style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
                             onClick={async () => {
-                              if(confirm(`Yakin ingin menghapus "${p.name}"?`)) {
+                              if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Hapus barang?', message: `Barang "${p.name}" akan dihapus dari inventori.`, confirmText: 'Hapus', tone: 'warning' }) : Promise.resolve(window.confirm(`Yakin ingin menghapus "${p.name}"?`)))) {
                                 try {
                                   await apiService.deleteProduct(p.id);
                                   setProducts(products.filter(x => x.id !== p.id));
@@ -2664,7 +2664,7 @@ export default function AdminDashboard() {
                                 } catch(e) { alert('Gagal edit karyawan'); }
                               }}>Edit</button>
                               <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                                if(confirm('Yakin ingin menghapus karyawan ini?')) {
+                                if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Hapus anggota tim?', message: 'Akun tim ini akan dihapus dari toko.', confirmText: 'Hapus', tone: 'warning' }) : Promise.resolve(window.confirm('Yakin ingin menghapus karyawan ini?')))) {
                                   try {
                                     await apiService.deleteUser(u.id);
                                     setUsers(users.filter(x => x.id !== u.id));
@@ -2698,7 +2698,7 @@ export default function AdminDashboard() {
                            <td>
                              <div style={{ display: 'flex', gap: '5px' }}>
                                <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
-                                 if(confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')) {
+                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Setujui kasbon?', message: 'Nominal ini akan memotong THP anggota tim.', confirmText: 'Setujui', tone: 'warning' }) : Promise.resolve(window.confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')))) {
                                    try {
                                      await apiService.post('/transactions/update-type', { id: t.id, type: 'BON_KARYAWAN' });
                                      await apiService.delete(`/transactions/${t.id}`);
@@ -2709,7 +2709,7 @@ export default function AdminDashboard() {
                                  }
                                }}>Setujui</button>
                                <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                                 if(confirm('Tolak kasbon ini?')) {
+                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tolak kasbon?', message: 'Pengajuan kasbon ini akan ditolak dan dihapus dari daftar.', confirmText: 'Tolak', tone: 'warning' }) : Promise.resolve(window.confirm('Tolak kasbon ini?')))) {
                                    try {
                                      await apiService.delete(`/transactions/${t.id}`);
                                      apiService.get(`/transactions/${tenant.code}`).then(setTransactions);

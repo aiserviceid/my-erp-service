@@ -336,11 +336,11 @@ export default function EmployeePortal() {
       const waText = `Halo ${serviceData.customer_name}, perangkat ${serviceData.device_name} Anda sudah kami terima untuk diperbaiki.\n\n*Nomor Resi:* ${resiGenerated}\n*Keluhan:* ${fd.get('issue')}\n*Kelengkapan:* ${kelengkapan}\n\nAnda dapat mengecek status servis secara berkala melalui link berikut:\n${trackingLink}\n\nTerima kasih!`;
       const waUrl = buildManualWhatsAppUrl(serviceData.customer_phone, waText);
       
-      if (confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\n\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)) {
+      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim resi ke WhatsApp?', message: `Servis berhasil ditambahkan.\nResi: ${resiGenerated}\n\nKirim info resi ke WhatsApp pelanggan sekarang?`, confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\n\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)))) {
         window.open(waUrl, '_blank');
       }
 
-      if (confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)) {
+      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pendaftaran?', message: 'Nota pendaftaran siap dicetak untuk pelanggan.', confirmText: 'Cetak Nota', tone: 'info' }) : Promise.resolve(window.confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)))) {
         setSelectedService(serviceData);
         setPrintType('pendaftaran');
         setShowPrintModal(true);
@@ -852,7 +852,7 @@ export default function EmployeePortal() {
                                     alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Di Ambil.');
                                     return;
                                   }
-                                  if(confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')) {
+                                  if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {
                                     try {
                                       let updatedIssue = s.issue;
                                       const warrantyDaysStr = prompt('Berapa HARI garansi untuk servis ini?\n\n(Isi angka saja, misal: 30. Kosongkan jika tidak ada garansi)', '30');
@@ -913,7 +913,7 @@ export default function EmployeePortal() {
                                       fetchServices();
                                       fetchTransactions();
                                       
-                                      if (confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')) {
+                                      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pengambilan?', message: 'Servis sudah lunas. Cetak nota pengambilan untuk pelanggan?', confirmText: 'Cetak Nota', tone: 'success' }) : Promise.resolve(window.confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')))) {
                                         setSelectedService({ ...s, issue: updatedIssue });
                                         setPrintType('pengambilan');
                                         setShowPrintModal(true);
