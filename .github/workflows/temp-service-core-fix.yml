@@ -65,13 +65,6 @@ jobs:
           new_api = "      if (endpoint === '/services/update') {\n        const { resi, tenant_code, ...updates } = body;\n        let query = supabase.from('services').update(updates).eq('resi', resi);\n        if (tenant_code) query = query.eq('tenant_code', tenant_code);\n        const { data, error } = await query.select().single();\n        if (error) throw error;\n        return data;\n      }\n"
           text = replace_once(text, old_api, new_api, 'tenant scoped apiService services/update', 'src/services/api.js')
           api_path.write_text(text, encoding='utf-8')
-
-          server_path = Path('server/index.cjs')
-          text = server_path.read_text(encoding='utf-8')
-          old_server = "app.post('/api/services/update', (req, res) => {\n  const { resi, technician_id, issue } = req.body;\n  if (!resi) return res.status(400).json({ error: 'Resi wajib diisi' });\n  db.run(\n    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',\n    [technician_id, issue, resi],\n    (err) => {\n      if (err) return res.status(500).json({ error: err.message });\n      res.json({ success: true });\n    }\n  );\n});\n"
-          new_server = "app.post('/api/services/update', (req, res) => {\n  const { resi, tenant_code, technician_id, issue, status, part_fee, jasa_fee } = req.body;\n  if (!resi) return res.status(400).json({ error: 'Resi wajib diisi' });\n  const tenantWhere = tenant_code ? ' AND tenant_code = ?' : '';\n  const params = [status, part_fee, jasa_fee, technician_id, issue, resi];\n  if (tenant_code) params.push(tenant_code);\n  db.run(\n    `UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?${tenantWhere}`,\n    params,\n    function(err) {\n      if (err) return res.status(500).json({ error: err.message });\n      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan atau bukan milik toko ini' });\n      res.json({ success: true });\n    }\n  );\n});\n"
-          text = replace_once(text, old_server, new_server, 'backend services/update tenant-scoped correction', 'server/index.cjs')
-          server_path.write_text(text, encoding='utf-8')
           PY
           python /tmp/service_core_patch.py
 
@@ -86,6 +79,6 @@ jobs:
           rm .github/workflows/temp-service-core-fix.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/pages/AdminDashboard.jsx src/pages/EmployeePortal.jsx src/services/api.js server/index.cjs .github/workflows/temp-service-core-fix.yml
+          git add src/pages/AdminDashboard.jsx src/pages/EmployeePortal.jsx src/services/api.js .github/workflows/temp-service-core-fix.yml
           git commit -m "feat: fix service core nota workflow"
           git push origin HEAD:agent/service-core-fix
