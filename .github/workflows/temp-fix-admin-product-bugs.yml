@@ -25,97 +25,25 @@ jobs:
 
           api_path = Path('src/services/api.js')
           api = api_path.read_text()
-
-          api = api.replace("""return (data || []).map(p => ({
-                  ...p,
-                  imageUrl: p.imageUrl || p.image_url || p.image || ''
-                }));""", """return (data || []).map(p => ({
-                  ...p,
-                  category: p.category || 'SPAREPART',
-                  imageUrl: p.imageUrl || p.image_url || p.image || ''
-                }));""")
-
-          api, fake_count = re.subn(
-            r"if \(retryRes\.error\) \{\s*console\.warn\('Fallback product insert error:', retryRes\.error\);\s*return \{\s*id: `PROD-\$\{Date\.now\(\)\}`,\s*tenant_code: productData\.tenant_code,\s*name: cleanName,\s*price: cleanPrice,\s*stock: cleanStock,\s*category: cleanCat,\s*imageUrl: img\s*\};\s*\}",
-            "if (retryRes.error) {\n          console.warn('Fallback product insert error:', retryRes.error);\n          throw new Error(`Barang gagal disimpan ke database: ${retryRes.error.message || 'schema products tidak cocok'}`);\n        }",
-            api,
-            count=1,
-            flags=re.S,
-          )
-          if fake_count != 1:
-            raise SystemExit(f'Product fake fallback block not replaced: {fake_count}')
-
-          api, catch_count = re.subn(
-            r"\} catch \(e\) \{\s*console\.error\('addProduct exception:', e\);\s*return \{\s*id: `PROD-\$\{Date\.now\(\)\}`,\s*tenant_code: productData\.tenant_code,\s*name: productData\.name,\s*price: Number\(productData\.price\) \|\| 0,\s*stock: Number\(productData\.stock\) \|\| 0,\s*category: productData\.category \|\| 'SPAREPART',\s*imageUrl: productData\.imageUrl \|\| ''\s*\};\s*\}\s*\},",
-            "} catch (e) {\n      console.error('addProduct exception:', e);\n      throw e;\n    }\n  },",
-            api,
-            count=1,
-            flags=re.S,
-          )
-          if catch_count != 1:
-            raise SystemExit(f'Product catch block not replaced: {catch_count}')
+          api = api.replace("        ...p,\n        imageUrl: p.imageUrl || p.image_url || p.image || ''", "        ...p,\n        category: p.category || 'SPAREPART',\n        imageUrl: p.imageUrl || p.image_url || p.image || ''")
+          api, n1 = re.subn(r"if \(retryRes\.error\) \{\s*console\.warn\('Fallback product insert error:', retryRes\.error\);\s*return \{\s*id: `PROD-\$\{Date\.now\(\)\}`,\s*tenant_code: productData\.tenant_code,\s*name: cleanName,\s*price: cleanPrice,\s*stock: cleanStock,\s*category: cleanCat,\s*imageUrl: img\s*\};\s*\}", "if (retryRes.error) {\n          console.warn('Fallback product insert error:', retryRes.error);\n          throw new Error(`Barang gagal disimpan ke database: ${retryRes.error.message || 'schema products tidak cocok'}`);\n        }", api, count=1, flags=re.S)
+          if n1 != 1:
+            raise SystemExit(f'Product fake fallback block not replaced: {n1}')
+          api, n2 = re.subn(r"\} catch \(e\) \{\s*console\.error\('addProduct exception:', e\);\s*return \{\s*id: `PROD-\$\{Date\.now\(\)\}`,\s*tenant_code: productData\.tenant_code,\s*name: productData\.name,\s*price: Number\(productData\.price\) \|\| 0,\s*stock: Number\(productData\.stock\) \|\| 0,\s*category: productData\.category \|\| 'SPAREPART',\s*imageUrl: productData\.imageUrl \|\| ''\s*\};\s*\}\s*\},", "} catch (e) {\n      console.error('addProduct exception:', e);\n      throw e;\n    }\n  },", api, count=1, flags=re.S)
+          if n2 != 1:
+            raise SystemExit(f'Product catch block not replaced: {n2}')
           api_path.write_text(api)
 
           admin_path = Path('src/pages/AdminDashboard.jsx')
           admin = admin_path.read_text()
-
-          admin = admin.replace("""const updatedService = await apiService.post('/services/update', {
-                resi: selectedService.resi,
-                tenant_code: selectedService.tenant_code || tenant?.code,
-                part_fee: partFee,
-                jasa_fee: jasaFee,
-                issue: updatedIssue
-              });
-              const nextService = { ...selectedService, ...updatedService, part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };""", """const shouldMarkSelesai = Boolean(selectedService.__markSelesaiFromAdmin);
-      const updatedService = await apiService.post('/services/update', {
-        resi: selectedService.resi,
-        tenant_code: selectedService.tenant_code || tenant?.code,
-        ...(shouldMarkSelesai ? { status: 'SELESAI' } : {}),
-        part_fee: partFee,
-        jasa_fee: jasaFee,
-        issue: updatedIssue
-      });
-      const nextService = { ...selectedService, ...updatedService, ...(shouldMarkSelesai ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };""")
+          admin = admin.replace("tenant_code: selectedService.tenant_code || tenant?.code,\n        part_fee: partFee,", "tenant_code: selectedService.tenant_code || tenant?.code,\n        ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}),\n        part_fee: partFee,")
+          admin = admin.replace("const nextService = { ...selectedService, ...updatedService, part_fee: partFee,", "const nextService = { ...selectedService, ...updatedService, ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}), part_fee: partFee,")
           admin = admin.replace("alert('Nota servis berhasil dikoreksi.');", "alert(selectedService.__markSelesaiFromAdmin ? 'Rincian tagihan berhasil disimpan dan status menjadi Selesai.' : 'Nota servis berhasil dikoreksi.');")
-
-          old_action = """  const updateServiceStatusFromAction = async (service, newStatus) => {
-    try {
-      await apiService.post('/services/update', { resi: service.resi, status: newStatus });
-      setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));"""
-          new_action = """  const updateServiceStatusFromAction = async (service, newStatus) => {
-    if (newStatus === 'SELESAI') {
-      setSelectedService({ ...service, __markSelesaiFromAdmin: true });
-      setShowEditServiceNota(true);
-      return;
-    }
-    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') && !service.part_fee && !service.jasa_fee) {
-      alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
-      return;
-    }
-    try {
-      const canonicalStatus = newStatus === 'DI AMBIL' ? 'DIAMBIL' : newStatus;
-      await apiService.post('/services/update', { resi: service.resi, tenant_code: service.tenant_code || tenant?.code, status: canonicalStatus });
-      setServices(services.map((item) => item.resi === service.resi ? { ...item, status: canonicalStatus } : item));"""
-          if old_action not in admin:
-            raise SystemExit('Admin status action block not found')
-          admin = admin.replace(old_action, new_action)
-          admin = admin.replace("getStatusInfo(newStatus).label", "getStatusInfo(canonicalStatus).label")
-
-          admin, inline_count = re.subn(
-            r"onChange=\{async \(e\) => \{\s*const newStatus = e\.target\.value;\s*try \{\s*await apiService\.post\('/services/update', \{ resi: s\.resi, status: newStatus \}\);.*?\} catch\(err\) \{ alert\('Gagal update status'\); \}\s*\}\}",
-            "onChange={(e) => updateServiceStatusFromAction(s, e.target.value)}",
-            admin,
-            count=1,
-            flags=re.S,
-          )
-          if inline_count != 1:
-            raise SystemExit(f'Admin inline status handler not replaced: {inline_count}')
-
-          admin = admin.replace("""const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
-                        setProducts([...products, { ...newProd, imageUrl }]);""", """const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
-                        const savedProduct = { ...newProd, category: newProd.category || category, imageUrl: newProd.imageUrl || newProd.image_url || imageUrl };
-                        setProducts(prev => [savedProduct, ...prev.filter(p => String(p.id) !== String(savedProduct.id))]);
-                        apiService.getProducts(tenant.code).then(setProducts).catch(() => {});""")
+          admin = admin.replace("  const updateServiceStatusFromAction = async (service, newStatus) => {\n    try {", "  const updateServiceStatusFromAction = async (service, newStatus) => {\n    if (newStatus === 'SELESAI') {\n      setSelectedService({ ...service, __markSelesaiFromAdmin: true });\n      setShowEditServiceNota(true);\n      return;\n    }\n    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') && !service.part_fee && !service.jasa_fee) {\n      alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');\n      return;\n    }\n    try {")
+          admin, n3 = re.subn(r"onChange=\{async \(e\) => \{\s*const newStatus = e\.target\.value;\s*try \{\s*await apiService\.post\('/services/update', \{ resi: s\.resi, status: newStatus \}\);.*?\} catch\(err\) \{ alert\('Gagal update status'\); \}\s*\}\}", "onChange={(e) => updateServiceStatusFromAction(s, e.target.value)}", admin, count=1, flags=re.S)
+          if n3 != 1:
+            raise SystemExit(f'Admin inline status handler not replaced: {n3}')
+          admin = admin.replace("const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);\n                        setProducts([...products, { ...newProd, imageUrl }]);", "const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);\n                        const savedProduct = { ...newProd, category: newProd.category || category, imageUrl: newProd.imageUrl || newProd.image_url || imageUrl };\n                        setProducts(prev => [savedProduct, ...prev.filter(p => String(p.id) !== String(savedProduct.id))]);\n                        apiService.getProducts(tenant.code).then(setProducts).catch(() => {});")
           admin_path.write_text(admin)
           PY
       - name: Install dependencies
