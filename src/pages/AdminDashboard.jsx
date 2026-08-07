@@ -15,6 +15,7 @@ import POSView from '../components/POSView';
 import BarcodeScanner from '../components/BarcodeScanner';
 import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
+import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
@@ -817,6 +818,15 @@ export default function AdminDashboard() {
         {/* 0. EXECUTIVE DASHBOARD (FASE 1 ROADMAP) */}
         {activeTab === 'dashboard' ? (
           <div className="dashboard-overview" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-in-out' }}>
+            <PremiumDashboardSummary
+              services={services}
+              transactions={transactions}
+              products={products}
+              onCreateService={() => setShowServiceRegistration(true)}
+              onOpenCashier={() => setActiveTab('pos')}
+              onOpenCustomers={() => setActiveTab('pelanggan')}
+              onOpenTracking={() => window.open('/tracking', '_blank', 'noopener,noreferrer')}
+            />
             
             {/* TOP BAR / MAGIC DEMO BUTTON BAR */}
             <div className="dashboard-store-hero" style={{
