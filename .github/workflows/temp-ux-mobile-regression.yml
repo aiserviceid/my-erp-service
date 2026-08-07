@@ -25,7 +25,7 @@ jobs:
         run: |
           git config user.name "aiserviceid"
           git config user.email "ai.interiorid@gmail.com"
-          rm -f .github/workflows/temp-ux-mobile-regression.yml
+          rm -f .github/workflows/temp-ux-mobile-regression.yml __ux_trigger__
           git add -A
           if git diff --cached --quiet; then
             echo "No cleanup needed"
