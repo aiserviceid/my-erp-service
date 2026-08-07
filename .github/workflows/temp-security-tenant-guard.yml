@@ -38,72 +38,71 @@ jobs:
                   raise SystemExit(f'server/index.cjs: expected 1 match for {label}, found {count}')
               text = text.replace(old, new, 1)
 
-          replace_once(
-              "app.put('/api/tenant/settings', (req, res) => {",
-              "app.put('/api/tenant/settings', secureRoute, (req, res) => {",
-              'secure tenant settings route'
-          )
+          replace_once("app.put('/api/tenant/settings', (req, res) => {", "app.put('/api/tenant/settings', secureRoute, (req, res) => {", 'secure tenant settings route')
+          replace_once("app.get('/api/services/:tenant', (req, res) => {", "app.get('/api/services/:tenant', secureRoute, (req, res) => {", 'secure services list route')
 
-          replace_once(
-              "app.get('/api/services/:tenant', (req, res) => {",
-              "app.get('/api/services/:tenant', secureRoute, (req, res) => {",
-              'secure services list route'
-          )
-
-          old_finish = """app.post('/api/services/finish', (req, res) => {
-  const { resi, status, part_fee, jasa_fee, technician_id, issue } = req.body;
-  db.run(
-    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',
-    [status, part_fee, jasa_fee, technician_id, issue, resi],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    }
-  );
-});"""
-          new_finish = """app.post('/api/services/finish', secureRoute, (req, res) => {
-  const { resi, status, part_fee, jasa_fee, technician_id, issue } = req.body;
-  const tenantCode = req.body.tenant_code || req.user?.tenant || req.user?.code;
-  if (!resi || !tenantCode) return res.status(400).json({ error: 'Resi dan kode toko wajib diisi' });
-  db.run(
-    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ? AND tenant_code = ?',
-    [status, part_fee, jasa_fee, technician_id, issue, resi, tenantCode],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan untuk toko ini' });
-      res.json({ success: true });
-    }
-  );
-});"""
+          old_finish = "\n".join([
+            "app.post('/api/services/finish', (req, res) => {",
+            "  const { resi, status, part_fee, jasa_fee, technician_id, issue } = req.body;",
+            "  db.run(",
+            "    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',",
+            "    [status, part_fee, jasa_fee, technician_id, issue, resi],",
+            "    (err) => {",
+            "      if (err) return res.status(500).json({ error: err.message });",
+            "      res.json({ success: true });",
+            "    }",
+            "  );",
+            "});",
+          ])
+          new_finish = "\n".join([
+            "app.post('/api/services/finish', secureRoute, (req, res) => {",
+            "  const { resi, status, part_fee, jasa_fee, technician_id, issue } = req.body;",
+            "  const tenantCode = req.body.tenant_code || req.user?.tenant || req.user?.code;",
+            "  if (!resi || !tenantCode) return res.status(400).json({ error: 'Resi dan kode toko wajib diisi' });",
+            "  db.run(",
+            "    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ? AND tenant_code = ?',",
+            "    [status, part_fee, jasa_fee, technician_id, issue, resi, tenantCode],",
+            "    function(err) {",
+            "      if (err) return res.status(500).json({ error: err.message });",
+            "      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan untuk toko ini' });",
+            "      res.json({ success: true });",
+            "    }",
+            "  );",
+            "});",
+          ])
           replace_once(old_finish, new_finish, 'tenant scoped services finish')
 
-          old_update = """app.post('/api/services/update', (req, res) => {
-  const { resi, technician_id, issue } = req.body;
-  if (!resi) return res.status(400).json({ error: 'Resi wajib diisi' });
-  db.run(
-    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',
-    [technician_id, issue, resi],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan' });
-      res.json({ success: true });
-    }
-  );
-});"""
-          new_update = """app.post('/api/services/update', secureRoute, (req, res) => {
-  const { resi, technician_id, issue } = req.body;
-  const tenantCode = req.body.tenant_code || req.user?.tenant || req.user?.code;
-  if (!resi || !tenantCode) return res.status(400).json({ error: 'Resi dan kode toko wajib diisi' });
-  db.run(
-    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ? AND tenant_code = ?',
-    [technician_id, issue, resi, tenantCode],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan untuk toko ini' });
-      res.json({ success: true });
-    }
-  );
-});"""
+          old_update = "\n".join([
+            "app.post('/api/services/update', (req, res) => {",
+            "  const { resi, technician_id, issue } = req.body;",
+            "  if (!resi) return res.status(400).json({ error: 'Resi wajib diisi' });",
+            "  db.run(",
+            "    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',",
+            "    [technician_id, issue, resi],",
+            "    function(err) {",
+            "      if (err) return res.status(500).json({ error: err.message });",
+            "      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan' });",
+            "      res.json({ success: true });",
+            "    }",
+            "  );",
+            "});",
+          ])
+          new_update = "\n".join([
+            "app.post('/api/services/update', secureRoute, (req, res) => {",
+            "  const { resi, technician_id, issue } = req.body;",
+            "  const tenantCode = req.body.tenant_code || req.user?.tenant || req.user?.code;",
+            "  if (!resi || !tenantCode) return res.status(400).json({ error: 'Resi dan kode toko wajib diisi' });",
+            "  db.run(",
+            "    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ? AND tenant_code = ?',",
+            "    [technician_id, issue, resi, tenantCode],",
+            "    function(err) {",
+            "      if (err) return res.status(500).json({ error: err.message });",
+            "      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan untuk toko ini' });",
+            "      res.json({ success: true });",
+            "    }",
+            "  );",
+            "});",
+          ])
           replace_once(old_update, new_update, 'tenant scoped services update')
 
           path.write_text(text, encoding='utf-8')
