@@ -1,0 +1,140 @@
+name: Batch 7 Mobile APK Polish
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - .github/batch7-mobile-apk-polish-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch mobile APK polish
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          function save(file, text) { fs.writeFileSync(file, text); }
+          function replaceOnce(text, from, to, label) {
+            if (!text.includes(from)) throw new Error(label + ' not found');
+            return text.replace(from, to);
+          }
+
+          const posFile = 'src/components/POSView.jsx';
+          let pos = fs.readFileSync(posFile, 'utf8');
+          if (!pos.includes('pos-view-shell')) {
+            pos = replaceOnce(
+              pos,
+              "return (\n    <div style={{ display: 'flex', flexDirection: 'column', gap: '0', minHeight: 'calc(100vh - 200px)' }}>",
+              "return (\n    <div className=\"pos-view-shell\" style={{ display: 'flex', flexDirection: 'column', gap: '0', minHeight: 'calc(100vh - 200px)' }}>",
+              'pos root'
+            );
+          }
+          if (!pos.includes('pos-summary-bar')) {
+            pos = replaceOnce(
+              pos,
+              "<div style={{\n        display: 'flex', alignItems: 'center', justifyContent: 'space-between',\n        padding: '10px 16px', borderRadius: '12px', marginBottom: '16px',\n        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',\n        color: 'white', flexWrap: 'wrap', gap: '10px',\n      }}>",
+              "<div className=\"pos-summary-bar\" style={{\n        display: 'flex', alignItems: 'center', justifyContent: 'space-between',\n        padding: '10px 16px', borderRadius: '12px', marginBottom: '16px',\n        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',\n        color: 'white', flexWrap: 'wrap', gap: '10px',\n      }}>",
+              'pos summary'
+            );
+          }
+          if (!pos.includes('pos-search-row')) {
+            pos = replaceOnce(pos, "<div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>", "<div className=\"pos-search-row\" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>", 'pos search');
+          }
+          if (!pos.includes('pos-category-row')) {
+            pos = replaceOnce(pos, "<div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>", "<div className=\"pos-category-row\" style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>", 'pos category');
+          }
+          if (!pos.includes('pos-product-grid')) {
+            pos = replaceOnce(
+              pos,
+              "<div style={{\n        display: 'grid',\n        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',",
+              "<div className=\"pos-product-grid\" style={{\n        display: 'grid',\n        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',",
+              'pos grid'
+            );
+          }
+          if (!pos.includes('pos-cart-panel')) {
+            pos = replaceOnce(pos, "<div style={{\n          background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0',\n          overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)',\n        }}>", "<div className=\"pos-cart-panel\" style={{\n          background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0',\n          overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)',\n        }}>", 'pos cart panel');
+          }
+          if (!pos.includes('pos-discount-row')) {
+            pos = replaceOnce(pos, "<div style={{ padding: '10px 16px', background: '#fefce8', borderTop: '1px solid #fef08a', display: 'flex', alignItems: 'center', gap: '10px' }}>", "<div className=\"pos-discount-row\" style={{ padding: '10px 16px', background: '#fefce8', borderTop: '1px solid #fef08a', display: 'flex', alignItems: 'center', gap: '10px' }}>", 'pos discount row');
+          }
+          if (!pos.includes('pos-total-bar')) {
+            pos = replaceOnce(pos, "<div style={{\n            padding: '16px', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',\n            display: 'flex', alignItems: 'center', justifyContent: 'space-between',\n          }}>", "<div className=\"pos-total-bar\" style={{\n            padding: '16px', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',\n            display: 'flex', alignItems: 'center', justifyContent: 'space-between',\n          }}>", 'pos total bar');
+          }
+          if (!pos.includes('pos-checkout-backdrop')) {
+            pos = replaceOnce(pos, "<div style={{\n          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,\n          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',\n          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',\n          zIndex: 1000, padding: '0',\n        }} onClick={(e) => { if (e.target === e.currentTarget) setShowCheckout(false); }}>", "<div className=\"pos-checkout-backdrop\" style={{\n          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,\n          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',\n          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',\n          zIndex: 1000, padding: '0',\n        }} onClick={(e) => { if (e.target === e.currentTarget) setShowCheckout(false); }}>", 'pos checkout backdrop');
+          }
+          if (!pos.includes('pos-checkout-sheet')) {
+            pos = replaceOnce(pos, "<div style={{\n            background: 'white', borderRadius: '24px 24px 0 0', padding: '24px',\n            width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto',\n            animation: 'slideUp 0.3s ease-out',\n            boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',\n          }}>", "<div className=\"pos-checkout-sheet\" style={{\n            background: 'white', borderRadius: '24px 24px 0 0', padding: '24px',\n            width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto',\n            animation: 'slideUp 0.3s ease-out',\n            boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',\n          }}>", 'pos checkout sheet');
+          }
+          save(posFile, pos);
+
+          const cssFile = 'src/index.css';
+          let css = fs.readFileSync(cssFile, 'utf8');
+          const marker = '/* Batch 7 Mobile & APK Polish */';
+          if (!css.includes(marker)) {
+            css += `\n\n${marker}\n` + [
+              '@media (max-width: 768px) {',
+              '  html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }',
+              '  * { box-sizing: border-box; }',
+              '  .pos-view-shell { min-height: auto !important; padding-bottom: 10px; }',
+              '  .pos-summary-bar { align-items: stretch !important; border-radius: 18px !important; }',
+              '  .pos-summary-bar > div { width: 100%; }',
+              '  .pos-summary-bar > div:last-child { justify-content: space-between !important; gap: 10px !important; }',
+              '  .pos-search-row { position: sticky; top: calc(66px + env(safe-area-inset-top)); z-index: 20; padding: 8px 0; margin: -8px 0 12px !important; background: #f6f8fc; }',
+              '  .pos-category-row { margin-bottom: 12px !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }',
+              '  .pos-category-row::-webkit-scrollbar { display: none; }',
+              '  .pos-category-row button { flex: 0 0 auto; min-height: 36px; }',
+              '  .pos-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 9px !important; max-height: none !important; overflow: visible !important; padding-right: 0 !important; }',
+              '  .pos-product-grid > button { min-width: 0 !important; min-height: 132px !important; padding: 11px 10px !important; border-radius: 14px !important; }',
+              '  .pos-product-grid img { height: 68px !important; }',
+              '  .pos-cart-panel { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 25; margin: 12px -4px 0; border-radius: 20px !important; box-shadow: 0 -10px 32px rgba(15,23,42,.16) !important; }',
+              '  .pos-discount-row { align-items: stretch !important; flex-wrap: wrap; gap: 8px !important; }',
+              '  .pos-discount-row input { max-width: none !important; flex: 1 1 130px !important; }',
+              '  .pos-total-bar { align-items: stretch !important; flex-direction: column; gap: 12px; }',
+              '  .pos-total-bar button { width: 100%; justify-content: center; }',
+              '  .pos-checkout-backdrop { align-items: flex-end !important; padding: 0 !important; }',
+              '  .pos-checkout-sheet { width: 100% !important; max-width: none !important; max-height: min(92dvh, 760px) !important; padding: 20px 16px max(22px, env(safe-area-inset-bottom)) !important; border-radius: 24px 24px 0 0 !important; }',
+              '  .pos-checkout-sheet [style*="grid-template-columns: repeat(3"] { grid-template-columns: 1fr !important; }',
+              '}',
+              '',
+              'html.native-app .pos-search-row { top: calc(74px + env(safe-area-inset-top)); }',
+              'html.native-app .pos-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }',
+              'html.native-app .pos-product-grid > button { min-height: 136px !important; }',
+              'html.native-app .pos-cart-panel { bottom: calc(80px + env(safe-area-inset-bottom)); }',
+              'html.native-app .modal-backdrop { padding: 0 !important; align-items: flex-end !important; }',
+              'html.native-app .modal-backdrop > .glass-panel, html.native-app .modal-backdrop > form.glass-panel { width: 100% !important; max-width: none !important; max-height: min(92dvh, 760px) !important; border-radius: 24px 24px 0 0 !important; padding: 20px 16px max(22px, env(safe-area-inset-bottom)) !important; }',
+              'html.native-app .service-wizard-dialog, html.native-app .service-registration-form { overscroll-behavior: contain; }',
+              'html.native-app .table-container, html.native-app .customer-table-wrap, html.native-app .inventory-table-wrap, html.native-app .employee-table-wrap { max-width: 100%; }'
+            ].join('\n') + '\n';
+            fs.writeFileSync(cssFile, css);
+          }
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit source and clean
+        shell: bash
+        run: |
+          git config user.name aiserviceid
+          git config user.email ai.interiorid@gmail.com
+          git add src/components/POSView.jsx src/index.css
+          git commit -m "style: polish mobile and apk POS layouts" || echo "no source changes"
+          git rm .github/workflows/temp-batch7-mobile-apk-polish.yml .github/batch7-mobile-apk-polish-trigger.txt
+          git commit -m "chore: clean batch 7 mobile temp workflow"
+          git push origin HEAD:agent/v1-stabilization-integration
