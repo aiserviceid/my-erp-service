@@ -1364,7 +1364,6 @@ export default function AdminDashboard() {
             </details>
 
             {/* TABEL DATABASE PELANGGAN */}
-            {/* TABEL DATABASE PELANGGAN */}
             {(() => {
               const displayedCustomers = customerTab === 'servis' 
                 ? services 
