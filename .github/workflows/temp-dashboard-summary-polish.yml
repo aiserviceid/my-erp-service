@@ -1,0 +1,46 @@
+name: Dashboard Summary Polish
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+
+jobs:
+  polish-build-clean:
+    if: contains(github.event.head_commit.message, 'trigger dashboard summary polish workflow')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch Admin dashboard summary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/AdminDashboard.jsx')
+          text = path.read_text()
+          if "../components/PremiumDashboardSummary" not in text:
+              text = text.replace("import MobileTabBar from '../components/MobileTabBar';", "import MobileTabBar from '../components/MobileTabBar';\nimport PremiumDashboardSummary from '../components/PremiumDashboardSummary';")
+          needle = "<div className=\"dashboard-overview\" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-in-out' }}>"
+          insert = needle + "\n            <PremiumDashboardSummary\n              services={services}\n              transactions={transactions}\n              products={products}\n              onCreateService={() => setShowServiceRegistration(true)}\n              onOpenCashier={() => setActiveTab('pos')}\n              onOpenCustomers={() => setActiveTab('pelanggan')}\n              onOpenTracking={() => window.open('/tracking', '_blank', 'noopener,noreferrer')}\n            />"
+          if '<PremiumDashboardSummary' not in text:
+              text = text.replace(needle, insert, 1)
+          path.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit polish and clean temp files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/temp-dashboard-summary-polish.yml .github/dashboard-summary-polish-trigger.txt
+          git add src/pages/AdminDashboard.jsx src/components/PremiumDashboardSummary.jsx .github/workflows/temp-dashboard-summary-polish.yml .github/dashboard-summary-polish-trigger.txt
+          git commit -m "feat: add premium admin dashboard summary" || true
+          git push origin agent/v1-stabilization-integration
