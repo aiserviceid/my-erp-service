@@ -42,10 +42,22 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   })();
   const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
 
+  const getProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
+  const isServiceItem = (product) => {
+    const category = getProductCategory(product);
+    const name = String(product?.name || '').toLowerCase();
+    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
+    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
+  };
+  const getProductImage = (product) => product?.imageUrl || product?.image_url || product?.image || '';
+  const formatMoney = (value) => normalizeMoneyInput(value).toLocaleString('id-ID');
+
   // Filtered & sorted products
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchCat = selectedCategory === 'SEMUA' || (p.category && p.category.toUpperCase() === selectedCategory.toUpperCase());
+      const category = getProductCategory(p);
+      const matchCat = selectedCategory === 'SEMUA'
+        || (selectedCategory === 'JASA' ? isServiceItem(p) : category === selectedCategory.toUpperCase());
       if (!matchCat) return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
@@ -142,7 +154,9 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       p.id === decodedText || p.name.toLowerCase().includes(decodedText.toLowerCase())
     );
     if (product) {
-      if (product.stock <= 0) { alert('Stok Habis!'); return; }
+      const currentQty = Number(cart.find(item => String(item.id) === String(product.id))?.qty || 0);
+      if (!isServiceItem(product) && Number(product.stock || 0) <= 0) { alert('Stok Habis!'); return; }
+      if (!isServiceItem(product) && currentQty >= Number(product.stock || 0)) { alert('Jumlah di keranjang sudah mencapai stok tersedia.'); return; }
       addToCart(product);
       setShowScanner(false);
     } else {
@@ -150,7 +164,18 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     }
   };
 
+  const validateCartStock = () => cart.find(item => !isServiceItem(item) && Number(item.stock || 0) < Number(item.qty || 0));
+
   const openCheckout = () => {
+    const stockProblem = validateCartStock();
+    if (stockProblem) {
+      alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);
+      return;
+    }
+    if (discountAmount > subtotal) {
+      alert('Diskon tidak boleh lebih besar dari subtotal belanja.');
+      return;
+    }
     setCheckoutStep(1);
     setShowCheckout(true);
   };
@@ -163,7 +188,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   // Handle checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    const stockProblem = cart.find(item => (item.category || '').toUpperCase() !== 'JASA' && Number(item.stock || 0) < Number(item.qty || 0));
+    const stockProblem = validateCartStock();
     if (stockProblem) {
       alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);
       return;
@@ -202,7 +227,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     try {
       // 1. Secure stock first so failed stock updates do not create POS transactions.
       const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
-      const stockItems = cart.filter(item => (item.category || '').toUpperCase() !== 'JASA');
+      const stockItems = cart.filter(item => !isServiceItem(item));
       const updatedStockItems = [];
       try {
         for (const item of stockItems) {
@@ -482,24 +507,31 @@ export default function POSView({ products, transactions = [], onTransactionCrea
             {searchQuery ? `Tidak ada produk "${searchQuery}"` : 'Belum ada produk. Tambahkan di Master Barang.'}
           </div>
         ) : filteredProducts.map(p => {
-          const outOfStock = p.stock <= 0;
-          const lowStock = p.stock > 0 && p.stock <= 5;
-          const inCart = cart.find(c => c.id === p.id);
+          const isService = isServiceItem(p);
+          const stockQty = Number(p.stock || 0);
+          const inCart = cart.find(c => String(c.id) === String(p.id));
+          const cartQty = Number(inCart?.qty || 0);
+          const outOfStock = !isService && stockQty <= 0;
+          const lowStock = !isService && stockQty > 0 && stockQty <= 5;
+          const reachedCartLimit = !isService && stockQty > 0 && cartQty >= stockQty;
+          const productImage = getProductImage(p);
 
           return (
             <button
               key={p.id}
-              disabled={outOfStock}
+              disabled={outOfStock || reachedCartLimit}
               onClick={() => {
-                if (!outOfStock) addToCart(p);
+                if (outOfStock) return;
+                if (reachedCartLimit) { alert('Jumlah di keranjang sudah mencapai stok tersedia.'); return; }
+                addToCart(p);
               }}
               style={{
                 background: inCart ? '#f0fdf4' : 'white',
                 border: inCart ? '2px solid #86efac' : '1px solid #e2e8f0',
                 borderRadius: '14px',
                 padding: '14px 12px',
-                cursor: outOfStock ? 'not-allowed' : 'pointer',
-                opacity: outOfStock ? 0.5 : 1,
+                cursor: (outOfStock || reachedCartLimit) ? 'not-allowed' : 'pointer',
+                opacity: (outOfStock || reachedCartLimit) ? 0.55 : 1,
                 transition: 'all 0.15s ease',
                 textAlign: 'left',
                 position: 'relative',
@@ -517,7 +549,14 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                   padding: '2px 6px', borderRadius: '4px', fontWeight: '800',
                 }}>HABIS</div>
               )}
-              {lowStock && !outOfStock && (
+              {reachedCartLimit && !outOfStock && (
+                <div style={{
+                  position: 'absolute', top: '8px', right: '8px',
+                  background: '#0f172a', color: 'white', fontSize: '0.6rem',
+                  padding: '2px 6px', borderRadius: '4px', fontWeight: '800',
+                }}>MAX</div>
+              )}
+              {lowStock && !outOfStock && !reachedCartLimit && (
                 <div style={{
                   position: 'absolute', top: '8px', right: '8px',
                   background: '#f59e0b', color: 'white', fontSize: '0.6rem',
@@ -535,8 +574,8 @@ export default function POSView({ products, transactions = [], onTransactionCrea
               )}
 
               {/* Product Image Thumbnail */}
-              {p.imageUrl ? (
-                <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '75px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', background: '#f8fafc' }} />
+              {productImage ? (
+                <img src={productImage} alt={p.name} style={{ width: '100%', height: '75px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', background: '#f8fafc' }} />
               ) : null}
 
               <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a', lineHeight: '1.3', marginBottom: '8px', marginTop: inCart ? '4px' : 0, wordBreak: 'break-word' }}>
@@ -547,7 +586,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                   Rp {p.price.toLocaleString('id-ID')}
                 </div>
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
-                  Stok: {p.stock}
+                  {isService ? 'Jenis: Jasa' : 'Stok: ' + p.stock}
                 </div>
               </div>
             </button>
@@ -606,9 +645,11 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                   </button>
                   <span style={{ fontWeight: '800', fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.qty}</span>
                   <button onClick={() => {
-                    if (item.qty < item.stock) {
+                    if (isServiceItem(item) || item.qty < Number(item.stock || 0)) {
                       if (updateCartQty) updateCartQty(item.id, item.qty + 1);
                       else addToCart(item);
+                    } else {
+                      alert('Jumlah di keranjang sudah mencapai stok tersedia.');
                     }
                   }} style={{
                     width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #e2e8f0',
@@ -628,10 +669,11 @@ export default function POSView({ products, transactions = [], onTransactionCrea
           <div style={{ padding: '10px 16px', background: '#fefce8', borderTop: '1px solid #fef08a', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#a16207', whiteSpace: 'nowrap' }}>Diskon:</span>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               placeholder="0"
-              value={discount || ''}
-              onChange={(e) => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}
+              value={discount ? discount.toLocaleString('id-ID') : ''}
+              onChange={(e) => setDiscount(Math.max(0, normalizeMoneyInput(e.target.value)))}
               style={{
                 flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1px solid #fde68a',
                 fontSize: '0.85rem', fontWeight: '700', background: 'white', maxWidth: '120px',
@@ -770,10 +812,11 @@ export default function POSView({ products, transactions = [], onTransactionCrea
                   Uang Diterima
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   placeholder={`Min. Rp ${grandTotal.toLocaleString('id-ID')}`}
-                  value={cashReceived}
-                  onChange={(e) => setCashReceived(e.target.value)}
+                  value={cashReceived ? formatMoney(cashReceived) : ''}
+                  onChange={(e) => setCashReceived(String(normalizeMoneyInput(e.target.value)))}
                   autoFocus
                   style={{
                     width: '100%', padding: '16px', borderRadius: '14px',
