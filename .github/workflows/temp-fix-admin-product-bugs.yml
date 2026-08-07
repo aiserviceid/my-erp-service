@@ -17,306 +17,177 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Patch product persistence and admin selesai billing modal
+      - name: Patch product persistence and admin selesai billing flow
         run: |
           python <<'PY'
           from pathlib import Path
-          import re
 
           api_path = Path('src/services/api.js')
           api = api_path.read_text()
 
-          old_products_map = """return (data || []).map(p => ({
-        ...p,
-        imageUrl: p.imageUrl || p.image_url || p.image || ''
-      }));"""
-          new_products_map = """return (data || []).map(p => ({
-        ...p,
-        category: p.category || 'SPAREPART',
-        imageUrl: p.imageUrl || p.image_url || p.image || ''
-      }));"""
-          if old_products_map in api:
-            api = api.replace(old_products_map, new_products_map)
+          old_map = """return (data || []).map(p => ({
+                  ...p,
+                  imageUrl: p.imageUrl || p.image_url || p.image || ''
+                }));"""
+          new_map = """return (data || []).map(p => ({
+                  ...p,
+                  category: p.category || 'SPAREPART',
+                  imageUrl: p.imageUrl || p.image_url || p.image || ''
+                }));"""
+          if old_map in api:
+            api = api.replace(old_map, new_map)
 
-          new_add_product = r'''  addProduct: async (productData, userName = 'Admin') => {
-    try {
-      const cleanName = (productData.name || '').trim();
-      const cleanPrice = Math.max(0, Number(productData.price) || 0);
-      const cleanStock = Math.max(0, Number(productData.stock) || 0);
-      const cleanCat = (productData.category || 'SPAREPART').toUpperCase();
-      const img = productData.imageUrl || productData.image_url || '';
+          old_retry = """        const retryRes = await supabase
+                  .from('products')
+                  .insert(fallbackPayload)
+                  .select()
+                  .single();
 
-      if (!cleanName) throw new Error('Nama barang wajib diisi.');
-      if (!productData.tenant_code) throw new Error('Kode toko tidak ditemukan. Silakan login ulang.');
+                if (retryRes.error) {
+                  console.warn('Fallback product insert error:', retryRes.error);
+                  return {
+                    id: `PROD-${Date.now()}`,
+                    tenant_code: productData.tenant_code,
+                    name: cleanName,
+                    price: cleanPrice,
+                    stock: cleanStock,
+                    category: cleanCat,
+                    imageUrl: img
+                  };
+                }
+                inserted = retryRes.data;"""
+          new_retry = """        let retryRes = await supabase
+                  .from('products')
+                  .insert(fallbackPayload)
+                  .select()
+                  .single();
 
-      if (productData.tenant_code === 'DEMO-STORE') {
-        return {
-          id: `PROD-${Date.now()}`,
-          tenant_code: 'DEMO-STORE',
-          name: cleanName,
-          price: cleanPrice,
-          stock: cleanStock,
-          category: cleanCat,
-          imageUrl: img,
-          image_url: img
-        };
-      }
+                if (retryRes.error && fallbackPayload.image_url) {
+                  console.warn('Fallback product insert with image_url error:', retryRes.error);
+                  const basicPayload = {
+                    tenant_code: productData.tenant_code,
+                    name: cleanName,
+                    price: cleanPrice,
+                    stock: cleanStock
+                  };
+                  retryRes = await supabase
+                    .from('products')
+                    .insert(basicPayload)
+                    .select()
+                    .single();
+                }
 
-      const basePayload = {
-        tenant_code: productData.tenant_code,
-        name: cleanName,
-        price: cleanPrice,
-        stock: cleanStock
-      };
+                if (retryRes.error) {
+                  console.warn('Fallback product insert error:', retryRes.error);
+                  throw new Error(`Barang gagal disimpan ke database: ${retryRes.error.message || 'schema products tidak cocok'}`);
+                }
+                inserted = retryRes.data;"""
+          if old_retry not in api:
+            raise SystemExit('Fallback product block not found')
+          api = api.replace(old_retry, new_retry)
 
-      const attempts = [
-        { ...basePayload, category: cleanCat, imageUrl: img, image_url: img },
-        { ...basePayload, category: cleanCat, image_url: img },
-        { ...basePayload, category: cleanCat },
-        { ...basePayload, image_url: img },
-        basePayload
-      ].filter((payload, index, list) => {
-        if (!img && ('imageUrl' in payload || 'image_url' in payload)) return false;
-        const key = JSON.stringify(Object.keys(payload).sort());
-        return list.findIndex(item => JSON.stringify(Object.keys(item).sort()) === key) === index;
-      });
-
-      let inserted = null;
-      let lastError = null;
-
-      for (const payload of attempts) {
-        const payloadToInsert = Object.fromEntries(
-          Object.entries(payload).filter(([, value]) => value !== undefined)
-        );
-        try {
-          const { data, error } = await supabase
-            .from('products')
-            .insert(payloadToInsert)
-            .select()
-            .single();
-
-          if (error) throw error;
-          inserted = data;
-          break;
-        } catch (error) {
-          lastError = error;
-          console.warn('Product insert attempt failed:', error?.message || error);
-        }
-      }
-
-      if (!inserted?.id) {
-        throw new Error(`Barang gagal disimpan ke database: ${lastError?.message || 'schema products tidak cocok'}`);
-      }
-
-      if (cleanStock > 0) {
-        try {
-          await supabase.from('stock_movements').insert({
-            tenant_code: productData.tenant_code,
-            product_id: inserted.id,
-            user_name: userName,
-            change_amount: cleanStock,
-            description: 'Stok Awal Barang Baru'
-          });
-        } catch (e) {
-          console.warn('Stock movement insert error:', e);
-        }
-      }
-
-      return {
-        ...inserted,
-        category: inserted?.category || cleanCat,
-        imageUrl: inserted?.imageUrl || inserted?.image_url || img
-      };
-    } catch (e) {
-      console.error('addProduct exception:', e);
-      throw e;
-    }
-  },'''
-
-          api, count = re.subn(
-            r"  addProduct: async \(productData, userName = 'Admin'\) => \{.*?\n  \},\n\n  updateProduct: async",
-            new_add_product + "\n\n  updateProduct: async",
-            api,
-            count=1,
-            flags=re.S,
-          )
-          if count != 1:
-            raise SystemExit('Failed to replace apiService.addProduct')
+          old_catch = """    } catch (e) {
+                console.error('addProduct exception:', e);
+                return {
+                  id: `PROD-${Date.now()}`,
+                  tenant_code: productData.tenant_code,
+                  name: productData.name,
+                  price: Number(productData.price) || 0,
+                  stock: Number(productData.stock) || 0,
+                  category: productData.category || 'SPAREPART',
+                  imageUrl: productData.imageUrl || ''
+                };
+              }
+            },"""
+          new_catch = """    } catch (e) {
+                console.error('addProduct exception:', e);
+                throw e;
+              }
+            },"""
+          if old_catch not in api:
+            raise SystemExit('addProduct fake success catch not found')
+          api = api.replace(old_catch, new_catch)
           api_path.write_text(api)
 
           admin_path = Path('src/pages/AdminDashboard.jsx')
           admin = admin_path.read_text()
 
-          state_anchor = "const [showEditServiceNota, setShowEditServiceNota] = useState(false);\n  const [showServiceRegistration, setShowServiceRegistration] = useState(false);"
-          if state_anchor in admin and 'showSelesaiModal' not in admin:
-            admin = admin.replace(
-              state_anchor,
-              "const [showEditServiceNota, setShowEditServiceNota] = useState(false);\n  const [showSelesaiModal, setShowSelesaiModal] = useState(false);\n  const [showServiceRegistration, setShowServiceRegistration] = useState(false);"
-            )
-
-          new_status_fn = r'''  const updateServiceStatusFromAction = async (service, newStatus) => {
-    if (newStatus === 'SELESAI') {
-      setSelectedService(service);
-      setShowSelesaiModal(true);
-      return;
-    }
-
-    if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {
-      if (!service.part_fee && !service.jasa_fee) {
-        alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
-        return;
-      }
-    }
-
-    try {
-      const canonicalStatus = newStatus === 'DI AMBIL' ? 'DIAMBIL' : newStatus;
-      await apiService.post('/services/update', {
-        resi: service.resi,
-        tenant_code: service.tenant_code || tenant?.code,
-        status: canonicalStatus
-      });
-      setServices(services.map((item) => item.resi === service.resi ? { ...item, status: canonicalStatus } : item));
-      if (hasFeature(tenant?.tier, 'whatsappNotif') && service.customer_phone && confirm('Kirim update status ke WhatsApp pelanggan?')) {
-        const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
-        const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
-        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(canonicalStatus).label}*.
-
-Cek status langsung di sini:
-${trackingUrl}`;
-        await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });
-      }
-    } catch (error) {
-      alert('Gagal update status');
-    }
-  };'''
-
-          admin, count = re.subn(
-            r"  const updateServiceStatusFromAction = async \(service, newStatus\) => \{.*?\n  \};",
-            new_status_fn,
-            admin,
-            count=1,
-            flags=re.S,
-          )
-          if count != 1:
-            raise SystemExit('Failed to replace updateServiceStatusFromAction')
-
-          admin, count_direct = re.subn(
-            r"onChange=\{async \(e\) => \{\s*const newStatus = e\.target\.value;\s*try \{\s*await apiService\.post\('/services/update', \{ resi: s\.resi, status: newStatus \}\);.*?\} catch\(err\) \{ alert\('Gagal update status'\); \}\s*\}\}",
-            "onChange={(e) => updateServiceStatusFromAction(s, e.target.value)}",
-            admin,
-            count=1,
-            flags=re.S,
-          )
-          if count_direct != 1:
-            raise SystemExit(f'Failed to replace table status handler, replacements={count_direct}')
-
-          old_add_product_ui = """const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
-                        setProducts([...products, { ...newProd, imageUrl }]);"""
-          new_add_product_ui = """const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
-                        const savedProduct = {
-                          ...newProd,
-                          category: newProd.category || category,
-                          imageUrl: newProd.imageUrl || newProd.image_url || imageUrl
-                        };
-                        setProducts(prev => [savedProduct, ...prev.filter(p => String(p.id) !== String(savedProduct.id))]);
-                        apiService.getProducts(tenant.code).then(setProducts).catch(() => {});"""
-          if old_add_product_ui in admin:
-            admin = admin.replace(old_add_product_ui, new_add_product_ui)
-          else:
-            raise SystemExit('Failed to patch add product UI refresh')
-
-          selesai_modal = r'''
-      {showSelesaiModal && selectedService && (
-        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            const note = String(fd.get('note') || selectedService.issue || '').trim();
-            const partFee = normalizeMoneyInput(fd.get('part_fee'));
-            const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));
-            const discount = normalizeMoneyInput(fd.get('discount'));
-
-            if (partFee < 0 || jasaFee < 0 || discount < 0) {
-              alert('Nominal tidak boleh negatif.');
-              return;
-            }
-            if (discount > partFee + jasaFee) {
-              alert('Diskon tidak boleh lebih besar dari total tagihan.');
-              return;
-            }
-
-            const updatedIssue = buildIssueWithDiscount(note, discount);
-            try {
-              const updatedService = await apiService.post('/services/update', {
+          old_payload = """const updatedService = await apiService.post('/services/update', {
                 resi: selectedService.resi,
                 tenant_code: selectedService.tenant_code || tenant?.code,
-                status: 'SELESAI',
                 part_fee: partFee,
                 jasa_fee: jasaFee,
                 issue: updatedIssue
               });
-              const nextService = { ...selectedService, ...updatedService, status: 'SELESAI', part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
-              setServices(services.map(srv => srv.resi === selectedService.resi ? { ...srv, ...nextService } : srv));
-              setSelectedService(nextService);
-              setShowSelesaiModal(false);
+              const nextService = { ...selectedService, ...updatedService, part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };"""
+          new_payload = """const shouldMarkSelesai = Boolean(selectedService.__markSelesaiFromAdmin);
+              const updatedService = await apiService.post('/services/update', {
+                resi: selectedService.resi,
+                tenant_code: selectedService.tenant_code || tenant?.code,
+                ...(shouldMarkSelesai ? { status: 'SELESAI' } : {}),
+                part_fee: partFee,
+                jasa_fee: jasaFee,
+                issue: updatedIssue
+              });
+              const nextService = { ...selectedService, ...updatedService, ...(shouldMarkSelesai ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };"""
+          if old_payload not in admin:
+            raise SystemExit('Admin edit nota payload block not found')
+          admin = admin.replace(old_payload, new_payload)
+          admin = admin.replace("alert('Nota servis berhasil dikoreksi.');", "alert(selectedService.__markSelesaiFromAdmin ? 'Rincian tagihan berhasil disimpan dan status menjadi Selesai.' : 'Nota servis berhasil dikoreksi.');")
 
-              const totalTagihan = Math.max(0, partFee + jasaFee - discount);
-              if (hasFeature(tenant?.tier, 'whatsappNotif') && selectedService.customer_phone && confirm('Rincian tagihan tersimpan. Kirim WhatsApp ke pelanggan?')) {
-                const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
-                const trackingUrl = `${window.location.origin}/tracking?resi=${selectedService.resi}`;
-                const message = `Halo Kak ${selectedService.customer_name}, servis ${selectedService.device_name} sudah *SELESAI*.
-
-Rincian tagihan:
-- Sparepart: Rp ${partFee.toLocaleString('id-ID')}
-- Jasa: Rp ${jasaFee.toLocaleString('id-ID')}
-- Diskon: Rp ${discount.toLocaleString('id-ID')}
-- Total: Rp ${totalTagihan.toLocaleString('id-ID')}
-
-Silakan cek status/pengambilan di:
-${trackingUrl}
-
-Terima kasih.\n${storeName}`;
-                await sendWhatsAppNotification({ tenant, target: selectedService.customer_phone, message, openManual: true });
+          old_action = """  const updateServiceStatusFromAction = async (service, newStatus) => {
+              try {
+                await apiService.post('/services/update', { resi: service.resi, status: newStatus });
+                setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));"""
+          new_action = """  const updateServiceStatusFromAction = async (service, newStatus) => {
+              if (newStatus === 'SELESAI') {
+                setSelectedService({ ...service, __markSelesaiFromAdmin: true });
+                setShowEditServiceNota(true);
+                return;
               }
-              alert('Status selesai dan rincian tagihan berhasil disimpan.');
-            } catch (err) {
-              alert('Gagal menyimpan rincian tagihan.');
-            }
-          }} className="glass-panel" style={{ width: '100%', maxWidth: '480px', background: 'var(--bg-light)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Rincian Penagihan Servis</h3>
-              <button type="button" className="btn btn-ghost" onClick={() => setShowSelesaiModal(false)}><X size={20}/></button>
-            </div>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '12px' }}>Resi: <b>{selectedService.resi}</b></p>
-            <div className="form-group">
-              <label>Keterangan / Rincian Perbaikan</label>
-              <textarea name="note" className="input-field" rows="4" defaultValue={(selectedService.issue || '').replace(/\n?\[Diskon: Rp .*?\]/g, '').trim()} placeholder="Contoh: Ganti LCD, cleaning mesin, install ulang" />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div className="form-group">
-                <label>Biaya Sparepart</label>
-                <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} />
-              </div>
-              <div className="form-group">
-                <label>Biaya Jasa</label>
-                <input name="jasa_fee" type="number" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0} />
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Diskon</label>
-              <input name="discount" type="number" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')} />
-            </div>
-            <button className="btn btn-primary" type="submit" style={{ width: '100%' }}>Simpan Status Selesai</button>
-          </form>
-        </div>
-      )}
-'''
-          modal_anchor = "\n      {showEditServiceNota && selectedService && ("
-          if selesai_modal.strip() not in admin:
-            if modal_anchor not in admin:
-              raise SystemExit('Failed to find edit nota modal anchor')
-            admin = admin.replace(modal_anchor, selesai_modal + modal_anchor, 1)
+              if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') && !service.part_fee && !service.jasa_fee) {
+                alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
+                return;
+              }
+              try {
+                const canonicalStatus = newStatus === 'DI AMBIL' ? 'DIAMBIL' : newStatus;
+                await apiService.post('/services/update', { resi: service.resi, tenant_code: service.tenant_code || tenant?.code, status: canonicalStatus });
+                setServices(services.map((item) => item.resi === service.resi ? { ...item, status: canonicalStatus } : item));"""
+          if old_action not in admin:
+            raise SystemExit('Admin status action block not found')
+          admin = admin.replace(old_action, new_action)
+          admin = admin.replace("*${getStatusInfo(newStatus).label}*", "*${getStatusInfo(canonicalStatus).label}*")
 
+          old_inline = """onChange={async (e) => {
+                                  const newStatus = e.target.value;
+                                  try {
+                                    await apiService.post('/services/update', { resi: s.resi, status: newStatus });
+                                    setServices(services.map(srv => srv.resi === s.resi ? { ...srv, status: newStatus } : srv));
+                                    if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {
+                                      const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
+                                      const trackingUrl = `${window.location.origin}/tracking?resi=${s.resi}`;
+                                      const msg = `Halo Kak ${s.customer_name}, ini update status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${storeName}* saat ini: *${getStatusInfo(newStatus).label}*.
+
+Klik link ini untuk cek status langsung dari HP:
+${trackingUrl}`;
+                                      await sendWhatsAppNotification({ tenant, target: s.customer_phone, message: msg, openManual: true });
+                                    }
+                                  } catch(err) { alert('Gagal update status'); }
+                                }}"""
+          new_inline = """onChange={(e) => updateServiceStatusFromAction(s, e.target.value)}"""
+          if old_inline not in admin:
+            raise SystemExit('Admin inline status handler not found')
+          admin = admin.replace(old_inline, new_inline)
+
+          old_add_ui = """const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
+                        setProducts([...products, { ...newProd, imageUrl }]);"""
+          new_add_ui = """const newProd = await apiService.addProduct({ tenant_code: tenant.code, name, price, stock: stock || 0, category, imageUrl }, currentUser);
+                        const savedProduct = { ...newProd, category: newProd.category || category, imageUrl: newProd.imageUrl || newProd.image_url || imageUrl };
+                        setProducts(prev => [savedProduct, ...prev.filter(p => String(p.id) !== String(savedProduct.id))]);
+                        apiService.getProducts(tenant.code).then(setProducts).catch(() => {});"""
+          if old_add_ui not in admin:
+            raise SystemExit('Admin add product UI block not found')
+          admin = admin.replace(old_add_ui, new_add_ui)
           admin_path.write_text(admin)
           PY
       - name: Install dependencies
@@ -329,5 +200,5 @@ Terima kasih.\n${storeName}`;
           git config user.email "ai.interiorid@gmail.com"
           rm -f .github/workflows/temp-fix-admin-product-bugs.yml .github/fix-admin-product-bugs-trigger.txt
           git add -A
-          git commit -m "fix: persist products and require admin billing on selesai"
+          git commit -m "fix: persist products and open billing details on admin selesai"
           git push
