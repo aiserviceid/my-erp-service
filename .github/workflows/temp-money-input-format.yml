@@ -1,0 +1,106 @@
+name: Money Input Format Patch
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+
+jobs:
+  patch-build-clean:
+    if: contains(github.event.head_commit.message, 'trigger money input format workflow')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch service optional sparepart and money inputs
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          files = [Path('src/pages/AdminDashboard.jsx'), Path('src/pages/EmployeePortal.jsx')]
+
+          helper = '''
+  const formatMoneyInput = (value) => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const handleMoneyInput = (event) => {
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+  };
+'''
+
+          for path in files:
+            text = path.read_text()
+            if 'const formatMoneyInput = (value)' not in text:
+              text, count = re.subn(
+                r"(\n\s*const normalizeMoneyInput = \(value\) => \{.*?\n\s*\};)",
+                r"\1" + helper,
+                text,
+                count=1,
+                flags=re.S,
+              )
+              if count != 1:
+                raise SystemExit(f'normalizeMoneyInput block not found in {path}')
+
+            # Make financial input tags use Indonesian money formatting while FormData parsing still uses normalizeMoneyInput.
+            money_keywords = [
+              'name="part_fee"', 'name="jasa_fee"', 'name="discount"', 'name="diskon"',
+              'name="price"', 'name="amount"', 'id="partFeeInput"', 'id="jasaFeeInput"',
+              'id="bon-amount"', 'value={newProdPrice}', 'name="estimasi_biaya"'
+            ]
+
+            def patch_input(match):
+              tag = match.group(0)
+              if not any(k in tag for k in money_keywords):
+                return tag
+              tag = tag.replace('type="number"', 'type="text"')
+              if 'inputMode=' not in tag:
+                tag = tag.replace('type="text"', 'type="text" inputMode="numeric"', 1)
+              if 'onInput=' not in tag and 'value={newProdPrice}' not in tag:
+                tag = tag[:-2] + ' onInput={handleMoneyInput} />' if tag.endswith('/>') else tag[:-1] + ' onInput={handleMoneyInput}>'
+              if 'name="part_fee"' in tag or 'id="partFeeInput"' in tag:
+                tag = tag.replace(' required', '')
+              if 'name="jasa_fee"' in tag or 'id="jasaFeeInput"' in tag:
+                tag = tag.replace(' required', '')
+              return tag
+
+            text = re.sub(r'<input\b[^>]*>', patch_input, text)
+
+            # Controlled product price should be stored as formatted text but parsed as raw money.
+            text = text.replace('onChange={(e) => setNewProdPrice(e.target.value)}', 'onChange={(e) => setNewProdPrice(formatMoneyInput(e.target.value))}')
+            text = text.replace('parseInt(newProdPrice)', 'normalizeMoneyInput(newProdPrice)')
+            text = text.replace('parseInt(estBiaya, 10).toLocaleString', 'normalizeMoneyInput(estBiaya).toLocaleString')
+            text = text.replace('parseInt(estPrice).toLocaleString', 'normalizeMoneyInput(estPrice).toLocaleString')
+
+            # Copy clarity: sparepart is optional, jasa can be filled without sparepart.
+            text = text.replace('Biaya Sparepart (Rp)', 'Biaya Sparepart Opsional (Rp)')
+            text = text.replace('Total Biaya Sparepart (Rp)', 'Total Biaya Sparepart Opsional (Rp)')
+            text = text.replace('placeholder="Misal: LCD Samsung J2"', 'placeholder="Opsional, misal: LCD Samsung J2"')
+            text = text.replace('placeholder="Contoh: 100000"', 'placeholder="Contoh: 100.000"')
+            text = text.replace('placeholder="Misal: 450000"', 'placeholder="Misal: 450.000"')
+
+            path.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit fix and clean temp workflow
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          rm -f .github/workflows/temp-money-input-format.yml .github/money-input-format-trigger.txt
+          git add -A
+          git status --short
+          git commit -m "fix: format money inputs and keep sparepart optional" || echo "No source changes to commit"
+          git pull --rebase origin agent/v1-stabilization-integration
+          git push origin HEAD:agent/v1-stabilization-integration
