@@ -206,7 +206,7 @@ app.post('/api/tenant/login', async (req, res) => {
   });
 });
 
-app.put('/api/tenant/settings', (req, res) => {
+app.put('/api/tenant/settings', secureRoute, (req, res) => {
   const { code, settings } = req.body;
   db.run('UPDATE tenants SET settings = ? WHERE code = ?', [JSON.stringify(settings), code], (err) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -295,34 +295,38 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 });
 
 // API: Services
-app.get('/api/services/:tenant', (req, res) => {
+app.get('/api/services/:tenant', secureRoute, (req, res) => {
   db.all('SELECT * FROM services WHERE tenant_code = ? ORDER BY created_at DESC', [req.params.tenant], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/services/finish', (req, res) => {
+app.post('/api/services/finish', secureRoute, (req, res) => {
   const { resi, status, part_fee, jasa_fee, technician_id, issue } = req.body;
+  const tenantCode = req.body.tenant_code || req.user?.tenant || req.user?.code;
+  if (!resi || !tenantCode) return res.status(400).json({ error: 'Resi dan kode toko wajib diisi' });
   db.run(
-    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',
-    [status, part_fee, jasa_fee, technician_id, issue, resi],
-    (err) => {
+    'UPDATE services SET status = COALESCE(?, status), part_fee = COALESCE(?, part_fee), jasa_fee = COALESCE(?, jasa_fee), technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ? AND tenant_code = ?',
+    [status, part_fee, jasa_fee, technician_id, issue, resi, tenantCode],
+    function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan untuk toko ini' });
       res.json({ success: true });
     }
   );
 });
 
-app.post('/api/services/update', (req, res) => {
+app.post('/api/services/update', secureRoute, (req, res) => {
   const { resi, technician_id, issue } = req.body;
-  if (!resi) return res.status(400).json({ error: 'Resi wajib diisi' });
+  const tenantCode = req.body.tenant_code || req.user?.tenant || req.user?.code;
+  if (!resi || !tenantCode) return res.status(400).json({ error: 'Resi dan kode toko wajib diisi' });
   db.run(
-    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ?',
-    [technician_id, issue, resi],
+    'UPDATE services SET technician_id = COALESCE(?, technician_id), issue = COALESCE(?, issue) WHERE resi = ? AND tenant_code = ?',
+    [technician_id, issue, resi, tenantCode],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan' });
+      if (this.changes === 0) return res.status(404).json({ error: 'Servis tidak ditemukan untuk toko ini' });
       res.json({ success: true });
     }
   );

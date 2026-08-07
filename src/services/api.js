@@ -3,6 +3,39 @@ import { compressImageFile } from '../utils/imageCompressor';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
+const PRODUCT_META_OVERRIDES_KEY = 'UNITPRO_PRODUCT_META_OVERRIDES';
+
+const getProductMetaOverrides = () => {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(window.localStorage.getItem(PRODUCT_META_OVERRIDES_KEY) || '{}'); } catch { return {}; }
+};
+const getProductMetaKeys = (tenantCode, product = {}) => {
+  const tenantKey = tenantCode || product.tenant_code || '';
+  const keys = [];
+  if (product.id) keys.push(`${tenantKey}:${product.id}`);
+  if (product.name) keys.push(`${tenantKey}:name:${String(product.name).trim().toLowerCase()}`);
+  return keys;
+};
+const getProductMetaOverride = (tenantCode, product, field) => {
+  const overrides = getProductMetaOverrides();
+  for (const key of getProductMetaKeys(tenantCode, product)) {
+    if (overrides[key] && overrides[key][field]) return overrides[key][field];
+  }
+  return '';
+};
+const saveProductMetaOverride = (tenantCode, product, patch = {}) => {
+  if (typeof window === 'undefined' || !product) return;
+  const cleanPatch = {};
+  if (patch.category) cleanPatch.category = String(patch.category).trim().toUpperCase();
+  if (patch.imageUrl) cleanPatch.imageUrl = patch.imageUrl;
+  if (Object.keys(cleanPatch).length === 0) return;
+  try {
+    const overrides = getProductMetaOverrides();
+    for (const key of getProductMetaKeys(tenantCode, product)) overrides[key] = { ...(overrides[key] || {}), ...cleanPatch };
+    window.localStorage.setItem(PRODUCT_META_OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch (err) { console.warn('Product local metadata fallback warning:', err); }
+};
+
 export const apiService = {
   // Helper to get headers
   getHeaders: () => {
@@ -210,7 +243,8 @@ export const apiService = {
       if (error) throw error;
       return (data || []).map(p => ({
         ...p,
-        imageUrl: p.imageUrl || p.image_url || p.image || ''
+        category: p.category || getProductMetaOverride(tenantCode, p, 'category') || 'SPAREPART',
+        imageUrl: p.imageUrl || p.image_url || p.image || getProductMetaOverride(tenantCode, p, 'imageUrl') || ''
       }));
     } catch (e) {
       console.error('getProducts error:', e);
@@ -246,7 +280,6 @@ export const apiService = {
         price: cleanPrice,
         stock: cleanStock,
         category: cleanCat,
-        imageUrl: img,
         image_url: img
       };
 
@@ -274,7 +307,7 @@ export const apiService = {
           price: cleanPrice,
           stock: cleanStock
         };
-        if (img) fallbackPayload.image_url = img;
+        // Database lama mungkin belum punya kolom image_url; simpan barang tanpa foto dulu.
 
         const retryRes = await supabase
           .from('products')
@@ -284,15 +317,7 @@ export const apiService = {
 
         if (retryRes.error) {
           console.warn('Fallback product insert error:', retryRes.error);
-          return {
-            id: `PROD-${Date.now()}`,
-            tenant_code: productData.tenant_code,
-            name: cleanName,
-            price: cleanPrice,
-            stock: cleanStock,
-            category: cleanCat,
-            imageUrl: img
-          };
+          throw new Error(`Barang gagal disimpan ke database: ${retryRes.error.message || 'schema products tidak cocok'}`);
         }
         inserted = retryRes.data;
       }
@@ -311,21 +336,16 @@ export const apiService = {
         }
       }
 
+      saveProductMetaOverride(productData.tenant_code, inserted || { name: cleanName }, { category: cleanCat, imageUrl: img });
+
       return {
         ...inserted,
+        category: inserted?.category || cleanCat,
         imageUrl: inserted?.imageUrl || inserted?.image_url || img
       };
     } catch (e) {
       console.error('addProduct exception:', e);
-      return {
-        id: `PROD-${Date.now()}`,
-        tenant_code: productData.tenant_code,
-        name: productData.name,
-        price: Number(productData.price) || 0,
-        stock: Number(productData.stock) || 0,
-        category: productData.category || 'SPAREPART',
-        imageUrl: productData.imageUrl || ''
-      };
+      throw e;
     }
   },
 
@@ -340,10 +360,11 @@ export const apiService = {
       }
 
       const payload = { ...productData };
+      delete payload.imageUrl;
+      delete payload.image;
       if (cleanPrice !== undefined) payload.price = cleanPrice;
       if (cleanStock !== undefined) payload.stock = cleanStock;
       if (img) {
-        payload.imageUrl = img;
         payload.image_url = img;
       }
 
@@ -363,8 +384,8 @@ export const apiService = {
         if (productData.name) basicPayload.name = productData.name;
         if (cleanPrice !== undefined) basicPayload.price = cleanPrice;
         if (cleanStock !== undefined) basicPayload.stock = cleanStock;
+        if (productData.category) basicPayload.category = String(productData.category || '').toUpperCase();
         if (img) basicPayload.image_url = img;
-
         const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();
         if (!retryRes.error) {
           updated = retryRes.data;
@@ -390,8 +411,11 @@ export const apiService = {
         }
       }
 
+      saveProductMetaOverride(productData.tenant_code || updated?.tenant_code, { ...updated, id, name: productData.name || updated?.name }, { category: productData.category, imageUrl: img });
+
       return {
         ...updated,
+        category: updated?.category || productData.category,
         imageUrl: updated?.imageUrl || updated?.image_url || img
       };
     } catch (e) {
@@ -615,8 +639,10 @@ export const apiService = {
         return data;
       }
       if (endpoint === '/services/update') {
-        const { resi, ...updates } = body;
-        const { data, error } = await supabase.from('services').update(updates).eq('resi', resi).select().single();
+        const { resi, tenant_code, ...updates } = body;
+        let query = supabase.from('services').update(updates).eq('resi', resi);
+        if (tenant_code) query = query.eq('tenant_code', tenant_code);
+        const { data, error } = await query.select().single();
         if (error) throw error;
         return data;
       }
@@ -728,10 +754,11 @@ export const apiService = {
   // 7. Public Tracking
   trackService: async (resi) => {
     try {
-      const cleanResi = (resi || '').trim().toUpperCase();
+      const cleanResi = String(resi || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+      if (!cleanResi) throw new Error('Nomor resi tidak valid.');
       const { data: service, error } = await supabase
         .from('services')
-        .select('*')
+        .select('resi, tenant_code, customer_name, device_name, issue, status, jasa_fee, part_fee, created_at')
         .eq('resi', cleanResi)
         .maybeSingle();
 

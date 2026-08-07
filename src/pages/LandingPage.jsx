@@ -71,9 +71,58 @@ export default function LandingPage() {
     return (reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length).toFixed(1);
   }, [reviews]);
 
-  const startDemo = () => {
-    setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123');
-    useStore.getState().updateTenantSettings({ storeName: 'UnitPro Demo Store', store_wa: '081234567890', theme: 'default' });
+  const demoRoles = [
+    {
+      id: 'owner',
+      icon: BarChart3,
+      title: 'Demo Owner / Admin',
+      description: 'Lihat dashboard, servis, stok, keuangan, nota, dan kontrol toko.',
+      action: 'Masuk sebagai Owner'
+    },
+    {
+      id: 'kasir',
+      icon: ShoppingCart,
+      title: 'Demo Kasir',
+      description: 'Coba kasir POS, tambah servis, cetak nota, dan cek stok.',
+      action: 'Masuk sebagai Kasir'
+    },
+    {
+      id: 'teknisi',
+      icon: Wrench,
+      title: 'Demo Teknisi',
+      description: 'Coba daftar tugas, update status, rincian tagihan, dan WA pelanggan.',
+      action: 'Masuk sebagai Teknisi'
+    }
+  ];
+
+  const startDemo = (role = 'owner') => {
+    const demoSettings = {
+      storeName: 'UnitPro Demo Store',
+      store_wa: '081234567890',
+      theme: 'default',
+      bank_name: 'BCA',
+      bank_account: '1234567890',
+      bank_holder: 'UnitPro Demo Store',
+      receipt_note_service: 'Garansi servis mengikuti ketentuan toko. Simpan nota ini sebagai bukti pengambilan.',
+      receipt_note_pos: 'Barang yang sudah dibeli tidak dapat ditukar kecuali ada perjanjian tertulis.'
+    };
+
+    setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123', '081234567890', demoSettings);
+    useStore.getState().updateTenantSettings(demoSettings);
+
+    if (role === 'kasir') {
+      useStore.getState().setEmployee({ id: 'EMP-3', name: 'Citra (Kasir Demo)', role: 'KASIR', pin: '1111', phone: '081234567803', tenant_code: 'DEMO-STORE', token: 'demo-kasir-token' });
+      navigate('/employee');
+      return;
+    }
+
+    if (role === 'teknisi') {
+      useStore.getState().setEmployee({ id: 'EMP-1', name: 'Andi (Teknisi Demo)', role: 'TEKNISI', pin: '1234', phone: '081234567801', tenant_code: 'DEMO-STORE', token: 'demo-teknisi-token' });
+      navigate('/employee');
+      return;
+    }
+
+    useStore.getState().clearEmployee?.();
     navigate('/admin');
   };
 
@@ -124,8 +173,25 @@ export default function LandingPage() {
           <p className="unitpro-hero-copy">Kasir, teknisi, stok sparepart, nota, tracking pelanggan, dan WhatsApp dalam satu sistem yang dibuat untuk toko servis.</p>
           <div className="unitpro-hero-actions">
             <button className="unitpro-button primary" onClick={() => navigate('/login', { state: { tab: 'register', tier: 'free' } })}>Mulai kelola toko <ArrowRight size={19} /></button>
-            <button className="unitpro-button secondary" onClick={startDemo}>Lihat demo</button>
+            <button className="unitpro-button secondary" onClick={() => startDemo('owner')}>Lihat demo</button>
             <a className="unitpro-button secondary" href={apkDownloadUrl} download={APK_FILE_NAME}><Download size={18} /> Unduh APK (v{APP_VERSION})</a>
+          </div>
+        </div>
+        <div className="unitpro-demo-panel" aria-label="Pilih mode demo UnitPro">
+          <div className="unitpro-demo-copy">
+            <p className="unitpro-kicker">Sales Demo Mode</p>
+            <h2>Coba aplikasi seperti toko servis sungguhan.</h2>
+            <span>Tanpa daftar, tanpa setup. Pilih peran dan langsung lihat alur UnitPro dari sisi owner, kasir, atau teknisi.</span>
+          </div>
+          <div className="unitpro-demo-grid">
+            {demoRoles.map(({ id, icon: Icon, title, description, action }) => (
+              <button key={id} type="button" className="unitpro-demo-card" onClick={() => startDemo(id)}>
+                <span><Icon size={21} /></span>
+                <strong>{title}</strong>
+                <small>{description}</small>
+                <em>{action} <ArrowRight size={15} /></em>
+              </button>
+            ))}
           </div>
         </div>
       </section>

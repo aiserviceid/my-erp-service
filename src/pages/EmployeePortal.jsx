@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search } from 'lucide-react';
 import { apiService } from '../services/api';
+import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
 import { SERVICE_STATUSES } from '../config/tierLimits';
@@ -49,8 +50,15 @@ export default function EmployeePortal() {
   const printIframeRef = useRef(null);
 
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
-  const sparepartCatalog = products.filter(p => (p.category || '').toUpperCase() !== 'JASA');
-  const jasaCatalog = products.filter(p => (p.category || '').toUpperCase() === 'JASA');
+  const normalizeProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
+  const isJasaProduct = (product) => {
+    const category = normalizeProductCategory(product);
+    const name = String(product?.name || '').toLowerCase();
+    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
+    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
+  };
+  const sparepartCatalog = products.filter(p => !isJasaProduct(p));
+  const jasaCatalog = products.filter(p => isJasaProduct(p));
   const settings = tenant?.settings || {};
   const paymentInfoText = (() => {
     const bankName = settings.bank_name || '';
@@ -92,6 +100,16 @@ export default function EmployeePortal() {
     const parsed = parseInt(String(value || '').replace(/[^\d-]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
   };
+  const formatMoneyInput = (value) => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const handleMoneyInput = (event) => {
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+  };
+
 
   const getServiceDiscount = (issue = '') => {
     const match = issue.match(/\[Diskon: Rp (.*?)\]/);
@@ -109,6 +127,7 @@ export default function EmployeePortal() {
     if (!selectedService) return;
 
     const fd = new FormData(event.currentTarget);
+    const note = String(fd.get('note') || '').trim();
     const partFee = normalizeMoneyInput(fd.get('part_fee'));
     const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));
     const discount = normalizeMoneyInput(fd.get('discount'));
@@ -122,10 +141,11 @@ export default function EmployeePortal() {
       return;
     }
 
-    const updatedIssue = buildIssueWithDiscount(selectedService.issue || '', discount);
+    const updatedIssue = buildIssueWithDiscount(note || selectedService.issue || '', discount);
     try {
       const updatedService = await apiService.post('/services/update', {
         resi: selectedService.resi,
+        tenant_code: selectedService.tenant_code || tenant?.code || employee?.tenant_code,
         part_fee: partFee,
         jasa_fee: jasaFee,
         issue: updatedIssue
@@ -212,15 +232,16 @@ export default function EmployeePortal() {
 
       await apiService.post('/services/update', { resi: transferService.resi, technician_id: replacement.id, issue: updatedIssue });
 
-      const fonnteToken = tenant?.settings?.fonnte_token;
-      const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-      if (waSenderMode === 'CUSTOM' && fonnteToken && replacement.phone) {
+      if (replacement.phone) {
         const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
-        fetch('https://api.fonnte.com/send', {
-          method: 'POST',
-          headers: { Authorization: fonnteToken },
-          body: new URLSearchParams({ target: normalizePhone(replacement.phone), message }),
-        }).catch(console.error);
+        sendWhatsAppNotification({
+          tenant,
+          target: replacement.phone,
+          message,
+          openManual: false,
+        }).then((result) => {
+          if (result.status === 'failed') console.error('Gagal mengirim WA teknisi:', result.error);
+        });
       }
 
       closeTransferModal();
@@ -313,20 +334,20 @@ export default function EmployeePortal() {
       device_name: fd.get('device'),
       issue: issueText,
       technician_id: technician_id,
-      status: 'DITERIMA'
+      status: 'PROSES'
     };
     try {
       await apiService.post('/services', serviceData);
 
       const trackingLink = `${window.location.origin}/tracking?resi=${resiGenerated}`;
       const waText = `Halo ${serviceData.customer_name}, perangkat ${serviceData.device_name} Anda sudah kami terima untuk diperbaiki.\n\n*Nomor Resi:* ${resiGenerated}\n*Keluhan:* ${fd.get('issue')}\n*Kelengkapan:* ${kelengkapan}\n\nAnda dapat mengecek status servis secara berkala melalui link berikut:\n${trackingLink}\n\nTerima kasih!`;
-      const waUrl = `https://wa.me/${serviceData.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;
+      const waUrl = buildManualWhatsAppUrl(serviceData.customer_phone, waText);
       
-      if (confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\n\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)) {
+      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim resi ke WhatsApp?', message: `Servis berhasil ditambahkan.\nResi: ${resiGenerated}\n\nKirim info resi ke WhatsApp pelanggan sekarang?`, confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\n\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)))) {
         window.open(waUrl, '_blank');
       }
 
-      if (confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)) {
+      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pendaftaran?', message: 'Nota pendaftaran siap dicetak untuk pelanggan.', confirmText: 'Cetak Nota', tone: 'info' }) : Promise.resolve(window.confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)))) {
         setSelectedService(serviceData);
         setPrintType('pendaftaran');
         setShowPrintModal(true);
@@ -337,18 +358,14 @@ export default function EmployeePortal() {
         const tech = technicianUsers.find(u => String(u.id) === String(technician_id));
         if (tech && tech.phone) {
           const techWaText = `Halo ${tech.name}, ada tugas servis baru:\n\n*Resi:* ${resiGenerated}\n*Pelanggan:* ${serviceData.customer_name}\n*Perangkat:* ${serviceData.device_name}\n*Keluhan:* ${fd.get('issue')}\n\nSilakan cek di portal karyawan.`;
-          const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-          const fonnteToken = tenant?.settings?.fonnte_token;
-          if (waSenderMode === 'CUSTOM' && fonnteToken) {
-            fetch('https://api.fonnte.com/send', {
-              method: 'POST',
-              headers: { 'Authorization': fonnteToken },
-              body: new URLSearchParams({
-                target: normalizePhone(tech.phone),
-                message: techWaText
-              })
-            }).catch(console.error);
-          }
+          sendWhatsAppNotification({
+            tenant,
+            target: tech.phone,
+            message: techWaText,
+            openManual: false,
+          }).then((result) => {
+            if (result.status === 'failed') console.error('Gagal mengirim WA tugas teknisi:', result.error);
+          });
         }
       }
 
@@ -513,8 +530,8 @@ export default function EmployeePortal() {
     return (
       <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
         <div className="glass-panel native-employee-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-          <h2>Portal Karyawan</h2>
-          <p>{tenant?.name || 'Masuk sebagai Karyawan'}</p>
+          <h2>Area Tim</h2>
+          <p>{tenant?.name || 'Masuk ke Area Tim'}</p>
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
           <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
             {!tenant?.code && (
@@ -530,13 +547,13 @@ export default function EmployeePortal() {
             )}
             {tenant?.code === 'DEMO-STORE' && (
               <div style={{ background: '#fef2f2', color: '#991b1b', padding: '10px', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                Mode Simulasi Kasir & Teknisi Aktif
+                Mode Demo Tim Aktif
               </div>
             )}
             <input 
               type="password" 
               className="input-field" 
-              placeholder="Masukkan PIN Anda" 
+              placeholder="PIN Tim" 
               value={pin}
               onChange={(e) => { setPin(e.target.value); setError(''); }}
               style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5rem' }}
@@ -562,7 +579,7 @@ export default function EmployeePortal() {
           </form>
 
           <button className="btn btn-ghost" style={{ marginTop: '1rem', width: '100%' }} onClick={() => navigate('/')}>
-            Kembali ke Beranda
+            Kembali ke UnitPro
           </button>
         </div>
       </div>
@@ -597,11 +614,11 @@ export default function EmployeePortal() {
   const employeeMobileTabs = isKasir
     ? [
         { id: 'pos', name: 'Kasir', icon: ShoppingCart },
-        { id: 'servis', name: 'Servis & Teknisi', icon: Wrench },
+        { id: 'servis', name: 'Alur Servis', icon: Wrench },
       ]
     : [
-        { id: 'tugas', name: 'Tugas', icon: Wrench },
-        { id: 'keuangan', name: 'Keuangan', icon: Wallet },
+        { id: 'tugas', name: 'Servis', icon: Wrench },
+        { id: 'keuangan', name: 'Komisi', icon: Wallet },
       ];
   const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
 
@@ -650,8 +667,8 @@ export default function EmployeePortal() {
 
       <div className="main-content employee-portal-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
         <div className="native-screen-heading native-employee-heading">
-          <p>{isKasir ? 'AREA KASIR' : 'AREA KARYAWAN'}</p>
-          <h2>{isKasir ? 'Kasir & Servis' : 'Tugas Hari Ini'}</h2>
+          <p>{isKasir ? 'AREA KASIR' : 'AREA TIM'}</p>
+          <h2>{isKasir ? 'Kasir & Alur Servis' : 'Servis Hari Ini'}</h2>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
           <div>
@@ -837,12 +854,12 @@ export default function EmployeePortal() {
                                 if (newStatus === 'SELESAI') {
                                   setSelectedService(s);
                                   setShowSelesaiModal(true);
-                                } else if (newStatus === 'DI AMBIL') {
+                                } else if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {
                                   if (!s.part_fee && !s.jasa_fee) {
                                     alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Di Ambil.');
                                     return;
                                   }
-                                  if(confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')) {
+                                  if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {
                                     try {
                                       let updatedIssue = s.issue;
                                       const warrantyDaysStr = prompt('Berapa HARI garansi untuk servis ini?\n\n(Isi angka saja, misal: 30. Kosongkan jika tidak ada garansi)', '30');
@@ -857,7 +874,7 @@ export default function EmployeePortal() {
                                       // Update the status AND the appended warranty info
                                       await apiService.post('/services/finish', {
                                         resi: s.resi,
-                                        status: newStatus,
+                                        status: 'DIAMBIL',
                                         part_fee: s.part_fee,
                                         jasa_fee: s.jasa_fee,
                                         technician_id: s.technician_id,
@@ -872,26 +889,38 @@ export default function EmployeePortal() {
                                       const partFee = s.part_fee || 0;
                                       const jasaAfterDiscount = Math.max(0, jasaFee - discount);
                                       
-                                      if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
-                                        await apiService.post('/transactions', {
-                                          tenant_code: employee.tenant_code || tenant.code,
-                                          type: 'INCOME_JASA',
-                                          amount: jasaAfterDiscount,
-                                          description: `Jasa Servis Resi ${s.resi} (${s.customer_name})`
-                                        });
-                                      }
-                                      if (partFee > 0) {
-                                        await apiService.post('/transactions', {
-                                          tenant_code: employee.tenant_code || tenant.code,
-                                          type: 'INCOME_SPAREPART',
-                                          amount: partFee,
-                                          description: `Sparepart Servis Resi ${s.resi} (${s.customer_name})`
-                                        });
+                                      const tenantCode = employee.tenant_code || tenant.code;
+                                      const latestTransactions = await apiService.get('/transactions/' + tenantCode).catch(() => transactions);
+                                      const existingServiceIncome = latestTransactions.filter((transaction) => {
+                                        const type = String(transaction.type || '');
+                                        const description = String(transaction.description || '');
+                                        return ['INCOME', 'INCOME_JASA', 'INCOME_SPAREPART'].includes(type) && description.includes('Resi ' + s.resi);
+                                      });
+
+                                      if (existingServiceIncome.length > 0) {
+                                        alert('Pelunasan resi ' + s.resi + ' sudah pernah tercatat di keuangan. Transaksi tidak dibuat ulang agar omzet tidak dobel.');
+                                      } else {
+                                        if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
+                                          await apiService.post('/transactions', {
+                                            tenant_code: tenantCode,
+                                            type: 'INCOME_JASA',
+                                            amount: jasaAfterDiscount,
+                                            description: 'Jasa Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
+                                          });
+                                        }
+                                        if (partFee > 0) {
+                                          await apiService.post('/transactions', {
+                                            tenant_code: tenantCode,
+                                            type: 'INCOME_SPAREPART',
+                                            amount: partFee,
+                                            description: 'Sparepart Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
+                                          });
+                                        }
                                       }
                                       fetchServices();
                                       fetchTransactions();
                                       
-                                      if (confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')) {
+                                      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pengambilan?', message: 'Servis sudah lunas. Cetak nota pengambilan untuk pelanggan?', confirmText: 'Cetak Nota', tone: 'success' }) : Promise.resolve(window.confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')))) {
                                         setSelectedService({ ...s, issue: updatedIssue });
                                         setPrintType('pengambilan');
                                         setShowPrintModal(true);
@@ -1057,24 +1086,14 @@ export default function EmployeePortal() {
                 const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
                 
-                const fonnteToken = tenant?.settings?.fonnte_token;
-                const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-                
-                if (waSenderMode === 'CUSTOM' && fonnteToken) {
-                  try {
-                    await fetch('https://api.fonnte.com/send', {
-                      method: 'POST',
-                      headers: { 'Authorization': fonnteToken },
-                      body: new URLSearchParams({
-                        target: selectedService.customer_phone.replace(/^0/, '62'),
-                        message: message
-                      })
-                    });
-                  } catch(err) {
-                    console.error('Fonnte Error:', err);
-                  }
-                } else {
-                  window.open(`https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');
+                const notificationResult = await sendWhatsAppNotification({
+                  tenant,
+                  target: selectedService.customer_phone,
+                  message,
+                  openManual: true,
+                });
+                if (notificationResult.status === 'failed') {
+                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
                 }
                 
                 alert('Berhasil disimpan & Notifikasi WA diproses!');
@@ -1104,9 +1123,9 @@ export default function EmployeePortal() {
                     ))}
                   </select>
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Sparepart Manual</label>
-                  <input type="text" id="partNameManualInput" name="part_name_manual" className="input-field" placeholder="Misal: LCD Samsung J2" style={{ marginBottom: '10px' }} />
-                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Biaya Sparepart (Rp)</label>
-                  <input type="number" id="partFeeInput" name="part_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '0' }} />
+                  <input type="text" id="partNameManualInput" name="part_name_manual" className="input-field" placeholder="Opsional, misal: LCD Samsung J2" style={{ marginBottom: '10px' }} />
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Biaya Sparepart Opsional (Rp)</label>
+                  <input type="text" inputMode="numeric" id="partFeeInput" name="part_fee" className="input-field" defaultValue="0" style={{ marginBottom: '0' }}  onInput={handleMoneyInput} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '10px', background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.08)' }}>
@@ -1129,12 +1148,12 @@ export default function EmployeePortal() {
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Jasa Manual</label>
                   <input type="text" id="jasaNameManualInput" name="jasa_name_manual" className="input-field" placeholder="Misal: Reball chipset / install ulang" style={{ marginBottom: '10px' }} />
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Biaya Jasa (Rp)</label>
-                  <input type="number" id="jasaFeeInput" name="jasa_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '0' }} />
+                  <input type="text" inputMode="numeric" id="jasaFeeInput" name="jasa_fee" className="input-field" defaultValue="0" style={{ marginBottom: '0' }}  onInput={handleMoneyInput} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)' }}>Diskon Khusus (Rp)</label>
-                  <input type="number" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '0' }} />
+                  <input type="text" inputMode="numeric" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '0' }}  onInput={handleMoneyInput} />
                 </div>
               </div>
 
@@ -1156,8 +1175,8 @@ export default function EmployeePortal() {
               const partName = e.target.part.value;
               const estPrice = e.target.price.value;
               
-              const waText = `Halo kak ${selectedService.customer_name}, dari ${tenant?.name || 'Toko Servis'}.\n\nSetelah kami lakukan pengecekan pada perangkat ${selectedService.device_name} kakak, ternyata memerlukan perbaikan/penggantian *${partName}*.\n\nEstimasi biaya totalnya adalah *Rp ${parseInt(estPrice).toLocaleString('id-ID')}*.\n\nApakah kakak setuju untuk kami lanjutkan perbaikannya? Mohon konfirmasinya ya kak. Terima kasih! 🙏`;
-              const waUrl = `https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;
+              const waText = `Halo kak ${selectedService.customer_name}, dari ${tenant?.name || 'Toko Servis'}.\n\nSetelah kami lakukan pengecekan pada perangkat ${selectedService.device_name} kakak, ternyata memerlukan perbaikan/penggantian *${partName}*.\n\nEstimasi biaya totalnya adalah *Rp ${normalizeMoneyInput(estPrice).toLocaleString('id-ID')}*.\n\nApakah kakak setuju untuk kami lanjutkan perbaikannya? Mohon konfirmasinya ya kak. Terima kasih! 🙏`;
+              const waUrl = buildManualWhatsAppUrl(selectedService.customer_phone, waText);
               window.open(waUrl, '_blank');
               setShowPersetujuanModal(false);
             }}>
@@ -1165,7 +1184,7 @@ export default function EmployeePortal() {
               <input type="text" name="part" className="input-field" placeholder="Misal: Ganti LCD & Baterai" required style={{ marginBottom: '10px' }} />
               
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Estimasi Total Biaya (Rp):</label>
-              <input type="number" name="price" className="input-field" placeholder="Misal: 450000" required style={{ marginBottom: '20px' }} />
+              <input type="text" inputMode="numeric" name="price" className="input-field" placeholder="Misal: 450.000" required style={{ marginBottom: '20px' }}  onInput={handleMoneyInput} />
               
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Buka WhatsApp</button>
             </form>
@@ -1202,12 +1221,21 @@ export default function EmployeePortal() {
               <button type="button" className="btn btn-ghost" onClick={() => setShowEditServiceNota(false)}><X size={20}/></button>
             </div>
             <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>
-            <label className="label">Biaya Sparepart (Rp)</label>
-            <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} required />
+            <label className="label">Keterangan / Rincian Perbaikan</label>
+            <textarea
+              name="note"
+              className="input-field"
+              rows="4"
+              defaultValue={buildIssueWithDiscount(selectedService.issue || '', 0)}
+              placeholder="Contoh: Ganti LCD, cleaning konektor, unit normal kembali"
+              style={{ marginBottom: '10px', resize: 'vertical' }}
+            />
+            <label className="label">Biaya Sparepart Opsional (Rp)</label>
+            <input name="part_fee" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={selectedService.part_fee || 0}  onInput={handleMoneyInput} />
             <label className="label">Biaya Jasa (Rp)</label>
-            <input name="jasa_fee" type="number" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0} required />
+            <input name="jasa_fee" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0}  onInput={handleMoneyInput} />
             <label className="label">Diskon Nota (Rp)</label>
-            <input name="discount" type="number" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')} />
+            <input name="discount" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')}  onInput={handleMoneyInput} />
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
               Simpan Koreksi Nota
             </button>
@@ -1247,7 +1275,7 @@ export default function EmployeePortal() {
               <h4>Nominal kasbon</h4>
               <p>Masukkan jumlah yang diajukan. Pengajuan akan tercatat untuk persetujuan pemilik atau admin.</p>
               <label className="service-transfer-label" htmlFor="bon-amount">Nominal (Rp)</label>
-              <input id="bon-amount" name="amount" type="number" min="1000" step="1000" inputMode="numeric" className="input-field" placeholder="Contoh: 100000" required autoFocus />
+              <input id="bon-amount" name="amount" type="text" min="1000" step="1000" inputMode="numeric" className="input-field" placeholder="Contoh: 100.000" required autoFocus  onInput={handleMoneyInput} />
             </div>
             <div className="service-wizard-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setShowBonModal(false)}>Batal</button>
