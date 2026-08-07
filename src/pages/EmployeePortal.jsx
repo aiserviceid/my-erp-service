@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search } from 'lucide-react';
 import { apiService } from '../services/api';
+import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
 import { SERVICE_STATUSES } from '../config/tierLimits';
@@ -212,15 +213,16 @@ export default function EmployeePortal() {
 
       await apiService.post('/services/update', { resi: transferService.resi, technician_id: replacement.id, issue: updatedIssue });
 
-      const fonnteToken = tenant?.settings?.fonnte_token;
-      const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-      if (waSenderMode === 'CUSTOM' && fonnteToken && replacement.phone) {
+      if (replacement.phone) {
         const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
-        fetch('https://api.fonnte.com/send', {
-          method: 'POST',
-          headers: { Authorization: fonnteToken },
-          body: new URLSearchParams({ target: normalizePhone(replacement.phone), message }),
-        }).catch(console.error);
+        sendWhatsAppNotification({
+          tenant,
+          target: replacement.phone,
+          message,
+          openManual: false,
+        }).then((result) => {
+          if (result.status === 'failed') console.error('Gagal mengirim WA teknisi:', result.error);
+        });
       }
 
       closeTransferModal();
@@ -320,7 +322,7 @@ export default function EmployeePortal() {
 
       const trackingLink = `${window.location.origin}/tracking?resi=${resiGenerated}`;
       const waText = `Halo ${serviceData.customer_name}, perangkat ${serviceData.device_name} Anda sudah kami terima untuk diperbaiki.\n\n*Nomor Resi:* ${resiGenerated}\n*Keluhan:* ${fd.get('issue')}\n*Kelengkapan:* ${kelengkapan}\n\nAnda dapat mengecek status servis secara berkala melalui link berikut:\n${trackingLink}\n\nTerima kasih!`;
-      const waUrl = `https://wa.me/${serviceData.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;
+      const waUrl = buildManualWhatsAppUrl(serviceData.customer_phone, waText);
       
       if (confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\n\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)) {
         window.open(waUrl, '_blank');
@@ -337,18 +339,14 @@ export default function EmployeePortal() {
         const tech = technicianUsers.find(u => String(u.id) === String(technician_id));
         if (tech && tech.phone) {
           const techWaText = `Halo ${tech.name}, ada tugas servis baru:\n\n*Resi:* ${resiGenerated}\n*Pelanggan:* ${serviceData.customer_name}\n*Perangkat:* ${serviceData.device_name}\n*Keluhan:* ${fd.get('issue')}\n\nSilakan cek di portal karyawan.`;
-          const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-          const fonnteToken = tenant?.settings?.fonnte_token;
-          if (waSenderMode === 'CUSTOM' && fonnteToken) {
-            fetch('https://api.fonnte.com/send', {
-              method: 'POST',
-              headers: { 'Authorization': fonnteToken },
-              body: new URLSearchParams({
-                target: normalizePhone(tech.phone),
-                message: techWaText
-              })
-            }).catch(console.error);
-          }
+          sendWhatsAppNotification({
+            tenant,
+            target: tech.phone,
+            message: techWaText,
+            openManual: false,
+          }).then((result) => {
+            if (result.status === 'failed') console.error('Gagal mengirim WA tugas teknisi:', result.error);
+          });
         }
       }
 
@@ -1057,24 +1055,14 @@ export default function EmployeePortal() {
                 const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
                 
-                const fonnteToken = tenant?.settings?.fonnte_token;
-                const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-                
-                if (waSenderMode === 'CUSTOM' && fonnteToken) {
-                  try {
-                    await fetch('https://api.fonnte.com/send', {
-                      method: 'POST',
-                      headers: { 'Authorization': fonnteToken },
-                      body: new URLSearchParams({
-                        target: selectedService.customer_phone.replace(/^0/, '62'),
-                        message: message
-                      })
-                    });
-                  } catch(err) {
-                    console.error('Fonnte Error:', err);
-                  }
-                } else {
-                  window.open(`https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');
+                const notificationResult = await sendWhatsAppNotification({
+                  tenant,
+                  target: selectedService.customer_phone,
+                  message,
+                  openManual: true,
+                });
+                if (notificationResult.status === 'failed') {
+                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
                 }
                 
                 alert('Berhasil disimpan & Notifikasi WA diproses!');
@@ -1157,7 +1145,7 @@ export default function EmployeePortal() {
               const estPrice = e.target.price.value;
               
               const waText = `Halo kak ${selectedService.customer_name}, dari ${tenant?.name || 'Toko Servis'}.\n\nSetelah kami lakukan pengecekan pada perangkat ${selectedService.device_name} kakak, ternyata memerlukan perbaikan/penggantian *${partName}*.\n\nEstimasi biaya totalnya adalah *Rp ${parseInt(estPrice).toLocaleString('id-ID')}*.\n\nApakah kakak setuju untuk kami lanjutkan perbaikannya? Mohon konfirmasinya ya kak. Terima kasih! 🙏`;
-              const waUrl = `https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;
+              const waUrl = buildManualWhatsAppUrl(selectedService.customer_phone, waText);
               window.open(waUrl, '_blank');
               setShowPersetujuanModal(false);
             }}>
