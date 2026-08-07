@@ -1,0 +1,35 @@
+name: UX Mobile Regression
+
+on:
+  push:
+    branches:
+      - agent/ux-mobile-regression
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/ux-mobile-regression
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+      - name: Remove temporary workflow
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          rm -f .github/workflows/temp-ux-mobile-regression.yml
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No cleanup needed"
+            exit 0
+          fi
+          git commit -m "chore: remove ux validation workflow"
+          git push
