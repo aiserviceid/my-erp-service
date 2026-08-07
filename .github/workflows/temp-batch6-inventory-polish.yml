@@ -1,0 +1,117 @@
+name: Batch 6 Inventory Polish
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - .github/batch6-inventory-polish-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch inventory API and UI
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const api = 'src/services/api.js';
+          let apiText = fs.readFileSync(api, 'utf8');
+
+          function replaceRequired(text, from, to, label) {
+            if (!text.includes(from)) throw new Error(`${label} not found`);
+            return text.replace(from, to);
+          }
+
+          // Supabase table uses snake_case image_url. Do not send camelCase imageUrl to DB.
+          apiText = replaceRequired(
+            apiText,
+            "        category: cleanCat,\n        imageUrl: img,\n        image_url: img\n      };",
+            "        category: cleanCat,\n        image_url: img\n      };",
+            'primary product payload imageUrl cleanup'
+          );
+
+          if (!apiText.includes('delete payload.imageUrl;')) {
+            apiText = replaceRequired(
+              apiText,
+              "      const payload = { ...productData };\n      if (cleanPrice !== undefined) payload.price = cleanPrice;",
+              "      const payload = { ...productData };\n      delete payload.imageUrl;\n      delete payload.image;\n      if (cleanPrice !== undefined) payload.price = cleanPrice;",
+              'update product payload cleanup'
+            );
+          }
+
+          apiText = replaceRequired(
+            apiText,
+            "      if (img) {\n        payload.imageUrl = img;\n        payload.image_url = img;\n      }",
+            "      if (img) {\n        payload.image_url = img;\n      }",
+            'update product image_url only'
+          );
+
+          if (!apiText.includes("basicPayload.category = String(productData.category || '').toUpperCase();")) {
+            apiText = replaceRequired(
+              apiText,
+              "        if (cleanStock !== undefined) basicPayload.stock = cleanStock;\n        const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();",
+              "        if (cleanStock !== undefined) basicPayload.stock = cleanStock;\n        if (productData.category) basicPayload.category = String(productData.category || '').toUpperCase();\n        if (img) basicPayload.image_url = img;\n        const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();",
+              'update fallback category image_url'
+            );
+          }
+
+          fs.writeFileSync(api, apiText);
+
+          const admin = 'src/pages/AdminDashboard.jsx';
+          let adminText = fs.readFileSync(admin, 'utf8');
+
+          // New inventory item: Jasa is a service catalog item, not physical stock.
+          if (adminText.includes("const stock = parseInt(newProdStock) || 0;\n                      const category = newProdCat;")) {
+            adminText = adminText.replace(
+              "const stock = parseInt(newProdStock) || 0;\n                      const category = newProdCat;",
+              "const category = newProdCat;\n                      const rawStock = parseInt(newProdStock) || 0;\n                      const stock = category === 'JASA' ? 999 : rawStock;"
+            );
+          }
+
+          // Product image display should always read snake_case and fallback fields.
+          adminText = adminText.replaceAll('p.imageUrl ? (', '(p.imageUrl || p.image_url || p.image) ? (');
+          adminText = adminText.replaceAll('<img src={p.imageUrl} alt={p.name}', '<img src={p.imageUrl || p.image_url || p.image} alt={p.name}');
+
+          // Display Jasa stock as service catalog, not pcs.
+          if (adminText.includes('{p.stock} pcs')) {
+            adminText = adminText.replaceAll('{p.stock} pcs', "{String(p.category || '').toUpperCase() === 'JASA' ? 'Jasa' : `${p.stock} pcs`}");
+          }
+
+          // Edit modal: if category is saved as JASA and stock is empty, keep service catalog stock high.
+          if (adminText.includes("stock: parseInt(String(fd.get('stock') || '0'), 10) || 0,")) {
+            adminText = adminText.replace(
+              "stock: parseInt(String(fd.get('stock') || '0'), 10) || 0,",
+              "stock: String(fd.get('category') || '').toUpperCase() === 'JASA' ? 999 : (parseInt(String(fd.get('stock') || '0'), 10) || 0),"
+            );
+          }
+
+          fs.writeFileSync(admin, adminText);
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit source and clean
+        shell: bash
+        run: |
+          git config user.name aiserviceid
+          git config user.email ai.interiorid@gmail.com
+          git add src/services/api.js src/pages/AdminDashboard.jsx
+          git commit -m "fix: persist inventory image and category fields" || echo "no source changes"
+          git rm .github/workflows/temp-batch6-inventory-polish.yml .github/batch6-inventory-polish-trigger.txt
+          git commit -m "chore: clean batch 6 inventory workflow"
+          git push origin HEAD:agent/v1-stabilization-integration
