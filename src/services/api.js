@@ -728,10 +728,11 @@ export const apiService = {
   // 7. Public Tracking
   trackService: async (resi) => {
     try {
-      const cleanResi = (resi || '').trim().toUpperCase();
+      const cleanResi = String(resi || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+      if (!cleanResi) throw new Error('Nomor resi tidak valid.');
       const { data: service, error } = await supabase
         .from('services')
-        .select('*')
+        .select('resi, tenant_code, customer_name, device_name, issue, status, jasa_fee, part_fee, created_at')
         .eq('resi', cleanResi)
         .maybeSingle();
 
