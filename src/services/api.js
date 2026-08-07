@@ -280,7 +280,6 @@ export const apiService = {
         price: cleanPrice,
         stock: cleanStock,
         category: cleanCat,
-        imageUrl: img,
         image_url: img
       };
 
@@ -361,10 +360,11 @@ export const apiService = {
       }
 
       const payload = { ...productData };
+      delete payload.imageUrl;
+      delete payload.image;
       if (cleanPrice !== undefined) payload.price = cleanPrice;
       if (cleanStock !== undefined) payload.stock = cleanStock;
       if (img) {
-        payload.imageUrl = img;
         payload.image_url = img;
       }
 
@@ -384,6 +384,8 @@ export const apiService = {
         if (productData.name) basicPayload.name = productData.name;
         if (cleanPrice !== undefined) basicPayload.price = cleanPrice;
         if (cleanStock !== undefined) basicPayload.stock = cleanStock;
+        if (productData.category) basicPayload.category = String(productData.category || '').toUpperCase();
+        if (img) basicPayload.image_url = img;
         const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();
         if (!retryRes.error) {
           updated = retryRes.data;

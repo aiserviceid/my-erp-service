@@ -2258,8 +2258,9 @@ export default function AdminDashboard() {
                     onClick={async () => {
                       const name = newProdName.trim();
                       const price = normalizeMoneyInput(newProdPrice);
-                      const stock = parseInt(newProdStock) || 0;
                       const category = newProdCat;
+                      const rawStock = parseInt(newProdStock) || 0;
+                      const stock = category === 'JASA' ? 999 : rawStock;
                       const imageUrl = newProdImage;
                       
                       if (!name || isNaN(price)) return alert('Nama dan Harga wajib diisi!');
@@ -2313,7 +2314,7 @@ export default function AdminDashboard() {
                      <td style={{ fontWeight: '800', color: '#0284c7' }}>Rp {p.price.toLocaleString('id-ID')}</td>
                      <td>
                        <span className={`badge ${p.stock <= 3 ? 'badge-danger' : 'badge-success'}`}>
-                         {p.stock} pcs
+                         {String(p.category || '').toUpperCase() === 'JASA' ? 'Jasa' : `${p.stock} pcs`}
                        </span>
                      </td>
                      <td>
@@ -2929,7 +2930,7 @@ export default function AdminDashboard() {
           <form onSubmit={async (event) => {
             event.preventDefault();
             const fd = new FormData(event.currentTarget);
-            const payload = { tenant_code: tenant.code, name: String(fd.get('name') || '').trim(), category: String(fd.get('category') || 'SPAREPART').toUpperCase(), price: normalizeMoneyInput(fd.get('price')), stock: parseInt(String(fd.get('stock') || '0'), 10) || 0, imageUrl: editingProduct.imageUrl || editingProduct.image_url || '' };
+            const payload = { tenant_code: tenant.code, name: String(fd.get('name') || '').trim(), category: String(fd.get('category') || 'SPAREPART').toUpperCase(), price: normalizeMoneyInput(fd.get('price')), stock: String(fd.get('category') || '').toUpperCase() === 'JASA' ? 999 : (parseInt(String(fd.get('stock') || '0'), 10) || 0), imageUrl: editingProduct.imageUrl || editingProduct.image_url || '' };
             if (!payload.name) return alert('Nama barang wajib diisi.');
             try {
               setIsUpdatingProduct(true);
