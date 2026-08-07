@@ -15,7 +15,7 @@ export default function PublicTracking() {
   const [error, setError] = useState('');
 
   const executeSearch = async (targetResi) => {
-    const cleanResi = (targetResi || '').trim();
+    const cleanResi = sanitizePublicResi(targetResi);
     if (!cleanResi) return;
 
     setLoading(true);
@@ -67,6 +67,28 @@ export default function PublicTracking() {
   const currentStatusIdx = result ? getStatusIndex(result.status) : -1;
   const isCancelled = result && (result.status === 'DIBATALKAN' || result.status === 'BATAL');
   const isCompleted = result && (result.status === 'SELESAI' || result.status === 'DIAMBIL' || result.status === 'DI AMBIL' || result.status === 'DI_AMBIL');
+
+  const sanitizePublicResi = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+
+  const maskCustomerName = (name = '') => {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '-';
+    if (parts.length === 1) return parts[0].length <= 2 ? parts[0] : parts[0].slice(0, 1) + '***';
+    return parts.map((part, index) => index === 0 ? part : part.slice(0, 1) + '.').join(' ');
+  };
+
+  const cleanPublicIssue = (issue = '') => String(issue || '')
+    .replace(/\[[^\]]*?\]/g, '')
+    .replace(/\| Kelengkapan:.*/i, '')
+    .replace(/(?:\+?62|0)8\d{7,12}/g, '[nomor disembunyikan]')
+    .trim();
+
+  const buildStoreWhatsAppUrl = (phone = '', resiValue = '') => {
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (!digits) return '';
+    const target = digits.startsWith('62') ? digits : digits.startsWith('0') ? '62' + digits.slice(1) : digits.startsWith('8') ? '62' + digits : digits;
+    return 'https://wa.me/' + target + '?text=' + encodeURIComponent('Halo, saya ingin menanyakan status servis resi ' + sanitizePublicResi(resiValue));
+  };
 
   // Timeline statuses (excluding DIBATALKAN from normal flow)
   const timelineStatuses = SERVICE_STATUSES.filter(s => s.id !== 'DIBATALKAN');
@@ -144,7 +166,7 @@ export default function PublicTracking() {
                 type="text"
                 placeholder="Contoh: TRX-1722790000000"
                 value={resi}
-                onChange={(e) => setResi(e.target.value.toUpperCase())}
+                onChange={(e) => setResi(sanitizePublicResi(e.target.value))}
                 style={{
                   width: '100%', padding: '14px 16px', borderRadius: '14px',
                   border: '2px solid #e2e8f0', fontSize: '1rem', fontWeight: '600',
@@ -334,9 +356,9 @@ export default function PublicTracking() {
               <div style={{ display: 'grid', gap: '14px' }}>
                 {[
                   { label: 'No. Resi', value: result.resi, bold: true, color: '#0284c7' },
-                  { label: 'Pelanggan', value: result.customer_name },
+                  { label: 'Pelanggan', value: maskCustomerName(result.customer_name) },
                   { label: 'Perangkat', value: result.device_name },
-                  { label: 'Keluhan', value: (result.issue || '').replace(/\[.*?\]/g, '').replace(/\| Kelengkapan:.*/, '').trim() },
+                  { label: 'Keluhan', value: cleanPublicIssue(result.issue) },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
                     <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600', flexShrink: 0, minWidth: '90px' }}>
@@ -372,7 +394,7 @@ export default function PublicTracking() {
                 </div>
                 {tenantSettings.store_wa && (
                   <a
-                    href={`https://wa.me/${tenantSettings.store_wa.replace(/^0/, '62')}?text=Halo, saya ingin menanyakan status servis resi ${result.resi}`}
+                    href={buildStoreWhatsAppUrl(tenantSettings.store_wa, result.resi)}
                     target="_blank" rel="noreferrer"
                     style={{
                       padding: '10px 18px', borderRadius: '10px',
