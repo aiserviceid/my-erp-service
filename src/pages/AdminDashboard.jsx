@@ -1288,54 +1288,6 @@ export default function AdminDashboard() {
 
             <CustomerCRMInsights services={services} transactions={transactions} tenant={tenant} settings={settings} />
 
-            {/* WHATSAPP MARKETING COMPOSER */}
-            <details className="customer-blast-disclosure" id="customerBlastComposer">
-              <summary>Atur WhatsApp Marketing promo atau pengingat</summary>
-            <div className="customer-blast-card" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', padding: '1.5rem', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>💬</span>
-                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#166534' }}>
-                  WhatsApp Marketing Promo / Reminder
-                </h4>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '1rem' }}>
-                <div>
-                  <label className="label">Pilih Template Broadcast Promo:</label>
-                  <select 
-                    id="waBlastTemplate"
-                    className="input-field"
-                    onChange={(e) => {
-                      const txtArea = document.getElementById('waBlastMessage');
-                      if (txtArea && e.target.value) {
-                        txtArea.value = e.target.value.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
-                      }
-                    }}
-                  >
-                    <option value="">-- Pilih Template Pesan Promo --</option>
-                    <option value="Halo Kak, terima kasih sudah menjadi pelanggan setia {STORE_NAME}! Khusus bulan ini dapatkan DISKON 20% Pembersihan Fan & Ganti Thermal Paste Laptop agar laptop tidak lemot/overheat. Hubungi kami sekarang!">📢 Diskon 20% Maintenance Laptop / HP</option>
-                    <option value="Halo Kak, pengingat dari {STORE_NAME}: Servis perangkat Anda sudah selesai & siap diambil di toko kami. Terima kasih!">⚠️ Pengingat Unit Servis Selesai Belum Diambil</option>
-                    <option value="Halo Kak, ada PROMO SPESIAL dari {STORE_NAME} untuk aksesoris & charger ori minggu ini! Kunjungi toko kami atau reply pesan ini untuk pemesanan.">🎁 Promo Aksesoris & Charger Ori Toko</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="label">Pesan Broadcast WhatsApp:</label>
-                  <textarea 
-                    id="waBlastMessage"
-                    className="input-field" 
-                    rows={3} 
-                    defaultValue={`Halo Kak, terima kasih sudah menjadi pelanggan setia ${settings.storeName || tenant?.name || 'Toko Servis'}! Dapatkan promo spesial servis & sparepart minggu ini di toko kami.`}
-                  />
-                </div>
-              </div>
-
-              <p style={{ fontSize: '0.78rem', color: '#15803d', margin: 0, fontWeight: '600' }}>
-                💡 Klik tombol <strong>Kirim WA 📲</strong> pada daftar pelanggan di bawah untuk mengirimkan pesan promo ke nomor WA masing-masing pelanggan.
-              </p>
-            </div>
-            </details>
-
             {/* TABEL DATABASE PELANGGAN */}
             {(() => {
               const displayedCustomers = customerTab === 'servis' 
