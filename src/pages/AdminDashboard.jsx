@@ -1307,7 +1307,12 @@ export default function AdminDashboard() {
                   });
               
               return (
-                <>
+                <details className="customer-detail-disclosure" style={{ marginTop: '1rem', border: '1px solid #dbeafe', borderRadius: '18px', background: '#ffffff', overflow: 'hidden' }}>
+                  <summary style={{ cursor: 'pointer', listStyle: 'none', padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontWeight: 900, color: '#0f172a', borderBottom: '1px solid #e2e8f0' }}>
+                    <span>Detail Riwayat Pelanggan <small style={{ display: 'block', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>Lihat daftar pelanggan, nomor WA, status terakhir, dan sumber data.</small></span>
+                    <span style={{ background: '#ecfeff', color: '#0f766e', borderRadius: '999px', padding: '6px 10px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>Buka Detail</span>
+                  </summary>
+                  <div style={{ padding: '16px 18px' }}>
                   <div className="customer-category-tabs" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px', borderBottom: '1px solid var(--border-light)' }}>
                     <button onClick={() => setCustomerTab('servis')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'servis' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'servis' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Kategori Servis</button>
                     <button onClick={() => setCustomerTab('pos')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'pos' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'pos' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Pembelian POS</button>
@@ -1350,7 +1355,7 @@ export default function AdminDashboard() {
                           });
                         }}
                       >
-                        🚀 Buka Tab Multi-Blast
+                        🚀 Buka WhatsApp Campaign
                       </button>
                     </div>
                   </div>
@@ -1397,7 +1402,8 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
-                </>
+                  </div>
+                </details>
               );
             })()}
           </div>
