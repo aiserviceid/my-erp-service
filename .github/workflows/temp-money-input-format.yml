@@ -42,8 +42,10 @@ jobs:
           for path in files:
             text = path.read_text()
             if 'const formatMoneyInput = (value)' not in text:
-              text, count = re.subn(r"(\n\s*const normalizeMoneyInput = \(value\) => \{.*?\n\s*\};)", r"\1" + helper, text, count=1, flags=re.S)
-              if count != 1:
+              match = re.search(r"\n\s*const normalizeMoneyInput = \(value\) => \{.*?\n\s*\};", text, flags=re.S)
+              if match:
+                text = text[:match.end()] + helper + text[match.end():]
+              else:
                 print(f'WARN: normalizeMoneyInput block not found in {path}')
 
             money_keywords = ['name="part_fee"', 'name="jasa_fee"', 'name="discount"', 'name="diskon"', 'name="price"', 'name="amount"', 'id="partFeeInput"', 'id="jasaFeeInput"', 'id="bon-amount"', 'value={newProdPrice}', 'name="estimasi_biaya"']
