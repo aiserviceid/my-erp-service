@@ -1,0 +1,60 @@
+name: Batch 8 CRM Dedupe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-batch8-crm-dedupe.yml'
+      - '.github/batch8-crm-dedupe-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Remove duplicated old CRM metric cards
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/AdminDashboard.jsx')
+          text = path.read_text()
+          start_marker = "            {/* CRM Metrics Cards */}"
+          end_marker = "            {/* WA BLAST CAMPAIGN GENERATOR BOX */}"
+          if start_marker not in text:
+              raise SystemExit('start marker not found')
+          if end_marker not in text:
+              raise SystemExit('end marker not found')
+          start = text.index(start_marker)
+          end = text.index(end_marker)
+          replacement = "            {/* Ringkasan CRM lama dihapus agar tidak dobel dengan CustomerCRMInsights. */}\n\n"
+          text = text[:start] + replacement + text[end:]
+          text = text.replace("            {/* TABEL DATABASE PELANGGAN */}\n            {/* TABEL DATABASE PELANGGAN */}", "            {/* TABEL DATABASE PELANGGAN */}")
+          path.write_text(text)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit source and clean
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/AdminDashboard.jsx
+          git commit -m "fix: remove duplicated customer crm cards"
+          git rm .github/workflows/temp-batch8-crm-dedupe.yml .github/batch8-crm-dedupe-trigger.txt
+          git commit -m "chore: clean batch 8 crm dedupe workflow"
+          git push origin agent/v1-stabilization-integration
