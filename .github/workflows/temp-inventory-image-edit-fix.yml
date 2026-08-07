@@ -1,0 +1,249 @@
+name: Inventory Image Edit Fix
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - .github/inventory-image-edit-fix-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch_build_clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch inventory image and edit flow
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          function replaceRequired(file, from, to, label) {
+            let text = fs.readFileSync(file, 'utf8');
+            if (!text.includes(from)) throw new Error(`${label} not found in ${file}`);
+            text = text.replace(from, to);
+            fs.writeFileSync(file, text);
+          }
+
+          // 1) api.js: keep image/category fallback when Supabase schema is missing image_url/category
+          const api = 'src/services/api.js';
+          let apiText = fs.readFileSync(api, 'utf8');
+          const apiBaseLine = "const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');";
+          const metaHelper = [
+            "const PRODUCT_META_OVERRIDES_KEY = 'UNITPRO_PRODUCT_META_OVERRIDES';",
+            "",
+            "const getProductMetaOverrides = () => {",
+            "  if (typeof window === 'undefined') return {};",
+            "  try {",
+            "    return JSON.parse(window.localStorage.getItem(PRODUCT_META_OVERRIDES_KEY) || '{}');",
+            "  } catch {",
+            "    return {};",
+            "  }",
+            "};",
+            "",
+            "const getProductMetaKeys = (tenantCode, product = {}) => {",
+            "  const tenantKey = tenantCode || product.tenant_code || '';",
+            "  const keys = [];",
+            "  if (product.id) keys.push(`${tenantKey}:${product.id}`);",
+            "  if (product.name) keys.push(`${tenantKey}:name:${String(product.name).trim().toLowerCase()}`);",
+            "  return keys;",
+            "};",
+            "",
+            "const getProductMetaOverride = (tenantCode, product, field) => {",
+            "  const overrides = getProductMetaOverrides();",
+            "  for (const key of getProductMetaKeys(tenantCode, product)) {",
+            "    if (overrides[key] && overrides[key][field]) return overrides[key][field];",
+            "  }",
+            "  return '';",
+            "};",
+            "",
+            "const saveProductMetaOverride = (tenantCode, product, patch = {}) => {",
+            "  if (typeof window === 'undefined' || !product) return;",
+            "  const cleanPatch = {};",
+            "  if (patch.category) cleanPatch.category = String(patch.category).trim().toUpperCase();",
+            "  if (patch.imageUrl) cleanPatch.imageUrl = patch.imageUrl;",
+            "  if (Object.keys(cleanPatch).length === 0) return;",
+            "  try {",
+            "    const overrides = getProductMetaOverrides();",
+            "    for (const key of getProductMetaKeys(tenantCode, product)) {",
+            "      overrides[key] = { ...(overrides[key] || {}), ...cleanPatch };",
+            "    }",
+            "    window.localStorage.setItem(PRODUCT_META_OVERRIDES_KEY, JSON.stringify(overrides));",
+            "  } catch (err) {",
+            "    console.warn('Product local metadata fallback warning:', err);",
+            "  }",
+            "};"
+          ].join('\n');
+          if (!apiText.includes('PRODUCT_META_OVERRIDES_KEY')) {
+            if (!apiText.includes(apiBaseLine)) throw new Error('API base line not found');
+            apiText = apiText.replace(apiBaseLine, `${apiBaseLine}\n\n${metaHelper}`);
+          }
+          apiText = apiText.replace(
+            "        category: p.category || 'SPAREPART',\n        imageUrl: p.imageUrl || p.image_url || p.image || ''",
+            "        category: p.category || getProductMetaOverride(tenantCode, p, 'category') || 'SPAREPART',\n        imageUrl: p.imageUrl || p.image_url || p.image || getProductMetaOverride(tenantCode, p, 'imageUrl') || ''"
+          );
+          apiText = apiText.replace(
+            "      return {\n        ...inserted,\n        imageUrl: inserted?.imageUrl || inserted?.image_url || img\n      };",
+            "      saveProductMetaOverride(productData.tenant_code, inserted || { name: cleanName }, { category: cleanCat, imageUrl: img });\n\n      return {\n        ...inserted,\n        category: inserted?.category || cleanCat,\n        imageUrl: inserted?.imageUrl || inserted?.image_url || img\n      };"
+          );
+          apiText = apiText.replace("        if (img) basicPayload.image_url = img;\n\n", "");
+          apiText = apiText.replace(
+            "      return {\n        ...updated,\n        imageUrl: updated?.imageUrl || updated?.image_url || img\n      };",
+            "      saveProductMetaOverride(productData.tenant_code || updated?.tenant_code, { ...updated, id, name: productData.name || updated?.name }, { category: productData.category, imageUrl: img });\n\n      return {\n        ...updated,\n        category: updated?.category || productData.category,\n        imageUrl: updated?.imageUrl || updated?.image_url || img\n      };"
+          );
+          fs.writeFileSync(api, apiText);
+
+          // 2) Employee portal: jasa catalog should detect more than exact category JASA
+          const emp = 'src/pages/EmployeePortal.jsx';
+          let empText = fs.readFileSync(emp, 'utf8');
+          const empOld = "  const sparepartCatalog = products.filter(p => (p.category || '').toUpperCase() !== 'JASA');\n  const jasaCatalog = products.filter(p => (p.category || '').toUpperCase() === 'JASA');";
+          const empNew = [
+            "  const normalizeProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\\s+/g, '_');",
+            "  const isJasaProduct = (product) => {",
+            "    const category = normalizeProductCategory(product);",
+            "    const name = String(product?.name || '').toLowerCase();",
+            "    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;",
+            "    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));",
+            "  };",
+            "  const sparepartCatalog = products.filter(p => !isJasaProduct(p));",
+            "  const jasaCatalog = products.filter(p => isJasaProduct(p));"
+          ].join('\n');
+          if (empText.includes(empOld)) {
+            empText = empText.replace(empOld, empNew);
+            fs.writeFileSync(emp, empText);
+          }
+
+          // 3) Admin dashboard: show image fallbacks and add missing edit product modal
+          const admin = 'src/pages/AdminDashboard.jsx';
+          let adminText = fs.readFileSync(admin, 'utf8');
+          adminText = adminText.replace(
+            "{p.imageUrl ? (\n                         <img src={p.imageUrl} alt={p.name}",
+            "{(p.imageUrl || p.image_url || p.image) ? (\n                         <img src={p.imageUrl || p.image_url || p.image} alt={p.name}"
+          );
+
+          if (!adminText.includes('{showEditProductModal && editingProduct && (')) {
+            const modal = String.raw`
+
+      {showEditProductModal && editingProduct && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '1rem' }}>
+          <form onSubmit={async (event) => {
+            event.preventDefault();
+            const fd = new FormData(event.currentTarget);
+            const payload = {
+              tenant_code: tenant.code,
+              name: String(fd.get('name') || '').trim(),
+              category: String(fd.get('category') || 'SPAREPART').toUpperCase(),
+              price: normalizeMoneyInput(fd.get('price')),
+              stock: parseInt(String(fd.get('stock') || '0'), 10) || 0,
+              imageUrl: editingProduct.imageUrl || editingProduct.image_url || ''
+            };
+            if (!payload.name) return alert('Nama barang wajib diisi.');
+            try {
+              setIsUpdatingProduct(true);
+              const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
+              const updated = await apiService.updateProduct(editingProduct.id, payload, editingProduct.stock, currentUser, 'Edit data barang dari Inventori');
+              const nextProduct = { ...editingProduct, ...payload, ...updated, imageUrl: updated?.imageUrl || updated?.image_url || payload.imageUrl };
+              setProducts(prev => prev.map(item => String(item.id) === String(editingProduct.id) ? nextProduct : item));
+              setShowEditProductModal(false);
+              setEditingProduct(null);
+              alert('Barang berhasil diperbarui.');
+            } catch (error) {
+              alert('Gagal memperbarui barang: ' + (error.message || 'Periksa data lalu coba lagi.'));
+            } finally {
+              setIsUpdatingProduct(false);
+            }
+          }} className="glass-panel" style={{ width: '100%', maxWidth: '520px', background: 'var(--bg-light)', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Edit Barang</h3>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>Perbarui foto, kategori, harga, dan stok inventori.</p>
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => { setShowEditProductModal(false); setEditingProduct(null); }}><X size={20}/></button>
+            </div>
+
+            <label className="label">Foto Barang</label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ width: '72px', height: '72px', borderRadius: '14px', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {(editingProduct.imageUrl || editingProduct.image_url || editingProduct.image) ? (
+                  <img src={editingProduct.imageUrl || editingProduct.image_url || editingProduct.image} alt={editingProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <ImageIcon size={24} color="#94a3b8" />
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <input className="input-field" placeholder="URL gambar atau upload foto" value={editingProduct.imageUrl || editingProduct.image_url || ''} onChange={(e) => setEditingProduct(current => ({ ...current, imageUrl: e.target.value, image_url: e.target.value }))} />
+                <label style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', border: '1px solid #bae6fd' }}>
+                  <Camera size={15} /> Upload Foto Baru
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const compressedBase64 = await compressImageFile(file, 800, 800, 0.7);
+                      setEditingProduct(current => ({ ...current, imageUrl: compressedBase64, image_url: compressedBase64 }));
+                    } catch (err) {
+                      alert('Gagal memproses gambar. Pastikan format gambar valid.');
+                    }
+                  }} />
+                </label>
+              </div>
+            </div>
+
+            <label className="label">Nama Barang / Jasa</label>
+            <input name="name" className="input-field" defaultValue={editingProduct.name || ''} style={{ marginBottom: '10px' }} />
+
+            <label className="label">Kategori</label>
+            <select name="category" className="input-field" defaultValue={editingProduct.category || 'SPAREPART'} style={{ marginBottom: '10px' }}>
+              <option value="SPAREPART">Sparepart</option>
+              <option value="AKSESORIS">Aksesoris</option>
+              <option value="JASA">Jasa</option>
+            </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="label">Harga (Rp)</label>
+                <input name="price" type="text" inputMode="numeric" className="input-field" defaultValue={editingProduct.price || 0} onInput={handleMoneyInput} />
+              </div>
+              <div>
+                <label className="label">Stok</label>
+                <input name="stock" type="number" min="0" className="input-field" defaultValue={editingProduct.stock || 0} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowEditProductModal(false); setEditingProduct(null); }}>Batal</button>
+              <button type="submit" className="btn btn-primary" disabled={isUpdatingProduct} style={{ flex: 1 }}>
+                {isUpdatingProduct ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}`;
+            if (!adminText.includes('      {/* ONBOARDING WIZARD 5 MENIT */}')) throw new Error('Onboarding insertion point not found');
+            adminText = adminText.replace('      {/* ONBOARDING WIZARD 5 MENIT */}', modal + '\n\n      {/* ONBOARDING WIZARD 5 MENIT */}');
+          }
+          fs.writeFileSync(admin, adminText);
+          NODE
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit source changes and clean temp workflow
+        shell: bash
+        run: |
+          git config user.name aiserviceid
+          git config user.email ai.interiorid@gmail.com
+          git add src/services/api.js src/pages/AdminDashboard.jsx src/pages/EmployeePortal.jsx
+          git commit -m "fix: make inventory images and edit modal work" || echo "no source changes"
+          git rm .github/workflows/temp-inventory-image-edit-fix.yml .github/inventory-image-edit-fix-trigger.txt
+          git commit -m "chore: clean inventory temp workflow"
+          git push origin HEAD:agent/v1-stabilization-integration
