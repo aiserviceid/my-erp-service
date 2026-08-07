@@ -1,0 +1,419 @@
+name: sync_packages_landing
+
+on:
+  push:
+    branches:
+      - agent/sync-packages-landing
+    paths:
+      - '.github/workflows/temp-sync-packages-landing.yml'
+      - '.github/sync-packages-landing-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/sync-packages-landing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch packages and landing
+        run: |
+          cat > /tmp/sync_packages_landing.py <<'PY'
+          from pathlib import Path
+          import re
+
+          tier_path = Path('src/config/tierLimits.js')
+          tier = tier_path.read_text()
+          new_tier_config = r"""export const TIER_CONFIG = {
+            free: {
+              label: 'Free',
+              badge: 'FREE',
+              color: '#64748b',
+              headline: 'Untuk mulai coba',
+              price: 'Rp0',
+              period: '/selamanya',
+              description: 'Cocok untuk toko kecil yang ingin merapikan pencatatan servis dasar sebelum upgrade.',
+              limits: {
+                maxServicesPerMonth: 50,
+                maxTransactionsPerMonth: 100,
+                maxProducts: 100,
+                maxEmployees: 0,
+                maxBranches: 1,
+                maxCustomers: 100,
+              },
+              features: {
+                pos: true,
+                services: true,
+                printReceipt: true,
+                barcode: true,
+                publicTracking: true,
+                masterProducts: true,
+                basicReport: true,
+                themeSettings: true,
+                employees: false,
+                whatsappNotif: false,
+                whatsappMarketing: false,
+                catalog: false,
+                detailedReport: false,
+                exportExcel: false,
+                customBranding: false,
+                whiteLabel: false,
+                customDomain: false,
+                brandedApk: false,
+                clientManagement: false,
+                adsSettings: false,
+                multiBranch: false,
+                wallet: false,
+                affiliate: false,
+                forum: true,
+              },
+              marketingFeatures: [
+                '50 servis per bulan',
+                '100 transaksi kasir per bulan',
+                '100 produk/sparepart',
+                'Nota dan tracking pelanggan dasar',
+              ],
+            },
+            pro: {
+              label: 'UnitPro Pro',
+              badge: 'PRO',
+              color: '#0284c7',
+              headline: 'Untuk toko servis aktif',
+              price: 'Rp99.000',
+              period: '/bulan',
+              yearlyPromo: 'Promo Rp590.000/tahun pertama',
+              description: 'Paket utama untuk toko servis yang ingin kasir, teknisi, stok, pelanggan, dan laporan berjalan dalam satu sistem.',
+              limits: {
+                maxServicesPerMonth: Infinity,
+                maxTransactionsPerMonth: Infinity,
+                maxProducts: Infinity,
+                maxEmployees: 20,
+                maxBranches: 1,
+                maxCustomers: Infinity,
+              },
+              features: {
+                pos: true,
+                services: true,
+                printReceipt: true,
+                barcode: true,
+                publicTracking: true,
+                masterProducts: true,
+                basicReport: true,
+                themeSettings: true,
+                employees: true,
+                whatsappNotif: true,
+                whatsappMarketing: true,
+                catalog: true,
+                detailedReport: true,
+                exportExcel: true,
+                customBranding: true,
+                whiteLabel: false,
+                customDomain: false,
+                brandedApk: false,
+                clientManagement: false,
+                adsSettings: true,
+                multiBranch: false,
+                wallet: false,
+                affiliate: false,
+                forum: true,
+              },
+              marketingFeatures: [
+                'Servis, kasir, stok, dan teknisi unlimited',
+                'WhatsApp pelanggan dan CRM marketing',
+                'Laporan owner dan export Excel',
+                'Katalog online dan branding toko di nota',
+              ],
+            },
+            enterprise: {
+              label: 'Enterprise',
+              badge: 'ENTERPRISE',
+              color: '#7c3aed',
+              headline: 'Untuk banyak cabang',
+              price: 'Mulai Rp299.000',
+              period: '/bulan',
+              description: 'Untuk pemilik yang ingin mengendalikan beberapa outlet servis dengan standar operasional yang sama.',
+              limits: {
+                maxServicesPerMonth: Infinity,
+                maxTransactionsPerMonth: Infinity,
+                maxProducts: Infinity,
+                maxEmployees: 50,
+                maxBranches: 5,
+                maxCustomers: Infinity,
+              },
+              features: {
+                pos: true,
+                services: true,
+                printReceipt: true,
+                barcode: true,
+                publicTracking: true,
+                masterProducts: true,
+                basicReport: true,
+                themeSettings: true,
+                employees: true,
+                whatsappNotif: true,
+                whatsappMarketing: true,
+                catalog: true,
+                detailedReport: true,
+                exportExcel: true,
+                customBranding: true,
+                whiteLabel: false,
+                customDomain: false,
+                brandedApk: false,
+                clientManagement: false,
+                adsSettings: true,
+                multiBranch: true,
+                wallet: false,
+                affiliate: false,
+                forum: true,
+              },
+              marketingFeatures: [
+                'Hingga 5 cabang/outlet',
+                'Hingga 50 akun karyawan',
+                'Kontrol multi-cabang dan laporan cabang',
+                'Prioritas setup dan pendampingan',
+              ],
+            },
+            white_label: {
+              label: 'White Label',
+              badge: 'PARTNER',
+              color: '#0f766e',
+              headline: 'Aplikasi dengan brand sendiri',
+              price: 'Mulai Rp2,5 juta',
+              period: 'setup',
+              monthly: 'Maintenance mulai Rp299.000/bulan',
+              description: 'Untuk partner, distributor, komunitas, atau konsultan yang ingin menjual sistem servis dengan merek sendiri tanpa membeli source code.',
+              limits: {
+                maxServicesPerMonth: Infinity,
+                maxTransactionsPerMonth: Infinity,
+                maxProducts: Infinity,
+                maxEmployees: 100,
+                maxBranches: 20,
+                maxCustomers: Infinity,
+              },
+              features: {
+                pos: true,
+                services: true,
+                printReceipt: true,
+                barcode: true,
+                publicTracking: true,
+                masterProducts: true,
+                basicReport: true,
+                themeSettings: true,
+                employees: true,
+                whatsappNotif: true,
+                whatsappMarketing: true,
+                catalog: true,
+                detailedReport: true,
+                exportExcel: true,
+                customBranding: true,
+                whiteLabel: true,
+                customDomain: true,
+                brandedApk: true,
+                clientManagement: true,
+                adsSettings: true,
+                multiBranch: true,
+                wallet: false,
+                affiliate: true,
+                forum: true,
+              },
+              marketingFeatures: [
+                'Logo, warna, nama aplikasi, dan domain sendiri',
+                'APK/branding khusus sesuai merek partner',
+                'Panel partner untuk kelola client/toko',
+                'Managed service: sistem tetap kami rawat',
+              ],
+            },
+          };
+          """
+          tier = re.sub(r"export const TIER_CONFIG = \{[\s\S]*?\n\};\n\n// ─── HELPER FUNCTIONS", new_tier_config + "\n\n// ─── HELPER FUNCTIONS", tier)
+          tier = tier.replace("{ id: 'karyawan',    name: 'Tim',                feature: 'themeSettings',  iconName: 'Users' }", "{ id: 'karyawan',    name: 'Tim',                feature: 'employees',      iconName: 'Users' }")
+          tier_path.write_text(tier)
+
+          logo_path = Path('src/components/UnitProLogo.jsx')
+          logo_path.write_text("""export default function UnitProLogo({ size = 40, width, variant = 'mark', label = 'UnitPro' }) {
+            if (variant === 'wordmark') {
+              return (
+                <img
+                  src=\"/unitpro-logo.svg\"
+                  alt={label}
+                  style={{ display: 'block', width: width || size * 4.6, height: size, objectFit: 'contain' }}
+                />
+              );
+            }
+
+            return (
+              <span
+                aria-label={label}
+                role=\"img\"
+                style={{ display: 'inline-flex', width: size, height: size, flex: '0 0 auto' }}
+              >
+                <svg viewBox=\"0 0 48 48\" width={size} height={size} aria-hidden=\"true\">
+                  <path d=\"M8 9h9c7.5 0 13.5 6.1 13.5 13.5v7.6c0 4 3.2 7.2 7.2 7.2 3.2 0 6-2.1 6.9-5v7.2c-3.1 3-7.4 4.9-12.1 4.9C19 44.4 8 33.4 8 19.9V9Z\" fill=\"#1269FF\" />
+                  <path d=\"M31.5 9H40v21.5C40 38 34 44 26.5 44h-4.3c5.1-2.4 8.6-7.6 8.6-13.6V9h.7Z\" fill=\"#10CDB8\" />
+                  <rect x=\"31.4\" y=\"9\" width=\"4\" height=\"4\" rx=\".6\" fill=\"#10CDB8\" />
+                  <rect x=\"38.1\" y=\"3.8\" width=\"4\" height=\"4\" rx=\".6\" fill=\"#10CDB8\" />
+                  <rect x=\"35.5\" y=\"15.6\" width=\"4\" height=\"4\" rx=\".6\" fill=\"#10CDB8\" />
+                  <rect x=\"29.8\" y=\"20.8\" width=\"4\" height=\"4\" rx=\".6\" fill=\"#10CDB8\" />
+                </svg>
+              </span>
+            );
+          }
+          """)
+
+          landing_path = Path('src/pages/LandingPage.jsx')
+          landing = landing_path.read_text()
+          landing = landing.replace("<UnitProLogo size={42} />", "<UnitProLogo variant=\"wordmark\" size={58} width={230} />")
+          landing = landing.replace("""          <BrandLogo />
+          <span>Unit<strong>Pro</strong></span>
+""", """          <BrandLogo />
+""")
+          landing = landing.replace("""        <div className=\"simple-pricing-grid\">
+          <article className=\"simple-price-card\">
+            <h3>Gratis</h3>
+            <p className=\"simple-price\">Rp0</p>
+            <ul>
+              <li><Check size={16} /> Catat servis dasar</li>
+              <li><Check size={16} /> Tracking pelanggan</li>
+              <li><Check size={16} /> Kasir dan stok dasar</li>
+            </ul>
+            <button type=\"button\" className=\"simple-btn secondary full\" onClick={registerFree}>Mulai gratis</button>
+          </article>
+
+          <article className=\"simple-price-card featured\">
+            <span className=\"simple-badge\">Rekomendasi</span>
+            <h3>UnitPro Pro</h3>
+            <p className=\"simple-price\">Rp99.000<span>/bulan</span></p>
+            <ul>
+              <li><Check size={16} /> Servis, kasir, stok, teknisi</li>
+              <li><Check size={16} /> Nota dan QR tracking</li>
+              <li><Check size={16} /> WhatsApp pelanggan</li>
+              <li><Check size={16} /> Laporan owner</li>
+            </ul>
+            <button type=\"button\" className=\"simple-btn primary full\" onClick={registerFree}>Coba Pro</button>
+          </article>
+        </div>
+""", """        <div className=\"simple-pricing-grid four\">
+          <article className=\"simple-price-card\">
+            <h3>Free</h3>
+            <p className=\"simple-price\">Rp0</p>
+            <small>Untuk mulai coba</small>
+            <ul>
+              <li><Check size={16} /> 50 servis/bulan</li>
+              <li><Check size={16} /> 100 transaksi kasir/bulan</li>
+              <li><Check size={16} /> 100 produk/sparepart</li>
+              <li><Check size={16} /> Nota & tracking dasar</li>
+            </ul>
+            <button type=\"button\" className=\"simple-btn secondary full\" onClick={registerFree}>Mulai gratis</button>
+          </article>
+
+          <article className=\"simple-price-card featured\">
+            <span className=\"simple-badge\">Rekomendasi</span>
+            <h3>UnitPro Pro</h3>
+            <p className=\"simple-price\">Rp99.000<span>/bulan</span></p>
+            <small>Untuk toko servis aktif</small>
+            <ul>
+              <li><Check size={16} /> Servis, kasir, stok unlimited</li>
+              <li><Check size={16} /> Tim teknisi hingga 20 akun</li>
+              <li><Check size={16} /> WhatsApp pelanggan & CRM</li>
+              <li><Check size={16} /> Laporan owner & export Excel</li>
+            </ul>
+            <button type=\"button\" className=\"simple-btn primary full\" onClick={registerFree}>Coba Pro</button>
+          </article>
+
+          <article className=\"simple-price-card\">
+            <h3>Enterprise</h3>
+            <p className=\"simple-price\">Rp299rb<span>+/bulan</span></p>
+            <small>Untuk banyak cabang</small>
+            <ul>
+              <li><Check size={16} /> Hingga 5 cabang/outlet</li>
+              <li><Check size={16} /> Hingga 50 akun karyawan</li>
+              <li><Check size={16} /> Laporan cabang</li>
+              <li><Check size={16} /> Prioritas setup</li>
+            </ul>
+            <a className=\"simple-btn secondary full\" href={whatsappUrl} target=\"_blank\" rel=\"noreferrer\">Konsultasi</a>
+          </article>
+
+          <article className=\"simple-price-card partner\">
+            <span className=\"simple-badge neutral\">Partner</span>
+            <h3>White Label</h3>
+            <p className=\"simple-price\">Rp2,5jt<span>+ setup</span></p>
+            <small>Aplikasi dengan brand sendiri</small>
+            <ul>
+              <li><Check size={16} /> Logo, warna, domain sendiri</li>
+              <li><Check size={16} /> APK/branding khusus</li>
+              <li><Check size={16} /> Panel kelola client/toko</li>
+              <li><Check size={16} /> Managed service</li>
+            </ul>
+            <a className=\"simple-btn primary full\" href={whatsappUrl} target=\"_blank\" rel=\"noreferrer\">Bahas Partner</a>
+          </article>
+        </div>
+""")
+          landing = landing.replace('Mulai gratis. Upgrade saat toko sudah nyaman pakai.', 'Pilih paket sesuai tahap toko atau bisnis partner kamu.')
+          landing_path.write_text(landing)
+
+          css_path = Path('src/pages/LandingPage.css')
+          css = css_path.read_text()
+          css = css.replace(".simple-brand-logo { display: inline-flex; align-items: center; }", ".simple-brand-logo { display: inline-flex; align-items: center; width: 230px; max-width: 52vw; }\n.simple-brand-logo img { width: 100%; height: auto; }")
+          css = css.replace(".simple-pricing-grid {", ".simple-pricing-grid {")
+          if ".simple-pricing-grid.four" not in css:
+              css += """
+
+          .simple-pricing-grid.four {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+
+          .simple-price-card small {
+            display: block;
+            margin: -6px 0 16px;
+            color: #64748b;
+            font-weight: 700;
+          }
+
+          .simple-price-card.partner {
+            border-color: rgba(15, 118, 110, 0.28);
+            background: linear-gradient(180deg, #ffffff, #f0fdfa);
+          }
+
+          .simple-badge.neutral {
+            background: #d1fae5;
+            color: #0f766e;
+          }
+
+          @media (max-width: 1080px) {
+            .simple-pricing-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          }
+
+          @media (max-width: 680px) {
+            .simple-pricing-grid.four { grid-template-columns: 1fr; }
+            .simple-brand-logo { width: 178px; }
+          }
+          """
+          css_path.write_text(css)
+          PY
+          python /tmp/sync_packages_landing.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        run: npm run build
+      - name: Commit changes and cleanup
+        if: always()
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git rm --ignore-unmatch .github/workflows/temp-sync-packages-landing.yml .github/sync-packages-landing-trigger.txt
+          git add src/config/tierLimits.js src/components/UnitProLogo.jsx src/pages/LandingPage.jsx src/pages/LandingPage.css
+          git status --short
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "feat: sync packages and landing pricing"
+          git pull --rebase origin agent/sync-packages-landing
+          git push origin HEAD:agent/sync-packages-landing
