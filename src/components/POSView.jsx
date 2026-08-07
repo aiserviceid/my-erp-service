@@ -163,6 +163,11 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   // Handle checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    const stockProblem = cart.find(item => (item.category || '').toUpperCase() !== 'JASA' && Number(item.stock || 0) < Number(item.qty || 0));
+    if (stockProblem) {
+      alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);
+      return;
+    }
     if (paymentMethod === 'TUNAI' && cashReceivedNum < grandTotal) {
       alert('Uang yang diterima kurang dari total belanja!');
       return;
@@ -204,16 +209,24 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       });
       receiptData.transactionDbId = savedTransaction?.id;
 
-      // 2. Update stock for each item
+      // 2. Update stock for each physical item. Do not swallow stock failures.
       const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
-      for (const item of cart) {
-        const newStock = Math.max(0, item.stock - item.qty);
-        apiService.updateProduct(item.id, {
+      const stockItems = cart.filter(item => (item.category || '').toUpperCase() !== 'JASA');
+      const stockUpdateResults = await Promise.allSettled(stockItems.map(item => {
+        const newStock = Number(item.stock || 0) - Number(item.qty || 0);
+        if (newStock < 0) {
+          return Promise.reject(new Error(`Stok ${item.name} tidak cukup.`));
+        }
+        return apiService.updateProduct(item.id, {
           name: item.name,
           price: item.price,
           stock: newStock,
           cost_price: item.cost_price || 0
-        }, item.stock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`).catch(() => {});
+        }, item.stock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`);
+      }));
+      const failedStockUpdates = stockUpdateResults.filter(result => result.status === 'rejected');
+      if (failedStockUpdates.length > 0) {
+        throw new Error('Transaksi tersimpan, tetapi update stok gagal. Segera koreksi stok manual sebelum lanjut transaksi berikutnya.');
       }
 
       // 3. Show receipt
