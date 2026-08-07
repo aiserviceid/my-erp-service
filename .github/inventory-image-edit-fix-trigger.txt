@@ -1,1 +1,1 @@
-trigger inventory image edit fix
+trigger inventory image edit fix v2
