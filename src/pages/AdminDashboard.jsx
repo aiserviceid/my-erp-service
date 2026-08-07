@@ -2507,14 +2507,15 @@ export default function AdminDashboard() {
                       <tr key={t.id}>
                         <td>{new Date(t.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                         <td>
-                          {t.type === 'INCOME' && <span className="badge badge-success">Pendapatan Servis</span>}
+                          {(t.type === 'INCOME' || t.type === 'INCOME_JASA') && <span className="badge badge-success">Pendapatan Jasa Servis</span>}
+                          {t.type === 'INCOME_SPAREPART' && <span className="badge badge-success">Pendapatan Sparepart Servis</span>}
                           {t.type === 'POS_SALES' && <span className="badge" style={{ background: '#dbeafe', color: '#1e40af' }}>Penjualan Barang</span>}
                           {t.type === 'BON_KARYAWAN' && <span className="badge badge-warning">Kasbon / Pinjaman</span>}
                           {t.type === 'EXPENSE' && <span className="badge badge-danger">Pengeluaran Lain</span>}
                           {t.type === 'WITHDRAWAL' && <span className="badge" style={{ background: '#f3e8ff', color: '#6b21a8' }}>Tarik Saldo Laba</span>}
                         </td>
-                        <td style={{ color: t.type === 'INCOME' || t.type === 'POS_SALES' ? 'var(--accent)' : '#ef4444', fontWeight: 'bold' }}>
-                          {t.type === 'INCOME' || t.type === 'POS_SALES' ? '+' : '-'} Rp {t.amount?.toLocaleString('id-ID')}
+                        <td style={{ color: String(t.type || '').startsWith('INCOME') || t.type === 'POS_SALES' ? 'var(--accent)' : '#ef4444', fontWeight: 'bold' }}>
+                          {String(t.type || '').startsWith('INCOME') || t.type === 'POS_SALES' ? '+' : '-'} Rp {t.amount?.toLocaleString('id-ID')}
                         </td>
                         <td style={{ color: 'var(--text-muted)' }}>{t.description}</td>
                       </tr>

@@ -837,7 +837,7 @@ export default function EmployeePortal() {
                                 if (newStatus === 'SELESAI') {
                                   setSelectedService(s);
                                   setShowSelesaiModal(true);
-                                } else if (newStatus === 'DI AMBIL') {
+                                } else if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {
                                   if (!s.part_fee && !s.jasa_fee) {
                                     alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Di Ambil.');
                                     return;
@@ -857,7 +857,7 @@ export default function EmployeePortal() {
                                       // Update the status AND the appended warranty info
                                       await apiService.post('/services/finish', {
                                         resi: s.resi,
-                                        status: newStatus,
+                                        status: 'DIAMBIL',
                                         part_fee: s.part_fee,
                                         jasa_fee: s.jasa_fee,
                                         technician_id: s.technician_id,
@@ -872,21 +872,33 @@ export default function EmployeePortal() {
                                       const partFee = s.part_fee || 0;
                                       const jasaAfterDiscount = Math.max(0, jasaFee - discount);
                                       
-                                      if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
-                                        await apiService.post('/transactions', {
-                                          tenant_code: employee.tenant_code || tenant.code,
-                                          type: 'INCOME_JASA',
-                                          amount: jasaAfterDiscount,
-                                          description: `Jasa Servis Resi ${s.resi} (${s.customer_name})`
-                                        });
-                                      }
-                                      if (partFee > 0) {
-                                        await apiService.post('/transactions', {
-                                          tenant_code: employee.tenant_code || tenant.code,
-                                          type: 'INCOME_SPAREPART',
-                                          amount: partFee,
-                                          description: `Sparepart Servis Resi ${s.resi} (${s.customer_name})`
-                                        });
+                                      const tenantCode = employee.tenant_code || tenant.code;
+                                      const latestTransactions = await apiService.get('/transactions/' + tenantCode).catch(() => transactions);
+                                      const existingServiceIncome = latestTransactions.filter((transaction) => {
+                                        const type = String(transaction.type || '');
+                                        const description = String(transaction.description || '');
+                                        return ['INCOME', 'INCOME_JASA', 'INCOME_SPAREPART'].includes(type) && description.includes('Resi ' + s.resi);
+                                      });
+
+                                      if (existingServiceIncome.length > 0) {
+                                        alert('Pelunasan resi ' + s.resi + ' sudah pernah tercatat di keuangan. Transaksi tidak dibuat ulang agar omzet tidak dobel.');
+                                      } else {
+                                        if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
+                                          await apiService.post('/transactions', {
+                                            tenant_code: tenantCode,
+                                            type: 'INCOME_JASA',
+                                            amount: jasaAfterDiscount,
+                                            description: 'Jasa Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
+                                          });
+                                        }
+                                        if (partFee > 0) {
+                                          await apiService.post('/transactions', {
+                                            tenant_code: tenantCode,
+                                            type: 'INCOME_SPAREPART',
+                                            amount: partFee,
+                                            description: 'Sparepart Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
+                                          });
+                                        }
                                       }
                                       fetchServices();
                                       fetchTransactions();
