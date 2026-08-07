@@ -1,0 +1,346 @@
+name: UIUX Flow Polish Patch
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+
+jobs:
+  patch-build-clean:
+    if: contains(github.event.head_commit.message, 'trigger uiux flow polish workflow')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch premium feedback and smooth demo flow
+        run: |
+          cat > src/components/PremiumFeedback.jsx <<'EOF'
+          import { useEffect, useState } from 'react';
+          
+          const toastStyles = {
+            position: 'fixed',
+            right: '18px',
+            bottom: '18px',
+            zIndex: 99999,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            width: 'min(380px, calc(100vw - 28px))',
+            pointerEvents: 'none',
+          };
+          
+          const cardBase = {
+            borderRadius: '18px',
+            padding: '14px 16px',
+            boxShadow: '0 22px 55px rgba(15, 23, 42, 0.22)',
+            border: '1px solid rgba(255,255,255,0.16)',
+            color: 'white',
+            pointerEvents: 'auto',
+            display: 'grid',
+            gridTemplateColumns: '32px 1fr auto',
+            alignItems: 'center',
+            gap: '12px',
+            animation: 'unitproToastIn 220ms ease-out',
+            backdropFilter: 'blur(18px)',
+          };
+          
+          const toneMap = {
+            success: { bg: 'linear-gradient(135deg, rgba(5,150,105,.96), rgba(16,185,129,.94))', icon: '✓' },
+            error: { bg: 'linear-gradient(135deg, rgba(185,28,28,.96), rgba(239,68,68,.94))', icon: '!' },
+            warning: { bg: 'linear-gradient(135deg, rgba(180,83,9,.96), rgba(245,158,11,.94))', icon: '!' },
+            info: { bg: 'linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,41,59,.94))', icon: 'i' },
+          };
+          
+          function inferTone(message = '') {
+            const lower = String(message).toLowerCase();
+            if (lower.includes('gagal') || lower.includes('error') || lower.includes('salah')) return 'error';
+            if (lower.includes('berhasil') || lower.includes('sukses')) return 'success';
+            if (lower.includes('peringatan') || lower.includes('tidak boleh')) return 'warning';
+            return 'info';
+          }
+          
+          export default function PremiumFeedback() {
+            const [items, setItems] = useState([]);
+          
+            useEffect(() => {
+              const originalAlert = window.alert;
+          
+              const pushToast = (detail) => {
+                const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                const message = typeof detail === 'string' ? detail : detail?.message;
+                const tone = typeof detail === 'string' ? inferTone(detail) : (detail?.type || inferTone(message));
+                if (!message) return;
+                setItems((current) => [...current.slice(-3), { id, message: String(message), tone }]);
+                window.setTimeout(() => {
+                  setItems((current) => current.filter((item) => item.id !== id));
+                }, tone === 'error' ? 5200 : 3600);
+              };
+          
+              window.UnitProToast = pushToast;
+              window.alert = (message) => pushToast({ message, type: inferTone(message) });
+              window.addEventListener('unitpro:toast', (event) => pushToast(event.detail));
+          
+              return () => {
+                window.alert = originalAlert;
+                delete window.UnitProToast;
+              };
+            }, []);
+          
+            return (
+              <>
+                <style>{`@keyframes unitproToastIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
+                <div style={toastStyles} aria-live="polite" aria-atomic="true">
+                  {items.map((item) => {
+                    const tone = toneMap[item.tone] || toneMap.info;
+                    return (
+                      <div key={item.id} style={{ ...cardBase, background: tone.bg }}>
+                        <span style={{ width: 30, height: 30, borderRadius: 12, background: 'rgba(255,255,255,.18)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>{tone.icon}</span>
+                        <span style={{ fontSize: '.88rem', lineHeight: 1.45, fontWeight: 700 }}>{item.message}</span>
+                        <button type="button" onClick={() => setItems((current) => current.filter((next) => next.id !== item.id))} style={{ border: 0, background: 'rgba(255,255,255,.14)', color: 'white', borderRadius: 10, width: 28, height: 28, cursor: 'pointer', fontWeight: 900 }}>×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          }
+          EOF
+          
+          cat > src/services/demoStore.js <<'EOF'
+          const STORAGE_KEY = 'UNITPRO_DEMO_STORE_V1';
+          
+          const now = Date.now();
+          
+          const seed = () => ({
+            products: [
+              { id: 'PROD-001', tenant_code: 'DEMO-STORE', name: 'LCD iPhone 11 Original', price: 450000, stock: 12, category: 'SPAREPART', imageUrl: '' },
+              { id: 'PROD-002', tenant_code: 'DEMO-STORE', name: 'Baterai MacBook Pro Retina 13', price: 650000, stock: 5, category: 'SPAREPART', imageUrl: '' },
+              { id: 'PROD-003', tenant_code: 'DEMO-STORE', name: 'RAM DDR4 8GB Laptop', price: 320000, stock: 18, category: 'SPAREPART', imageUrl: '' },
+              { id: 'PROD-004', tenant_code: 'DEMO-STORE', name: 'SSD NVMe 512GB Kingston', price: 580000, stock: 14, category: 'SPAREPART', imageUrl: '' },
+              { id: 'PROD-005', tenant_code: 'DEMO-STORE', name: 'Jasa Cleaning & Thermal Paste', price: 150000, stock: 999, category: 'JASA', imageUrl: '' },
+              { id: 'PROD-006', tenant_code: 'DEMO-STORE', name: 'Jasa Install Windows 11', price: 100000, stock: 999, category: 'JASA', imageUrl: '' },
+            ],
+            users: [
+              { id: 'EMP-1', name: 'Andi (Teknisi Hardware)', role: 'TEKNISI', pin: '1234', phone: '081234567801', tenant_code: 'DEMO-STORE' },
+              { id: 'EMP-2', name: 'Budi (Teknisi Software)', role: 'TEKNISI', pin: '5678', phone: '081234567802', tenant_code: 'DEMO-STORE' },
+              { id: 'EMP-3', name: 'Citra (Kasir Demo)', role: 'KASIR', pin: '1111', phone: '081234567803', tenant_code: 'DEMO-STORE' },
+            ],
+            services: [
+              { resi: 'TRX-1001', tenant_code: 'DEMO-STORE', customer_name: 'Hendra Saputra', customer_phone: '081234567890', device_name: 'Laptop ASUS ROG Strix', issue: 'Mati total terkena cairan kopi | Kelengkapan: Unit + charger', status: 'DIKERJAKAN', technician_id: 'EMP-1', part_fee: 0, jasa_fee: 0, created_at: new Date(now - 172800000).toISOString() },
+              { resi: 'TRX-1002', tenant_code: 'DEMO-STORE', customer_name: 'Siti Rahma', customer_phone: '085712345678', device_name: 'MacBook Air M1 2020', issue: 'Layar blank hitam, suara nyala | Kelengkapan: Unit saja', status: 'DICEK', technician_id: 'EMP-2', part_fee: 0, jasa_fee: 0, created_at: new Date(now - 86400000).toISOString() },
+              { resi: 'TRX-1003', tenant_code: 'DEMO-STORE', customer_name: 'Bambang Wijaya', customer_phone: '081987654321', device_name: 'Lenovo ThinkPad T480', issue: 'Upgrade SSD 512GB dan RAM 16GB | Kelengkapan: Unit + tas', status: 'SELESAI', technician_id: 'EMP-1', part_fee: 580000, jasa_fee: 150000, created_at: new Date(now - 43200000).toISOString() },
+              { resi: 'TRX-1004', tenant_code: 'DEMO-STORE', customer_name: 'Dewi Lestari', customer_phone: '082133445566', device_name: 'Acer Nitro 5 AN515', issue: 'Kipas berisik dan panas | Kelengkapan: Unit + charger', status: 'DIAMBIL', technician_id: 'EMP-1', part_fee: 0, jasa_fee: 150000, created_at: new Date(now - 21600000).toISOString() },
+            ],
+            transactions: [
+              { id: 'DEMO-TX-1', tenant_code: 'DEMO-STORE', type: 'INCOME_JASA', amount: 150000, description: 'Pelunasan jasa servis Resi TRX-1004', created_at: new Date(now - 18000000).toISOString() },
+              { id: 'DEMO-TX-2', tenant_code: 'DEMO-STORE', type: 'POS_SALES', amount: 320000, description: 'Penjualan RAM DDR4 8GB Laptop', created_at: new Date(now - 14400000).toISOString() },
+              { id: 'DEMO-TX-3', tenant_code: 'DEMO-STORE', type: 'EXPENSE', amount: 75000, description: 'Konsumsi teknisi dan kertas nota', created_at: new Date(now - 7200000).toISOString() },
+            ],
+          });
+          
+          const read = () => {
+            if (typeof window === 'undefined') return seed();
+            try {
+              const raw = window.localStorage.getItem(STORAGE_KEY);
+              if (!raw) {
+                const initial = seed();
+                window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+                return initial;
+              }
+              return { ...seed(), ...JSON.parse(raw) };
+            } catch (_) {
+              return seed();
+            }
+          };
+          
+          const write = (data) => {
+            if (typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            return data;
+          };
+          
+          const sortNewest = (items) => [...items].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+          
+          export const demoStore = {
+            reset() { return write(seed()); },
+            getProducts() { return sortNewest(read().products); },
+            getUsers() { return read().users; },
+            getServices() { return sortNewest(read().services); },
+            getTransactions() { return sortNewest(read().transactions); },
+            findService(resi) { return read().services.find((service) => String(service.resi).toUpperCase() === String(resi).toUpperCase()) || null; },
+            addProduct(product) {
+              const data = read();
+              const next = { id: `PROD-${Date.now()}`, tenant_code: 'DEMO-STORE', stock: 0, category: 'SPAREPART', ...product };
+              data.products = [next, ...data.products];
+              write(data);
+              return next;
+            },
+            updateProduct(id, product) {
+              const data = read();
+              data.products = data.products.map((item) => String(item.id) === String(id) ? { ...item, ...product, id: item.id, tenant_code: 'DEMO-STORE' } : item);
+              write(data);
+              return data.products.find((item) => String(item.id) === String(id)) || { id, ...product, tenant_code: 'DEMO-STORE' };
+            },
+            deleteProduct(id) {
+              const data = read();
+              data.products = data.products.filter((item) => String(item.id) !== String(id));
+              write(data);
+              return { success: true };
+            },
+            addService(service) {
+              const data = read();
+              const next = { tenant_code: 'DEMO-STORE', status: 'PROSES', part_fee: 0, jasa_fee: 0, created_at: new Date().toISOString(), ...service };
+              data.services = [next, ...data.services.filter((item) => item.resi !== next.resi)];
+              write(data);
+              return next;
+            },
+            updateService(resi, updates) {
+              const data = read();
+              data.services = data.services.map((item) => item.resi === resi ? { ...item, ...updates, resi, tenant_code: 'DEMO-STORE' } : item);
+              write(data);
+              return data.services.find((item) => item.resi === resi) || { resi, tenant_code: 'DEMO-STORE', ...updates };
+            },
+            addTransaction(transaction) {
+              const data = read();
+              const next = { id: `DEMO-TX-${Date.now()}`, tenant_code: 'DEMO-STORE', created_at: new Date().toISOString(), ...transaction };
+              data.transactions = [next, ...data.transactions];
+              write(data);
+              return next;
+            },
+            addUser(user) {
+              const data = read();
+              const next = { id: `EMP-${Date.now()}`, tenant_code: 'DEMO-STORE', ...user };
+              data.users = [next, ...data.users];
+              write(data);
+              return next;
+            },
+          };
+          EOF
+          
+          python <<'PY'
+          from pathlib import Path
+          import re
+          
+          app = Path('src/App.jsx')
+          text = app.read_text()
+          if "PremiumFeedback" not in text:
+            text = text.replace("import { useStore } from './store/useStore';", "import { useStore } from './store/useStore';\nimport PremiumFeedback from './components/PremiumFeedback.jsx';")
+            text = text.replace("      <Router>\n        <Suspense", "      <Router>\n        <PremiumFeedback />\n        <Suspense")
+            app.write_text(text)
+          
+          api = Path('src/services/api.js')
+          text = api.read_text()
+          if "import { demoStore }" not in text:
+            text = text.replace("import { compressImageFile } from '../utils/imageCompressor';", "import { compressImageFile } from '../utils/imageCompressor';\nimport { demoStore } from './demoStore';")
+          
+          early_returns = {
+            "getProducts: async (tenantCode) => {": "      if (tenantCode === 'DEMO-STORE') return demoStore.getProducts();\n",
+            "getTransactions: async (tenantCode) => {": "      if (tenantCode === 'DEMO-STORE') return demoStore.getTransactions();\n",
+            "getUsers: async (tenantCode) => {": "      if (tenantCode === 'DEMO-STORE') return demoStore.getUsers();\n",
+            "getServices: async (tenantCode) => {": "      if (tenantCode === 'DEMO-STORE') return demoStore.getServices();\n",
+          }
+          for signature, line in early_returns.items():
+            idx = text.find(f"  {signature}\n    try {{\n")
+            if idx != -1:
+              marker = f"  {signature}\n    try {{\n"
+              replacement = marker + line
+              block_start = text.find(marker)
+              following = text[block_start:block_start+len(replacement)+80]
+              if line.strip() not in following:
+                text = text.replace(marker, replacement, 1)
+          
+          text = re.sub(
+            r"      if \(productData\.tenant_code === 'DEMO-STORE'\) \{\n        return \{.*?\n        \};\n      \}\n",
+            "      if (productData.tenant_code === 'DEMO-STORE') {\n        return demoStore.addProduct({ ...productData, name: cleanName, price: cleanPrice, stock: cleanStock, category: cleanCat, imageUrl: img, image_url: img });\n      }\n",
+            text,
+            count=1,
+            flags=re.S,
+          )
+          text = text.replace(
+            "      if (productData.tenant_code === 'DEMO-STORE' || String(id).startsWith('PROD-')) {\n        return { id, ...productData, imageUrl: img };\n      }",
+            "      if (productData.tenant_code === 'DEMO-STORE' || String(id).startsWith('PROD-')) {\n        return demoStore.updateProduct(id, { ...productData, imageUrl: img });\n      }"
+          )
+          text = text.replace(
+            "      if (String(id).startsWith('PROD-')) {\n        return { success: true };\n      }",
+            "      if (String(id).startsWith('PROD-')) {\n        return demoStore.deleteProduct(id);\n      }"
+          )
+          
+          demo_post = """  post: async (endpoint, body) => {
+    try {
+      if (body?.tenant_code === 'DEMO-STORE') {
+        if (endpoint === '/services') return demoStore.addService(body);
+        if (endpoint === '/services/update') {
+          const { resi, tenant_code, ...updates } = body;
+          return demoStore.updateService(resi, updates);
+        }
+        if (endpoint === '/services/finish') return demoStore.updateService(body.resi, body);
+        if (endpoint === '/transactions') return demoStore.addTransaction(body);
+        if (endpoint === '/users') return demoStore.addUser(body);
+        if (endpoint === '/products') return demoStore.addProduct(body);
+      }
+"""
+          if "if (body?.tenant_code === 'DEMO-STORE')" not in text:
+            text = text.replace("  post: async (endpoint, body) => {\n    try {\n", demo_post, 1)
+          
+          text = text.replace(
+            "      if (endpoint.startsWith('/transactions/')) {\n        const tenantCode = endpoint.split('/')[2];\n        const { data, error } = await supabase.from('transactions').select('*').eq('tenant_code', tenantCode).order('created_at', { ascending: false });",
+            "      if (endpoint.startsWith('/transactions/')) {\n        const tenantCode = endpoint.split('/')[2];\n        if (tenantCode === 'DEMO-STORE') return demoStore.getTransactions();\n        const { data, error } = await supabase.from('transactions').select('*').eq('tenant_code', tenantCode).order('created_at', { ascending: false });"
+          )
+          text = text.replace(
+            "      if (endpoint.startsWith('/services/')) {\n        const tenantCode = endpoint.split('/')[2];\n        const { data, error } = await supabase.from('services').select('*').eq('tenant_code', tenantCode).order('created_at', { ascending: false });",
+            "      if (endpoint.startsWith('/services/')) {\n        const tenantCode = endpoint.split('/')[2];\n        if (tenantCode === 'DEMO-STORE') return demoStore.getServices();\n        const { data, error } = await supabase.from('services').select('*').eq('tenant_code', tenantCode).order('created_at', { ascending: false });"
+          )
+          
+          if "const demoTracked = demoStore.findService(cleanResi);" not in text:
+            text = text.replace(
+              "      if (!cleanResi) throw new Error('Nomor resi tidak valid.');\n      const { data: service, error } = await supabase",
+              "      if (!cleanResi) throw new Error('Nomor resi tidak valid.');\n      const demoTracked = demoStore.findService(cleanResi);\n      if (demoTracked) return { ...demoTracked, tenant_name: 'UnitPro Demo Store' };\n      const { data: service, error } = await supabase"
+            )
+          api.write_text(text)
+          
+          admin = Path('src/pages/AdminDashboard.jsx')
+          text = admin.read_text()
+          if "const loadDemoData = async () =>" not in text:
+            fn = """
+  const loadDemoData = async () => {
+    if (tenant?.code !== 'DEMO-STORE') return;
+    const [demoProducts, demoServices, demoUsers, demoTransactions] = await Promise.all([
+      apiService.getProducts('DEMO-STORE'),
+      apiService.getServices('DEMO-STORE'),
+      apiService.getUsers('DEMO-STORE'),
+      apiService.getTransactions('DEMO-STORE')
+    ]);
+    setProducts(demoProducts);
+    setServices(demoServices);
+    setUsers(demoUsers);
+    setTransactions(demoTransactions);
+    window.UnitProToast?.({ type: 'success', message: 'Data demo UnitPro berhasil dimuat. Alur Owner, Servis, Kasir, dan Teknisi siap dicoba.' });
+  };
+
+"""
+            m = re.search(r"  const handleImageUpload = async \(file, callback\) => \{.*?\n  \};\n\n", text, flags=re.S)
+            if m:
+              text = text[:m.end()] + fn + text[m.end():]
+            else:
+              text = text.replace("  const handleCreateService = async (event) => {", fn + "  const handleCreateService = async (event) => {", 1)
+            admin.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit polish and clean temp files
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          rm -f .github/workflows/temp-uiux-flow-polish.yml .github/uiux-flow-polish-trigger.txt
+          git add -A
+          git status --short
+          git commit -m "feat: polish UI feedback and smooth demo service cashier flow" || echo "No source changes to commit"
+          git pull --rebase origin agent/v1-stabilization-integration
+          git push origin HEAD:agent/v1-stabilization-integration
