@@ -1,0 +1,150 @@
+name: Customer Tracking Privacy
+
+on:
+  push:
+    branches:
+      - agent/customer-tracking-privacy
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/customer-tracking-privacy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply customer tracking privacy patch
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          function replaceOnce(text, oldValue, newValue, label, required = true) {
+            const count = text.split(oldValue).length - 1;
+            console.log(label + ': ' + count + ' match(es)');
+            if (count === 0) {
+              if (required) throw new Error('Missing required pattern: ' + label);
+              return text;
+            }
+            return text.replace(oldValue, newValue);
+          }
+
+          const trackingPath = 'src/pages/PublicTracking.jsx';
+          let tracking = fs.readFileSync(trackingPath, 'utf8');
+
+          tracking = replaceOnce(
+            tracking,
+            "    const cleanResi = (targetResi || '').trim();",
+            "    const cleanResi = sanitizePublicResi(targetResi);",
+            'sanitize search resi'
+          );
+
+          tracking = replaceOnce(
+            tracking,
+            "  const isCompleted = result && (result.status === 'SELESAI' || result.status === 'DIAMBIL' || result.status === 'DI AMBIL' || result.status === 'DI_AMBIL');",
+            [
+              "  const isCompleted = result && (result.status === 'SELESAI' || result.status === 'DIAMBIL' || result.status === 'DI AMBIL' || result.status === 'DI_AMBIL');",
+              "",
+              "  const sanitizePublicResi = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);",
+              "",
+              "  const maskCustomerName = (name = '') => {",
+              "    const parts = String(name || '').trim().split(/\\s+/).filter(Boolean);",
+              "    if (parts.length === 0) return '-';",
+              "    if (parts.length === 1) return parts[0].length <= 2 ? parts[0] : parts[0].slice(0, 1) + '***';",
+              "    return parts.map((part, index) => index === 0 ? part : part.slice(0, 1) + '.').join(' ');",
+              "  };",
+              "",
+              "  const cleanPublicIssue = (issue = '') => String(issue || '')",
+              "    .replace(/\\[[^\\]]*?\\]/g, '')",
+              "    .replace(/\\| Kelengkapan:.*/i, '')",
+              "    .replace(/(?:\\+?62|0)8\\d{7,12}/g, '[nomor disembunyikan]')",
+              "    .trim();",
+              "",
+              "  const buildStoreWhatsAppUrl = (phone = '', resiValue = '') => {",
+              "    const digits = String(phone || '').replace(/\\D/g, '');",
+              "    if (!digits) return '';",
+              "    const target = digits.startsWith('62') ? digits : digits.startsWith('0') ? '62' + digits.slice(1) : digits.startsWith('8') ? '62' + digits : digits;",
+              "    return 'https://wa.me/' + target + '?text=' + encodeURIComponent('Halo, saya ingin menanyakan status servis resi ' + sanitizePublicResi(resiValue));",
+              "  };"
+            ].join('\n'),
+            'privacy helpers'
+          );
+
+          tracking = replaceOnce(
+            tracking,
+            "                onChange={(e) => setResi(e.target.value.toUpperCase())}",
+            "                onChange={(e) => setResi(sanitizePublicResi(e.target.value))}",
+            'sanitize resi input'
+          );
+
+          tracking = replaceOnce(
+            tracking,
+            "                  { label: 'Pelanggan', value: result.customer_name },",
+            "                  { label: 'Pelanggan', value: maskCustomerName(result.customer_name) },",
+            'mask customer name'
+          );
+
+          tracking = replaceOnce(
+            tracking,
+            "                  { label: 'Keluhan', value: (result.issue || '').replace(/\\[.*?\\]/g, '').replace(/\\| Kelengkapan:.*/, '').trim() },",
+            "                  { label: 'Keluhan', value: cleanPublicIssue(result.issue) },",
+            'clean public issue'
+          );
+
+          tracking = replaceOnce(
+            tracking,
+            "                    href={`https://wa.me/${tenantSettings.store_wa.replace(/^0/, '62')}?text=Halo, saya ingin menanyakan status servis resi ${result.resi}`}",
+            "                    href={buildStoreWhatsAppUrl(tenantSettings.store_wa, result.resi)}",
+            'safe store wa url'
+          );
+
+          fs.writeFileSync(trackingPath, tracking);
+
+          const apiPath = 'src/services/api.js';
+          let api = fs.readFileSync(apiPath, 'utf8');
+          api = replaceOnce(
+            api,
+            [
+              "      const cleanResi = (resi || '').trim().toUpperCase();",
+              "      const { data: service, error } = await supabase",
+              "        .from('services')",
+              "        .select('*')",
+              "        .eq('resi', cleanResi)",
+              "        .maybeSingle();"
+            ].join('\n'),
+            [
+              "      const cleanResi = String(resi || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);",
+              "      if (!cleanResi) throw new Error('Nomor resi tidak valid.');",
+              "      const { data: service, error } = await supabase",
+              "        .from('services')",
+              "        .select('resi, tenant_code, customer_name, device_name, issue, status, jasa_fee, part_fee, created_at')",
+              "        .eq('resi', cleanResi)",
+              "        .maybeSingle();"
+            ].join('\n'),
+            'public trackService field allowlist'
+          );
+          fs.writeFileSync(apiPath, api);
+
+          for (const path of ['.github/workflows/temp-customer-tracking-privacy.yml', '__privacy_trigger__']) {
+            if (fs.existsSync(path)) fs.unlinkSync(path);
+          }
+          NODE
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit source changes
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/PublicTracking.jsx src/services/api.js
+          git add -u .github/workflows/temp-customer-tracking-privacy.yml __privacy_trigger__
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: protect public tracking privacy"
+          git push
