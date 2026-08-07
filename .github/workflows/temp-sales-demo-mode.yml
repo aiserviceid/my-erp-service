@@ -23,238 +23,141 @@ jobs:
           python <<'PY'
           from pathlib import Path
 
+          def block(lines):
+              return '\n'.join(lines) + '\n'
+
           path = Path('src/pages/LandingPage.jsx')
           text = path.read_text()
 
-          old = """  const startDemo = () => {
-    setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123');
-    useStore.getState().updateTenantSettings({ storeName: 'UnitPro Demo Store', store_wa: '081234567890', theme: 'default' });
-    navigate('/admin');
-  };
-"""
-          new = """  const demoRoles = [
-    {
-      id: 'owner',
-      icon: BarChart3,
-      title: 'Demo Owner / Admin',
-      description: 'Lihat dashboard, servis, stok, keuangan, nota, dan kontrol toko.',
-      action: 'Masuk sebagai Owner'
-    },
-    {
-      id: 'kasir',
-      icon: ShoppingCart,
-      title: 'Demo Kasir',
-      description: 'Coba kasir POS, tambah servis, cetak nota, dan cek stok.',
-      action: 'Masuk sebagai Kasir'
-    },
-    {
-      id: 'teknisi',
-      icon: Wrench,
-      title: 'Demo Teknisi',
-      description: 'Coba daftar tugas, update status, rincian tagihan, dan WA pelanggan.',
-      action: 'Masuk sebagai Teknisi'
-    }
-  ];
+          old = block([
+              "  const startDemo = () => {",
+              "    setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123');",
+              "    useStore.getState().updateTenantSettings({ storeName: 'UnitPro Demo Store', store_wa: '081234567890', theme: 'default' });",
+              "    navigate('/admin');",
+              "  };",
+          ])
 
-  const startDemo = (role = 'owner') => {
-    const demoSettings = {
-      storeName: 'UnitPro Demo Store',
-      store_wa: '081234567890',
-      theme: 'default',
-      bank_name: 'BCA',
-      bank_account: '1234567890',
-      bank_holder: 'UnitPro Demo Store',
-      receipt_note_service: 'Garansi servis mengikuti ketentuan toko. Simpan nota ini sebagai bukti pengambilan.',
-      receipt_note_pos: 'Barang yang sudah dibeli tidak dapat ditukar kecuali ada perjanjian tertulis.'
-    };
+          new = block([
+              "  const demoRoles = [",
+              "    {",
+              "      id: 'owner',",
+              "      icon: BarChart3,",
+              "      title: 'Demo Owner / Admin',",
+              "      description: 'Lihat dashboard, servis, stok, keuangan, nota, dan kontrol toko.',",
+              "      action: 'Masuk sebagai Owner'",
+              "    },",
+              "    {",
+              "      id: 'kasir',",
+              "      icon: ShoppingCart,",
+              "      title: 'Demo Kasir',",
+              "      description: 'Coba kasir POS, tambah servis, cetak nota, dan cek stok.',",
+              "      action: 'Masuk sebagai Kasir'",
+              "    },",
+              "    {",
+              "      id: 'teknisi',",
+              "      icon: Wrench,",
+              "      title: 'Demo Teknisi',",
+              "      description: 'Coba daftar tugas, update status, rincian tagihan, dan WA pelanggan.',",
+              "      action: 'Masuk sebagai Teknisi'",
+              "    }",
+              "  ];",
+              "",
+              "  const startDemo = (role = 'owner') => {",
+              "    const demoSettings = {",
+              "      storeName: 'UnitPro Demo Store',",
+              "      store_wa: '081234567890',",
+              "      theme: 'default',",
+              "      bank_name: 'BCA',",
+              "      bank_account: '1234567890',",
+              "      bank_holder: 'UnitPro Demo Store',",
+              "      receipt_note_service: 'Garansi servis mengikuti ketentuan toko. Simpan nota ini sebagai bukti pengambilan.',",
+              "      receipt_note_pos: 'Barang yang sudah dibeli tidak dapat ditukar kecuali ada perjanjian tertulis.'",
+              "    };",
+              "",
+              "    setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123', '081234567890', demoSettings);",
+              "    useStore.getState().updateTenantSettings(demoSettings);",
+              "",
+              "    if (role === 'kasir') {",
+              "      useStore.getState().setEmployee({ id: 'EMP-3', name: 'Citra (Kasir Demo)', role: 'KASIR', pin: '1111', phone: '081234567803', tenant_code: 'DEMO-STORE', token: 'demo-kasir-token' });",
+              "      navigate('/employee');",
+              "      return;",
+              "    }",
+              "",
+              "    if (role === 'teknisi') {",
+              "      useStore.getState().setEmployee({ id: 'EMP-1', name: 'Andi (Teknisi Demo)', role: 'TEKNISI', pin: '1234', phone: '081234567801', tenant_code: 'DEMO-STORE', token: 'demo-teknisi-token' });",
+              "      navigate('/employee');",
+              "      return;",
+              "    }",
+              "",
+              "    useStore.getState().clearEmployee?.();",
+              "    navigate('/admin');",
+              "  };",
+          ])
 
-    setTenant('DEMO-STORE', 'UnitPro Demo Store', '', 'pro', 'token_demo_123', '081234567890', demoSettings);
-    useStore.getState().updateTenantSettings(demoSettings);
-
-    if (role === 'kasir') {
-      useStore.getState().setEmployee({
-        id: 'EMP-3',
-        name: 'Citra (Kasir Demo)',
-        role: 'KASIR',
-        pin: '1111',
-        phone: '081234567803',
-        tenant_code: 'DEMO-STORE',
-        token: 'demo-kasir-token'
-      });
-      navigate('/employee');
-      return;
-    }
-
-    if (role === 'teknisi') {
-      useStore.getState().setEmployee({
-        id: 'EMP-1',
-        name: 'Andi (Teknisi Demo)',
-        role: 'TEKNISI',
-        pin: '1234',
-        phone: '081234567801',
-        tenant_code: 'DEMO-STORE',
-        token: 'demo-teknisi-token'
-      });
-      navigate('/employee');
-      return;
-    }
-
-    useStore.getState().clearEmployee?.();
-    navigate('/admin');
-  };
-"""
-          if old not in text:
-            raise SystemExit('startDemo block not found')
-          text = text.replace(old, new)
-
+          if old not in text and 'const demoRoles = [' not in text:
+              raise SystemExit('startDemo block not found')
+          if 'const demoRoles = [' not in text:
+              text = text.replace(old, new)
           text = text.replace('onClick={startDemo}>Lihat demo</button>', "onClick={() => startDemo('owner')}>Lihat demo</button>")
 
-          anchor = """        </div>
-      </section>
+          anchor = block([
+              "        </div>",
+              "      </section>",
+              "",
+              "      <section className=\"unitpro-proof-band\" aria-label=\"Manfaat utama UnitPro\">",
+          ])
 
-      <section className=\"unitpro-proof-band\" aria-label=\"Manfaat utama UnitPro\">"""
-          demo_section = """        </div>
-        <div className=\"unitpro-demo-panel\" aria-label=\"Pilih mode demo UnitPro\">
-          <div className=\"unitpro-demo-copy\">
-            <p className=\"unitpro-kicker\">Sales Demo Mode</p>
-            <h2>Coba aplikasi seperti toko servis sungguhan.</h2>
-            <span>Tanpa daftar, tanpa setup. Pilih peran dan langsung lihat alur UnitPro dari sisi owner, kasir, atau teknisi.</span>
-          </div>
-          <div className=\"unitpro-demo-grid\">
-            {demoRoles.map(({ id, icon: Icon, title, description, action }) => (
-              <button key={id} type=\"button\" className=\"unitpro-demo-card\" onClick={() => startDemo(id)}>
-                <span><Icon size={21} /></span>
-                <strong>{title}</strong>
-                <small>{description}</small>
-                <em>{action} <ArrowRight size={15} /></em>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+          demo_section = block([
+              "        </div>",
+              "        <div className=\"unitpro-demo-panel\" aria-label=\"Pilih mode demo UnitPro\">",
+              "          <div className=\"unitpro-demo-copy\">",
+              "            <p className=\"unitpro-kicker\">Sales Demo Mode</p>",
+              "            <h2>Coba aplikasi seperti toko servis sungguhan.</h2>",
+              "            <span>Tanpa daftar, tanpa setup. Pilih peran dan langsung lihat alur UnitPro dari sisi owner, kasir, atau teknisi.</span>",
+              "          </div>",
+              "          <div className=\"unitpro-demo-grid\">",
+              "            {demoRoles.map(({ id, icon: Icon, title, description, action }) => (",
+              "              <button key={id} type=\"button\" className=\"unitpro-demo-card\" onClick={() => startDemo(id)}>",
+              "                <span><Icon size={21} /></span>",
+              "                <strong>{title}</strong>",
+              "                <small>{description}</small>",
+              "                <em>{action} <ArrowRight size={15} /></em>",
+              "              </button>",
+              "            ))}",
+              "          </div>",
+              "        </div>",
+              "      </section>",
+              "",
+              "      <section className=\"unitpro-proof-band\" aria-label=\"Manfaat utama UnitPro\">",
+          ])
 
-      <section className=\"unitpro-proof-band\" aria-label=\"Manfaat utama UnitPro\">"""
-          if anchor not in text:
-            raise SystemExit('hero closing anchor not found')
-          text = text.replace(anchor, demo_section)
-
+          if 'unitpro-demo-panel' not in text:
+              if anchor not in text:
+                  raise SystemExit('hero closing anchor not found')
+              text = text.replace(anchor, demo_section)
           path.write_text(text)
 
           css_path = Path('src/pages/LandingPage.css')
           css = css_path.read_text()
+          css_lines = [
+              '',
+              '/* Sales Demo Mode */',
+              '.unitpro-demo-panel { width: min(1120px, calc(100% - 32px)); margin: 34px auto 0; padding: 22px; border-radius: 28px; background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.22); box-shadow: 0 24px 70px rgba(15,23,42,.14); backdrop-filter: blur(18px); display: grid; grid-template-columns: minmax(260px,.88fr) 1.4fr; gap: 20px; align-items: stretch; }',
+              '.unitpro-demo-copy { padding: 18px; border-radius: 22px; background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color: #dbeafe; }',
+              '.unitpro-demo-copy h2 { margin: 8px 0 10px; color: #fff; font-size: clamp(1.4rem,2vw,2rem); line-height: 1.12; }',
+              '.unitpro-demo-copy span { display: block; color: #cbd5e1; line-height: 1.6; font-size: .94rem; }',
+              '.unitpro-demo-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }',
+              '.unitpro-demo-card { border: 1px solid rgba(226,232,240,.95); background: #fff; border-radius: 22px; padding: 18px; text-align: left; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; color: #0f172a; min-height: 190px; display: flex; flex-direction: column; gap: 10px; }',
+              '.unitpro-demo-card:hover { transform: translateY(-4px); border-color: rgba(16,185,129,.55); box-shadow: 0 18px 40px rgba(15,23,42,.12); }',
+              '.unitpro-demo-card span { width: 42px; height: 42px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #ecfdf5; color: #047857; }',
+              '.unitpro-demo-card strong { font-size: 1rem; font-weight: 900; }',
+              '.unitpro-demo-card small { color: #64748b; line-height: 1.45; font-size: .84rem; flex: 1; }',
+              '.unitpro-demo-card em { display: inline-flex; align-items: center; gap: 6px; color: #059669; font-style: normal; font-weight: 800; font-size: .82rem; }',
+              '@media (max-width: 900px) { .unitpro-demo-panel { grid-template-columns: 1fr; } .unitpro-demo-grid { grid-template-columns: 1fr; } .unitpro-demo-card { min-height: auto; } }',
+          ]
           if '.unitpro-demo-panel' not in css:
-            css += r'''
-
-/* Sales Demo Mode */
-.unitpro-demo-panel {
-  width: min(1120px, calc(100% - 32px));
-  margin: 34px auto 0;
-  padding: 22px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(18px);
-  display: grid;
-  grid-template-columns: minmax(260px, 0.88fr) 1.4fr;
-  gap: 20px;
-  align-items: stretch;
-}
-
-.unitpro-demo-copy {
-  padding: 18px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #dbeafe;
-}
-
-.unitpro-demo-copy h2 {
-  margin: 8px 0 10px;
-  color: #ffffff;
-  font-size: clamp(1.4rem, 2vw, 2rem);
-  line-height: 1.12;
-}
-
-.unitpro-demo-copy span {
-  display: block;
-  color: #cbd5e1;
-  line-height: 1.6;
-  font-size: 0.94rem;
-}
-
-.unitpro-demo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.unitpro-demo-card {
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: #ffffff;
-  border-radius: 22px;
-  padding: 18px;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  color: #0f172a;
-  min-height: 190px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.unitpro-demo-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(16, 185, 129, 0.55);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-}
-
-.unitpro-demo-card span {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.unitpro-demo-card strong {
-  font-size: 1rem;
-  font-weight: 900;
-}
-
-.unitpro-demo-card small {
-  color: #64748b;
-  line-height: 1.45;
-  font-size: 0.84rem;
-  flex: 1;
-}
-
-.unitpro-demo-card em {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #059669;
-  font-style: normal;
-  font-weight: 800;
-  font-size: 0.82rem;
-}
-
-@media (max-width: 900px) {
-  .unitpro-demo-panel {
-    grid-template-columns: 1fr;
-  }
-  .unitpro-demo-grid {
-    grid-template-columns: 1fr;
-  }
-  .unitpro-demo-card {
-    min-height: auto;
-  }
-}
-'''
-          css_path.write_text(css)
+              css += '\n'.join(css_lines) + '\n'
+              css_path.write_text(css)
           PY
       - name: Install dependencies
         run: npm ci
