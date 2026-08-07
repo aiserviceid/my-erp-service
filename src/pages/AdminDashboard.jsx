@@ -8,6 +8,7 @@ import Barcode from 'react-barcode';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
+import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import { compressImageFile } from '../utils/imageCompressor';
 import ForumCommunity from '../components/ForumCommunity';
 import POSView from '../components/POSView';
@@ -678,7 +679,7 @@ export default function AdminDashboard() {
         const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
         const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
         const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(newStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
-        window.open(`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');
+        await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });
       }
     } catch (error) {
       alert('Gagal update status');
@@ -1385,7 +1386,7 @@ export default function AdminDashboard() {
                             setTimeout(() => {
                               const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
                               let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
-                              window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(personalizedMsg)}`, '_blank');
+                              window.open(buildManualWhatsAppUrl(cleanPhone, personalizedMsg), '_blank');
                             }, idx * 800);
                           });
                         }}
@@ -1423,7 +1424,7 @@ export default function AdminDashboard() {
                                       onClick={() => {
                                         const msgInput = document.getElementById('waBlastMessage');
                                         const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
-                                        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}`, '_blank');
+                                        window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');
                                       }}
                                     >
                                       Kirim WA Blast 📲
@@ -2083,7 +2084,7 @@ export default function AdminDashboard() {
                                       const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
                                       const trackingUrl = `${window.location.origin}/tracking?resi=${s.resi}`;
                                       const msg = `Halo Kak ${s.customer_name}, ini update status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${storeName}* saat ini: *${getStatusInfo(newStatus).label}*.\n\nKlik link ini untuk cek status langsung dari HP:\n${trackingUrl}`;
-                                      window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');
+                                      await sendWhatsAppNotification({ tenant, target: s.customer_phone, message: msg, openManual: true });
                                     }
                                   } catch(err) { alert('Gagal update status'); }
                                 }}
