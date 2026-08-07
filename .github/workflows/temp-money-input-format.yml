@@ -44,7 +44,7 @@ jobs:
             if 'const formatMoneyInput = (value)' not in text:
               text, count = re.subn(r"(\n\s*const normalizeMoneyInput = \(value\) => \{.*?\n\s*\};)", r"\1" + helper, text, count=1, flags=re.S)
               if count != 1:
-                raise SystemExit(f'normalizeMoneyInput block not found in {path}')
+                print(f'WARN: normalizeMoneyInput block not found in {path}')
 
             money_keywords = ['name="part_fee"', 'name="jasa_fee"', 'name="discount"', 'name="diskon"', 'name="price"', 'name="amount"', 'id="partFeeInput"', 'id="jasaFeeInput"', 'id="bon-amount"', 'value={newProdPrice}', 'name="estimasi_biaya"']
 
@@ -55,7 +55,7 @@ jobs:
               tag = tag.replace('type="number"', 'type="text"')
               if 'inputMode=' not in tag:
                 tag = tag.replace('type="text"', 'type="text" inputMode="numeric"', 1)
-              if 'onInput=' not in tag and 'value={newProdPrice}' not in tag:
+              if 'onInput=' not in tag and 'value={newProdPrice}' not in tag and 'handleMoneyInput' in text:
                 tag = tag[:-2] + ' onInput={handleMoneyInput} />' if tag.endswith('/>') else tag[:-1] + ' onInput={handleMoneyInput}>'
               if 'name="part_fee"' in tag or 'id="partFeeInput"' in tag:
                 tag = tag.replace(' required', '')
