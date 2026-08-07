@@ -1,0 +1,95 @@
+name: Batch 4 Service Finish Flow
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - '.github/batch4-service-finish-flow-trigger.txt'
+
+jobs:
+  patch-build-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch batch 4 service finish flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          admin = Path('src/pages/AdminDashboard.jsx')
+          text = admin.read_text()
+          text = text.replace(
+            "<h3 style={{ margin: 0 }}>Edit Nota Servis</h3>",
+            "<h3 style={{ margin: 0 }}>{selectedService.__markSelesaiFromAdmin ? 'Selesaikan Servis & Tagihan' : 'Edit Nota Servis'}</h3>"
+          )
+          text = text.replace(
+            "<p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>",
+            "<p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '10px' }}>Resi: <strong>{selectedService.resi}</strong></p>\n            {selectedService.__markSelesaiFromAdmin && (\n              <div style={{ marginBottom: '14px', padding: '12px', borderRadius: '14px', background: '#ecfdf5', border: '1px solid #bbf7d0', color: '#065f46', fontSize: '0.82rem', fontWeight: 800, lineHeight: 1.5 }}>\n                Isi rincian perbaikan dan biaya final. Sparepart opsional; jasa bisa diisi tanpa sparepart. Setelah disimpan, status menjadi <strong>SELESAI</strong> dan pelanggan bisa langsung dihubungi via WhatsApp.\n              </div>\n            )}"
+          )
+          old = """      const nextService = { ...selectedService, ...updatedService, ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
+      setSelectedService(nextService);
+      setServices(services.map(s => s.resi === selectedService.resi ? { ...s, ...nextService } : s));
+      setShowEditServiceNota(false);
+      alert(selectedService.__markSelesaiFromAdmin ? 'Rincian tagihan berhasil disimpan dan status menjadi Selesai.' : 'Nota servis berhasil dikoreksi.');"""
+          new = """      const nextService = { ...selectedService, ...updatedService, ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
+      setSelectedService(nextService);
+      setServices(services.map(s => s.resi === selectedService.resi ? { ...s, ...nextService } : s));
+      setShowEditServiceNota(false);
+      if (selectedService.__markSelesaiFromAdmin) {
+        const totalTagihan = Math.max(0, partFee + jasaFee - discount);
+        const trackingUrl = `${window.location.origin}/tracking?resi=${selectedService.resi}`;
+        const message = `Halo Kak ${selectedService.customer_name}, servis ${selectedService.device_name} dengan Resi ${selectedService.resi} sudah *SELESAI*.\n\nRincian biaya:\n- Sparepart: Rp ${partFee.toLocaleString('id-ID')}\n- Jasa: Rp ${jasaFee.toLocaleString('id-ID')}\n- Diskon: Rp ${discount.toLocaleString('id-ID')}\nTotal: *Rp ${totalTagihan.toLocaleString('id-ID')}*\n\nCek status di sini:\n${trackingUrl}\n\nTerima kasih.`;
+        const shouldSendWA = selectedService.customer_phone && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WA pelanggan?', message: 'Status servis sudah menjadi SELESAI. Kirim info tagihan dan link tracking ke pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm('Kirim info selesai servis ke WhatsApp pelanggan?')));
+        if (shouldSendWA) {
+          await sendWhatsAppNotification({ tenant, target: selectedService.customer_phone, message });
+        }
+        alert('Rincian tagihan berhasil disimpan dan status menjadi Selesai.');
+      } else {
+        alert('Nota servis berhasil dikoreksi.');
+      }"""
+          if old not in text:
+            raise SystemExit('Admin success block not found')
+          text = text.replace(old, new)
+          admin.write_text(text)
+
+          emp = Path('src/pages/EmployeePortal.jsx')
+          text = emp.read_text()
+          text = text.replace(
+            "<h3 style={{ margin: 0 }}>Rincian Biaya Servis</h3>",
+            "<h3 style={{ margin: 0 }}>Selesaikan Servis & Tagihan</h3>"
+          )
+          text = text.replace(
+            "<p style={{ fontSize: '0.9rem', marginBottom: '15px' }}>Resi: {selectedService.resi}</p>",
+            "<p style={{ fontSize: '0.9rem', marginBottom: '10px' }}>Resi: <strong>{selectedService.resi}</strong></p>\n              <div style={{ marginBottom: '15px', padding: '12px', borderRadius: '14px', background: '#ecfdf5', border: '1px solid #bbf7d0', color: '#065f46', fontSize: '0.82rem', fontWeight: 800, lineHeight: 1.5 }}>\n                Isi rincian pekerjaan final. Sparepart opsional; jasa bisa diisi tanpa sparepart. Setelah disimpan, status menjadi <strong>SELESAI</strong> dan WhatsApp pelanggan diproses.\n              </div>"
+          )
+          text = text.replace(
+            "await apiService.post('/services/finish', {\n                  resi: selectedService.resi,\n                  status: 'SELESAI',",
+            "await apiService.post('/services/finish', {\n                  resi: selectedService.resi,\n                  tenant_code: selectedService.tenant_code || tenant?.code || employee?.tenant_code,\n                  status: 'SELESAI',"
+          )
+          text = text.replace(
+            "alert('Berhasil disimpan & Notifikasi WA diproses!');",
+            "alert('Servis selesai. Rincian tagihan tersimpan dan WhatsApp pelanggan diproses.');"
+          )
+          emp.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit batch 4 and clean temp files
+        if: always()
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/pages/AdminDashboard.jsx src/pages/EmployeePortal.jsx
+          git commit -m "feat: polish service completion flow" || echo "nothing to commit"
+          git rm .github/workflows/temp-batch4-service-finish-flow.yml .github/batch4-service-finish-flow-trigger.txt || true
+          git commit -m "chore: clean batch 4 temp workflow" || echo "nothing to clean"
+          git push || true
