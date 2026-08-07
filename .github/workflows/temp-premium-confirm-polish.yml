@@ -1,0 +1,67 @@
+name: Premium Confirm Polish
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+
+jobs:
+  polish-build-clean:
+    if: contains(github.event.head_commit.message, 'trigger premium confirm polish workflow')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch premium confirm usages
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          
+          def patch(path, replacements):
+              p = Path(path)
+              text = p.read_text()
+              original = text
+              for old, new in replacements:
+                  if old in text:
+                      text = text.replace(old, new)
+                  else:
+                      print(f'Pattern not found in {path}: {old[:80]}')
+              if text != original:
+                  p.write_text(text)
+          
+          admin_confirm_status_old = "if (hasFeature(tenant?.tier, 'whatsappNotif') && confirm('Kirim update status ke WhatsApp pelanggan?')) {"
+          admin_confirm_status_new = "if (hasFeature(tenant?.tier, 'whatsappNotif') && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WhatsApp pelanggan?', message: 'Status berhasil disimpan. Kirim update status ke WhatsApp pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'info' }) : Promise.resolve(window.confirm('Kirim update status ke WhatsApp pelanggan?')))) {"
+          
+          patch('src/pages/AdminDashboard.jsx', [
+              (admin_confirm_status_old, admin_confirm_status_new),
+              ("if(confirm(`Yakin ingin menghapus \"${p.name}\"?`)) {", "if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Hapus barang?', message: `Barang \"${p.name}\" akan dihapus dari inventori.`, confirmText: 'Hapus', tone: 'warning' }) : Promise.resolve(window.confirm(`Yakin ingin menghapus \"${p.name}\"?`)))) {"),
+              ("if(confirm('Yakin ingin menghapus karyawan ini?')) {", "if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Hapus anggota tim?', message: 'Akun tim ini akan dihapus dari toko.', confirmText: 'Hapus', tone: 'warning' }) : Promise.resolve(window.confirm('Yakin ingin menghapus karyawan ini?')))) {"),
+              ("if(confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')) {", "if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Setujui kasbon?', message: 'Nominal ini akan memotong THP anggota tim.', confirmText: 'Setujui', tone: 'warning' }) : Promise.resolve(window.confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')))) {"),
+              ("if(confirm('Tolak kasbon ini?')) {", "if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tolak kasbon?', message: 'Pengajuan kasbon ini akan ditolak dan dihapus dari daftar.', confirmText: 'Tolak', tone: 'warning' }) : Promise.resolve(window.confirm('Tolak kasbon ini?')))) {"),
+          ])
+          
+          patch('src/pages/EmployeePortal.jsx', [
+              ("if (confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\\n\\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)) {", "if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim resi ke WhatsApp?', message: `Servis berhasil ditambahkan.\\nResi: ${resiGenerated}\\n\\nKirim info resi ke WhatsApp pelanggan sekarang?`, confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\\n\\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)))) {"),
+              ("if (confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)) {", "if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pendaftaran?', message: 'Nota pendaftaran siap dicetak untuk pelanggan.', confirmText: 'Cetak Nota', tone: 'info' }) : Promise.resolve(window.confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)))) {"),
+              ("if(confirm('Ubah status menjadi Di Ambil?\\n\\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')) {", "if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\\n\\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {"),
+              ("if (confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')) {", "if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pengambilan?', message: 'Servis sudah lunas. Cetak nota pengambilan untuk pelanggan?', confirmText: 'Cetak Nota', tone: 'success' }) : Promise.resolve(window.confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')))) {"),
+          ])
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit polish and clean temp files
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git rm -f .github/workflows/temp-premium-confirm-polish.yml .github/premium-confirm-polish-trigger.txt
+          git add src/pages/AdminDashboard.jsx src/pages/EmployeePortal.jsx
+          git commit -m "feat: replace key confirms with premium modal" || echo "No changes to commit"
+          git push origin agent/v1-stabilization-integration
