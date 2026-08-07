@@ -1,5 +1,6 @@
 name: Apply Security Tenant Guard
 
+# rerun from latest branch head
 on:
   push:
     branches:
