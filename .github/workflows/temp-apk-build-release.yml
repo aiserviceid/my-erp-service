@@ -1,0 +1,71 @@
+name: apk_release_build
+
+on:
+  push:
+    branches:
+      - agent/v1-stabilization-integration
+    paths:
+      - '.github/workflows/temp-apk-build-release.yml'
+      - '.github/apk-build-release-trigger.txt'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build_apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v1-stabilization-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install dependencies
+        run: npm ci
+      - name: Web build
+        run: npm run build
+      - name: Sync Android
+        run: npm run sync:android
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+      - name: Build summary
+        run: |
+          echo "Web build: PASS" > release-build-summary.txt
+          echo "Android sync: PASS" >> release-build-summary.txt
+          echo "Debug APK: PASS" >> release-build-summary.txt
+          echo "Smoke: NOT PASSED HERE - previous smoke workflow hung" >> release-build-summary.txt
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unitpro-debug-apk-release-build
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload build summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unitpro-release-build-summary
+          path: release-build-summary.txt
+      - name: Commit cleanup
+        if: always()
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git rm --ignore-unmatch .github/workflows/temp-apk-build-release.yml .github/apk-build-release-trigger.txt
+          if git diff --cached --quiet; then
+            echo "No cleanup changes"
+            exit 0
+          fi
+          git commit -m "chore: cleanup apk release build workflow"
+          git pull --rebase origin agent/v1-stabilization-integration
+          git push origin HEAD:agent/v1-stabilization-integration
