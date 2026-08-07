@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, Component, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from './store/useStore';
+import PremiumFeedback from './components/PremiumFeedback';
 
 const Login = lazy(() => import('./pages/Login'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -124,6 +125,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <PremiumFeedback />
       <Router>
         <Suspense fallback={<PageLoader />}>
           <Routes>
