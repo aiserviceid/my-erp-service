@@ -163,6 +163,11 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   // Handle checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    const stockProblem = cart.find(item => (item.category || '').toUpperCase() !== 'JASA' && Number(item.stock || 0) < Number(item.qty || 0));
+    if (stockProblem) {
+      alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);
+      return;
+    }
     if (paymentMethod === 'TUNAI' && cashReceivedNum < grandTotal) {
       alert('Uang yang diterima kurang dari total belanja!');
       return;
@@ -195,25 +200,49 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     const phoneString = posCustPhone ? ` | WA: ${posCustPhone}` : '';
 
     try {
-      // 1. Create transaction
-      const savedTransaction = await apiService.post('/transactions', {
-        tenant_code: tenant.code,
-        type: 'POS_SALES',
-        amount: grandTotal,
-        description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
-      });
-      receiptData.transactionDbId = savedTransaction?.id;
-
-      // 2. Update stock for each item
+      // 1. Secure stock first so failed stock updates do not create POS transactions.
       const currentUser = localStorage.getItem('EMPLOYEE_NAME') || 'Kasir / Admin';
-      for (const item of cart) {
-        const newStock = Math.max(0, item.stock - item.qty);
-        apiService.updateProduct(item.id, {
-          name: item.name,
-          price: item.price,
-          stock: newStock,
-          cost_price: item.cost_price || 0
-        }, item.stock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`).catch(() => {});
+      const stockItems = cart.filter(item => (item.category || '').toUpperCase() !== 'JASA');
+      const updatedStockItems = [];
+      try {
+        for (const item of stockItems) {
+          const originalStock = Number(item.stock || 0);
+          const newStock = originalStock - Number(item.qty || 0);
+          if (newStock < 0) {
+            throw new Error(`Stok ${item.name} tidak cukup.`);
+          }
+          await apiService.updateProduct(item.id, {
+            name: item.name,
+            price: item.price,
+            stock: newStock,
+            cost_price: item.cost_price || 0
+          }, originalStock, currentUser, `Penjualan Kasir POS (${receiptData.transactionId})`);
+          updatedStockItems.push({ ...item, originalStock, newStock });
+        }
+
+        const savedTransaction = await apiService.post('/transactions', {
+          tenant_code: tenant.code,
+          type: 'POS_SALES',
+          amount: grandTotal,
+          description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
+        });
+        receiptData.transactionDbId = savedTransaction?.id;
+      } catch (checkoutErr) {
+        if (updatedStockItems.length > 0) {
+          const rollbackResults = await Promise.allSettled(updatedStockItems.map(item =>
+            apiService.updateProduct(item.id, {
+              name: item.name,
+              price: item.price,
+              stock: item.originalStock,
+              cost_price: item.cost_price || 0
+            }, item.newStock, currentUser, `Rollback checkout POS gagal (${receiptData.transactionId})`)
+          ));
+          const rollbackFailed = rollbackResults.some(result => result.status === 'rejected');
+          if (rollbackFailed) {
+            throw new Error(`${checkoutErr.message} Stok sempat berubah dan rollback gagal. Segera koreksi stok manual.`);
+          }
+        }
+        throw checkoutErr;
       }
 
       // 3. Show receipt
@@ -247,7 +276,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       } catch (e) {}
 
     } catch (err) {
-      alert('Gagal menyimpan transaksi: ' + err.message);
+      alert('Gagal memproses checkout: ' + err.message);
     } finally {
       setCheckoutLoading(false);
     }
