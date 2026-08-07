@@ -44,21 +44,18 @@ jobs:
               'notification service import'
           )
 
-          # Customer status update from admin service detail flow.
           replace_once(
               "window.open(`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');",
               "await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });",
               'admin customer status notification'
           )
 
-          # Customer status update from service list row.
           replace_once(
               "window.open(`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(msg)}`, '_blank');",
               "await sendWhatsAppNotification({ tenant, target: s.customer_phone, message: msg, openManual: true });",
               'admin row status notification'
           )
 
-          # WA blast manual opening remains manual, but URL building is centralized.
           replace_once(
               "window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(personalizedMsg)}`, '_blank');",
               "window.open(buildManualWhatsAppUrl(cleanPhone, personalizedMsg), '_blank');",
