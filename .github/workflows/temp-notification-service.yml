@@ -25,7 +25,7 @@ jobs:
       - name: Apply notification service patch
         shell: bash
         run: |
-          cat > /tmp/notification_patch.py <<'PY'
+          python - <<'PY'
           from pathlib import Path
 
           path = Path('src/pages/EmployeePortal.jsx')
@@ -56,90 +56,95 @@ jobs:
               'approval manual wa url'
           )
 
-          old_transfer = """      const fonnteToken = tenant?.settings?.fonnte_token;
-      const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-      if (waSenderMode === 'CUSTOM' && fonnteToken && replacement.phone) {
-        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
-        fetch('https://api.fonnte.com/send', {
-          method: 'POST',
-          headers: { Authorization: fonnteToken },
-          body: new URLSearchParams({ target: normalizePhone(replacement.phone), message }),
-        }).catch(console.error);
-      }
-"""
-          new_transfer = """      if (replacement.phone) {
-        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
-        sendWhatsAppNotification({
-          tenant,
-          target: replacement.phone,
-          message,
-          openManual: false,
-        }).then((result) => {
-          if (result.status === 'failed') console.error('Gagal mengirim WA teknisi:', result.error);
-        });
-      }
-"""
+          old_transfer = (
+              "      const fonnteToken = tenant?.settings?.fonnte_token;\n"
+              "      const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';\n"
+              "      if (waSenderMode === 'CUSTOM' && fonnteToken && replacement.phone) {\n"
+              "        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\\n\\n*Resi:* ${transferService.resi}\\n*Pelanggan:* ${transferService.customer_name}\\n*Perangkat:* ${transferService.device_name}\\n*Keluhan:* ${transferService.issue}${reason ? `\\n*Catatan:* ${reason}` : ''}\\n\\nSilakan cek di portal karyawan.`;\n"
+              "        fetch('https://api.fonnte.com/send', {\n"
+              "          method: 'POST',\n"
+              "          headers: { Authorization: fonnteToken },\n"
+              "          body: new URLSearchParams({ target: normalizePhone(replacement.phone), message }),\n"
+              "        }).catch(console.error);\n"
+              "      }\n"
+          )
+          new_transfer = (
+              "      if (replacement.phone) {\n"
+              "        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\\n\\n*Resi:* ${transferService.resi}\\n*Pelanggan:* ${transferService.customer_name}\\n*Perangkat:* ${transferService.device_name}\\n*Keluhan:* ${transferService.issue}${reason ? `\\n*Catatan:* ${reason}` : ''}\\n\\nSilakan cek di portal karyawan.`;\n"
+              "        sendWhatsAppNotification({\n"
+              "          tenant,\n"
+              "          target: replacement.phone,\n"
+              "          message,\n"
+              "          openManual: false,\n"
+              "        }).then((result) => {\n"
+              "          if (result.status === 'failed') console.error('Gagal mengirim WA teknisi:', result.error);\n"
+              "        });\n"
+              "      }\n"
+          )
           replace_once(old_transfer, new_transfer, 'transfer technician notification')
 
-          old_tech = """          const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-          const fonnteToken = tenant?.settings?.fonnte_token;
-          if (waSenderMode === 'CUSTOM' && fonnteToken) {
-            fetch('https://api.fonnte.com/send', {
-              method: 'POST',
-              headers: { 'Authorization': fonnteToken },
-              body: new URLSearchParams({
-                target: normalizePhone(tech.phone),
-                message: techWaText
-              })
-            }).catch(console.error);
-          }
-"""
-          new_tech = """          sendWhatsAppNotification({
-            tenant,
-            target: tech.phone,
-            message: techWaText,
-            openManual: false,
-          }).then((result) => {
-            if (result.status === 'failed') console.error('Gagal mengirim WA tugas teknisi:', result.error);
-          });
-"""
+          old_tech = (
+              "          const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';\n"
+              "          const fonnteToken = tenant?.settings?.fonnte_token;\n"
+              "          if (waSenderMode === 'CUSTOM' && fonnteToken) {\n"
+              "            fetch('https://api.fonnte.com/send', {\n"
+              "              method: 'POST',\n"
+              "              headers: { 'Authorization': fonnteToken },\n"
+              "              body: new URLSearchParams({\n"
+              "                target: normalizePhone(tech.phone),\n"
+              "                message: techWaText\n"
+              "              })\n"
+              "            }).catch(console.error);\n"
+              "          }\n"
+          )
+          new_tech = (
+              "          sendWhatsAppNotification({\n"
+              "            tenant,\n"
+              "            target: tech.phone,\n"
+              "            message: techWaText,\n"
+              "            openManual: false,\n"
+              "          }).then((result) => {\n"
+              "            if (result.status === 'failed') console.error('Gagal mengirim WA tugas teknisi:', result.error);\n"
+              "          });\n"
+          )
           replace_once(old_tech, new_tech, 'new technician task notification')
 
-          old_finish = """                const fonnteToken = tenant?.settings?.fonnte_token;
-                const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
-                
-                if (waSenderMode === 'CUSTOM' && fonnteToken) {
-                  try {
-                    await fetch('https://api.fonnte.com/send', {
-                      method: 'POST',
-                      headers: { 'Authorization': fonnteToken },
-                      body: new URLSearchParams({
-                        target: selectedService.customer_phone.replace(/^0/, '62'),
-                        message: message
-                      })
-                    });
-                  } catch(err) {
-                    console.error('Fonnte Error:', err);
-                  }
-                } else {
-                  window.open(`https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');
-                }
-"""
-          new_finish = """                const notificationResult = await sendWhatsAppNotification({
-                  tenant,
-                  target: selectedService.customer_phone,
-                  message,
-                  openManual: true,
-                });
-                if (notificationResult.status === 'failed') {
-                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
-                }
-"""
+          old_finish = (
+              "                const fonnteToken = tenant?.settings?.fonnte_token;\n"
+              "                const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';\n"
+              "                \n"
+              "                if (waSenderMode === 'CUSTOM' && fonnteToken) {\n"
+              "                  try {\n"
+              "                    await fetch('https://api.fonnte.com/send', {\n"
+              "                      method: 'POST',\n"
+              "                      headers: { 'Authorization': fonnteToken },\n"
+              "                      body: new URLSearchParams({\n"
+              "                        target: selectedService.customer_phone.replace(/^0/, '62'),\n"
+              "                        message: message\n"
+              "                      })\n"
+              "                    });\n"
+              "                  } catch(err) {\n"
+              "                    console.error('Fonnte Error:', err);\n"
+              "                  }\n"
+              "                } else {\n"
+              "                  window.open(`https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');\n"
+              "                }\n"
+          )
+          new_finish = (
+              "                const notificationResult = await sendWhatsAppNotification({\n"
+              "                  tenant,\n"
+              "                  target: selectedService.customer_phone,\n"
+              "                  message,\n"
+              "                  openManual: true,\n"
+              "                });\n"
+              "                if (notificationResult.status === 'failed') {\n"
+              "                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);\n"
+              "                }\n"
+          )
           replace_once(old_finish, new_finish, 'finish customer notification')
 
           path.write_text(text, encoding='utf-8')
           PY
-          python /tmp/notification_patch.py
 
       - name: Validate build
         run: |
