@@ -93,6 +93,16 @@ export default function EmployeePortal() {
     const parsed = parseInt(String(value || '').replace(/[^\d-]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
   };
+  const formatMoneyInput = (value) => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const handleMoneyInput = (event) => {
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+  };
+
 
   const getServiceDiscount = (issue = '') => {
     const match = issue.match(/\[Diskon: Rp (.*?)\]/);
@@ -1106,9 +1116,9 @@ export default function EmployeePortal() {
                     ))}
                   </select>
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Sparepart Manual</label>
-                  <input type="text" id="partNameManualInput" name="part_name_manual" className="input-field" placeholder="Misal: LCD Samsung J2" style={{ marginBottom: '10px' }} />
-                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Biaya Sparepart (Rp)</label>
-                  <input type="number" id="partFeeInput" name="part_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '0' }} />
+                  <input type="text" id="partNameManualInput" name="part_name_manual" className="input-field" placeholder="Opsional, misal: LCD Samsung J2" style={{ marginBottom: '10px' }} />
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Biaya Sparepart Opsional (Rp)</label>
+                  <input type="text" inputMode="numeric" id="partFeeInput" name="part_fee" className="input-field" defaultValue="0" style={{ marginBottom: '0' }}  onInput={handleMoneyInput} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '10px', background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.08)' }}>
@@ -1131,12 +1141,12 @@ export default function EmployeePortal() {
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Nama Jasa Manual</label>
                   <input type="text" id="jasaNameManualInput" name="jasa_name_manual" className="input-field" placeholder="Misal: Reball chipset / install ulang" style={{ marginBottom: '10px' }} />
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Biaya Jasa (Rp)</label>
-                  <input type="number" id="jasaFeeInput" name="jasa_fee" className="input-field" defaultValue="0" required style={{ marginBottom: '0' }} />
+                  <input type="text" inputMode="numeric" id="jasaFeeInput" name="jasa_fee" className="input-field" defaultValue="0" style={{ marginBottom: '0' }}  onInput={handleMoneyInput} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)' }}>Diskon Khusus (Rp)</label>
-                  <input type="number" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '0' }} />
+                  <input type="text" inputMode="numeric" name="diskon" className="input-field" defaultValue="0" placeholder="Opsional" style={{ marginBottom: '0' }}  onInput={handleMoneyInput} />
                 </div>
               </div>
 
@@ -1158,7 +1168,7 @@ export default function EmployeePortal() {
               const partName = e.target.part.value;
               const estPrice = e.target.price.value;
               
-              const waText = `Halo kak ${selectedService.customer_name}, dari ${tenant?.name || 'Toko Servis'}.\n\nSetelah kami lakukan pengecekan pada perangkat ${selectedService.device_name} kakak, ternyata memerlukan perbaikan/penggantian *${partName}*.\n\nEstimasi biaya totalnya adalah *Rp ${parseInt(estPrice).toLocaleString('id-ID')}*.\n\nApakah kakak setuju untuk kami lanjutkan perbaikannya? Mohon konfirmasinya ya kak. Terima kasih! 🙏`;
+              const waText = `Halo kak ${selectedService.customer_name}, dari ${tenant?.name || 'Toko Servis'}.\n\nSetelah kami lakukan pengecekan pada perangkat ${selectedService.device_name} kakak, ternyata memerlukan perbaikan/penggantian *${partName}*.\n\nEstimasi biaya totalnya adalah *Rp ${normalizeMoneyInput(estPrice).toLocaleString('id-ID')}*.\n\nApakah kakak setuju untuk kami lanjutkan perbaikannya? Mohon konfirmasinya ya kak. Terima kasih! 🙏`;
               const waUrl = buildManualWhatsAppUrl(selectedService.customer_phone, waText);
               window.open(waUrl, '_blank');
               setShowPersetujuanModal(false);
@@ -1167,7 +1177,7 @@ export default function EmployeePortal() {
               <input type="text" name="part" className="input-field" placeholder="Misal: Ganti LCD & Baterai" required style={{ marginBottom: '10px' }} />
               
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Estimasi Total Biaya (Rp):</label>
-              <input type="number" name="price" className="input-field" placeholder="Misal: 450000" required style={{ marginBottom: '20px' }} />
+              <input type="text" inputMode="numeric" name="price" className="input-field" placeholder="Misal: 450.000" required style={{ marginBottom: '20px' }}  onInput={handleMoneyInput} />
               
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Buka WhatsApp</button>
             </form>
@@ -1213,12 +1223,12 @@ export default function EmployeePortal() {
               placeholder="Contoh: Ganti LCD, cleaning konektor, unit normal kembali"
               style={{ marginBottom: '10px', resize: 'vertical' }}
             />
-            <label className="label">Biaya Sparepart (Rp)</label>
-            <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} required />
+            <label className="label">Biaya Sparepart Opsional (Rp)</label>
+            <input name="part_fee" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={selectedService.part_fee || 0}  onInput={handleMoneyInput} />
             <label className="label">Biaya Jasa (Rp)</label>
-            <input name="jasa_fee" type="number" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0} required />
+            <input name="jasa_fee" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0}  onInput={handleMoneyInput} />
             <label className="label">Diskon Nota (Rp)</label>
-            <input name="discount" type="number" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')} />
+            <input name="discount" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')}  onInput={handleMoneyInput} />
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
               Simpan Koreksi Nota
             </button>
@@ -1258,7 +1268,7 @@ export default function EmployeePortal() {
               <h4>Nominal kasbon</h4>
               <p>Masukkan jumlah yang diajukan. Pengajuan akan tercatat untuk persetujuan pemilik atau admin.</p>
               <label className="service-transfer-label" htmlFor="bon-amount">Nominal (Rp)</label>
-              <input id="bon-amount" name="amount" type="number" min="1000" step="1000" inputMode="numeric" className="input-field" placeholder="Contoh: 100000" required autoFocus />
+              <input id="bon-amount" name="amount" type="text" min="1000" step="1000" inputMode="numeric" className="input-field" placeholder="Contoh: 100.000" required autoFocus  onInput={handleMoneyInput} />
             </div>
             <div className="service-wizard-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setShowBonModal(false)}>Batal</button>

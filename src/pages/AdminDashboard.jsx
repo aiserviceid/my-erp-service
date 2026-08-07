@@ -101,7 +101,7 @@ export default function AdminDashboard() {
     const kelengkapan = fd.get('kelengkapan') || '-';
     const estWaktu = fd.get('estimasi_waktu') || '';
     const estBiaya = fd.get('estimasi_biaya') || '';
-    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${parseInt(estBiaya, 10).toLocaleString('id-ID')}` : ''}`;
+    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${normalizeMoneyInput(estBiaya).toLocaleString('id-ID')}` : ''}`;
     const resiGenerated = `TRX-${Date.now()}`;
 
     try {
@@ -496,6 +496,16 @@ export default function AdminDashboard() {
     const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''));
     return Number.isNaN(parsed) ? 0 : parsed;
   };
+  const formatMoneyInput = (value) => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const handleMoneyInput = (event) => {
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+  };
+
   const getServiceDiscount = (issue = '') => {
     const match = issue.match(/\[Diskon: Rp (.*?)\]/);
     if (!match) return 0;
@@ -2161,11 +2171,11 @@ export default function AdminDashboard() {
                   <div>
                     <label className="label" style={{ fontSize: '0.8rem', opacity: 0.8 }}>Harga Jual (Rp) <span style={{color: 'red'}}>*</span></label>
                     <input 
-                      type="number" 
+                      type="text" inputMode="numeric" 
                       className="input-field" 
                       placeholder="0" 
                       value={newProdPrice}
-                      onChange={(e) => setNewProdPrice(e.target.value)}
+                      onChange={(e) => setNewProdPrice(formatMoneyInput(e.target.value))}
                     />
                   </div>
                   <div>
@@ -2237,7 +2247,7 @@ export default function AdminDashboard() {
                     style={{ padding: '0 25px', fontWeight: 'bold', height: '42px', display: 'flex', alignItems: 'center', gap: '8px' }} 
                     onClick={async () => {
                       const name = newProdName.trim();
-                      const price = parseInt(newProdPrice);
+                      const price = normalizeMoneyInput(newProdPrice);
                       const stock = parseInt(newProdStock) || 0;
                       const category = newProdCat;
                       const imageUrl = newProdImage;
@@ -2823,7 +2833,7 @@ export default function AdminDashboard() {
               <label className="label">Perangkat *<input name="device" className="input-field" placeholder="Contoh: iPhone 13 / Laptop ASUS" required /></label>
               <label className="label">Kelengkapan unit *<input name="kelengkapan" className="input-field" placeholder="Contoh: Charger, tas / Tidak ada" required /></label>
               <label className="label service-registration-wide">Keluhan atau kerusakan *<textarea name="issue" className="input-field" placeholder="Jelaskan keluhan yang disampaikan pelanggan" rows="3" required /></label>
-              <label className="label">Estimasi biaya <input name="estimasi_biaya" type="number" min="0" className="input-field" placeholder="Opsional, dalam Rupiah" inputMode="numeric" /></label>
+              <label className="label">Estimasi biaya <input name="estimasi_biaya" type="text" min="0" className="input-field" placeholder="Opsional, dalam Rupiah" inputMode="numeric"  onInput={handleMoneyInput} /></label>
               <label className="label">Estimasi selesai <input name="estimasi_waktu" className="input-field" placeholder="Opsional, misal: 3 hari" /></label>
               <label className="label service-registration-wide">Tugaskan kepada teknisi *
                 <select name="technician_id" className="input-field" required defaultValue="">
@@ -2890,12 +2900,12 @@ export default function AdminDashboard() {
               placeholder="Contoh: Ganti LCD, cleaning konektor, unit normal kembali"
               style={{ marginBottom: '10px', resize: 'vertical' }}
             />
-            <label className="label">Biaya Sparepart (Rp)</label>
-            <input name="part_fee" type="number" min="0" className="input-field" defaultValue={selectedService.part_fee || 0} required />
+            <label className="label">Biaya Sparepart Opsional (Rp)</label>
+            <input name="part_fee" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={selectedService.part_fee || 0}  onInput={handleMoneyInput} />
             <label className="label">Biaya Jasa (Rp)</label>
-            <input name="jasa_fee" type="number" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0} required />
+            <input name="jasa_fee" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={selectedService.jasa_fee || 0}  onInput={handleMoneyInput} />
             <label className="label">Diskon Nota (Rp)</label>
-            <input name="discount" type="number" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')} />
+            <input name="discount" type="text" inputMode="numeric" min="0" className="input-field" defaultValue={getServiceDiscount(selectedService.issue || '')}  onInput={handleMoneyInput} />
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
               Simpan Koreksi Nota
             </button>
