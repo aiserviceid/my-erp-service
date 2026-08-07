@@ -139,8 +139,7 @@ jobs:
         run: |
           git config user.name "aiserviceid"
           git config user.email "ai.interiorid@gmail.com"
-          git add src/pages/EmployeePortal.jsx src/pages/AdminDashboard.jsx
-          git add -u .github/workflows/temp-finance-guard.yml .github/workflows/temp-finance-guard-v2.yml .github/workflows/temp-finance-guard-v3.yml .github/workflows/temp-finance-guard-v4.yml __finance_trigger__ __finance_trigger_v3__ __finance_trigger_v4__
+          git add -A src/pages/EmployeePortal.jsx src/pages/AdminDashboard.jsx .github/workflows __finance_trigger__ __finance_trigger_v4__ || true
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
