@@ -17,6 +17,9 @@ import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
 import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
 import CustomerCRMInsights from '../components/CustomerCRMInsights';
+import PremiumFinanceReport from '../components/PremiumFinanceReport';
+import OnboardingProgressCard from '../components/OnboardingProgressCard';
+import SecurityReadinessPanel from '../components/SecurityReadinessPanel';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
@@ -907,98 +910,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* INTERACTIVE EMPTY STATE PROGRESS BAR (If no data) */}
-            {services.length === 0 && products.length === 0 && (
-              <div className="dashboard-setup-card" style={{
-                background: '#ffffff', border: '2px solid #bae6fd', borderRadius: '20px',
-                padding: '1.8rem 1.5rem', boxShadow: '0 8px 25px rgba(2,132,199,0.08)'
-              }}>
-                {(() => {
-                  const hasUsers = users.length > 0;
-                  const hasProducts = products.length > 0;
-                  const hasServices = services.length > 0;
-                  const progressCount = 1 + (hasUsers ? 1 : 0) + (hasProducts ? 1 : 0) + (hasServices ? 1 : 0);
-                  const progressPercent = (progressCount / 4) * 100;
-
-                  return (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontSize: '1.5rem' }}>🚀</span>
-                          <div>
-                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '900', color: '#0f172a' }}>Mulai Menggunakan AIService</h4>
-                            <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>Selesaikan 4 langkah setup cepat agar toko Anda berjalan otomatis.</p>
-                          </div>
-                        </div>
-                        <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 14px', borderRadius: '100px', fontWeight: '900', fontSize: '0.85rem' }}>
-                          Progress Setup: {progressPercent}%
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '100px', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                        <div style={{ width: `${progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #0284c7 0%, #2563eb 100%)', borderRadius: '100px' }} />
-                      </div>
-
-                      {/* Steps Grid */}
-                      <div className="dashboard-setup-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                        <div 
-                          onClick={() => setActiveTab('pengaturan')}
-                          style={{ padding: '12px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                        >
-                          <span style={{ fontSize: '1.2rem' }}>✅</span>
-                          <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#166534' }}>1. Profil Toko</div>
-                            <div style={{ fontSize: '0.72rem', color: '#15803d' }}>Nama & WA terkonfigurasi</div>
-                          </div>
-                        </div>
-                        
-                        <div 
-                          onClick={() => setActiveTab('karyawan')}
-                          style={{ padding: '12px', borderRadius: '12px', background: hasUsers ? '#f0fdf4' : '#fffbeb', border: `1px solid ${hasUsers ? '#bbf7d0' : '#fde68a'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                        >
-                          <span style={{ fontSize: '1.2rem' }}>{hasUsers ? '✅' : '👨‍🔧'}</span>
-                          <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: hasUsers ? '#166534' : '#b45309' }}>2. Tambah Teknisi</div>
-                            <div style={{ fontSize: '0.72rem', color: hasUsers ? '#15803d' : '#d97706' }}>{hasUsers ? `${users.length} Teknisi Terdaftar` : 'Belum ada teknisi'}</div>
-                          </div>
-                        </div>
-
-                        <div 
-                          onClick={() => setActiveTab('master')}
-                          style={{ padding: '12px', borderRadius: '12px', background: hasProducts ? '#f0fdf4' : '#f8fafc', border: `1px solid ${hasProducts ? '#bbf7d0' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                        >
-                          <span style={{ fontSize: '1.2rem' }}>{hasProducts ? '✅' : '📦'}</span>
-                          <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: hasProducts ? '#166534' : '#475569' }}>3. Tambah Barang</div>
-                            <div style={{ fontSize: '0.72rem', color: hasProducts ? '#15803d' : '#64748b' }}>{hasProducts ? `${products.length} Barang` : 'Master Sparepart'}</div>
-                          </div>
-                        </div>
-
-                        <div 
-                          onClick={() => setActiveTab('servis')}
-                          style={{ padding: '12px', borderRadius: '12px', background: hasServices ? '#f0fdf4' : '#f8fafc', border: `1px solid ${hasServices ? '#bbf7d0' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
-                        >
-                          <span style={{ fontSize: '1.2rem' }}>{hasServices ? '✅' : '📝'}</span>
-                          <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: hasServices ? '#166534' : '#475569' }}>4. Buat Servis</div>
-                            <div style={{ fontSize: '0.72rem', color: hasServices ? '#15803d' : '#64748b' }}>{hasServices ? `${services.length} Servis` : 'Input Resi Pertama'}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+            <OnboardingProgressCard tenant={tenant} users={users} products={products} services={services} setActiveTab={setActiveTab} />
 
             {/* METRICS CARDS: HARI INI */}
             <div className="dashboard-section-heading">
@@ -2333,6 +2245,8 @@ export default function AdminDashboard() {
 
             return (
               <div className="glass-panel finance-report" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
+            <PremiumFinanceReport transactions={transactions} services={services} products={products} users={users} tenant={tenant} />
+            <SecurityReadinessPanel tenant={tenant} users={users} products={products} services={services} transactions={transactions} />
                 <div className="finance-report-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 style={{ margin: 0 }}>Laporan Keuangan Toko ({tenant?.name})</h3>
                   <div className="finance-report-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>

@@ -1348,3 +1348,9 @@ html.native-app .table-container, html.native-app .customer-table-wrap, html.nat
 @media (max-width: 768px) { .customer-crm-hero { flex-direction: column; padding: 18px; } .customer-crm-hero h3 { font-size: 19px; } .customer-crm-pro-badge { width: 100%; justify-content: center; } .customer-crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .customer-segment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .customer-segment-card { min-height: 118px; padding: 13px; } }
 html.native-app .customer-crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 html.native-app .customer-segment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+/* Batch 10-12 owner report, onboarding, and readiness polish */
+@media (max-width: 860px) {
+  .premium-finance-grid { grid-template-columns: 1fr !important; }
+}
+
