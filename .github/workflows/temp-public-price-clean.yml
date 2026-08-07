@@ -1,0 +1,53 @@
+name: public_price_clean
+
+on:
+  push:
+    branches:
+      - agent/sync-packages-landing
+    paths:
+      - '.github/workflows/temp-public-price-clean.yml'
+      - '.github/public-price-clean-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/sync-packages-landing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch public package pricing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/config/tierLimits.js')
+          s = p.read_text()
+          s = s.replace("price: 'Mulai Rp2,5 juta',\n    period: 'setup',\n    monthly: 'Maintenance mulai Rp299.000/bulan',", "price: 'Hubungi Partner',\n    period: '',\n    monthly: 'Konsultasi khusus white label',")
+          s = s.replace("price: 'Mulai Rp2,5 juta',\n          period: 'setup',\n          monthly: 'Maintenance mulai Rp299.000/bulan',", "price: 'Hubungi Partner',\n          period: '',\n          monthly: 'Konsultasi khusus white label',")
+          p.write_text(s)
+
+          p = Path('src/pages/LandingPage.jsx')
+          s = p.read_text()
+          s = s.replace("features: ['50 servis/bulan', '100 transaksi kasir/bulan', '100 produk/sparepart', 'Nota & tracking dasar'],", "features: ['25 servis/bulan', '50 transaksi kasir/bulan', '50 produk/sparepart', 'Nota & tracking dasar'],")
+          s = s.replace("price: 'Rp2,5jt+',\n    period: 'setup',", "price: 'Hubungi Partner',\n    period: '',")
+          s = s.replace("action: 'Bahas Partner',", "action: 'Hubungi Partner',")
+          p.write_text(s)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        run: npm run build
+      - name: Commit package price cleanup
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git add src/config/tierLimits.js src/pages/LandingPage.jsx
+          git commit -m "fix: hide white label public pricing" || true
+          git push
