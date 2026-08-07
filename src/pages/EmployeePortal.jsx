@@ -523,8 +523,8 @@ export default function EmployeePortal() {
     return (
       <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
         <div className="glass-panel native-employee-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-          <h2>Portal Karyawan</h2>
-          <p>{tenant?.name || 'Masuk sebagai Karyawan'}</p>
+          <h2>Area Tim</h2>
+          <p>{tenant?.name || 'Masuk ke Area Tim'}</p>
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
           <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
             {!tenant?.code && (
@@ -540,13 +540,13 @@ export default function EmployeePortal() {
             )}
             {tenant?.code === 'DEMO-STORE' && (
               <div style={{ background: '#fef2f2', color: '#991b1b', padding: '10px', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                Mode Simulasi Kasir & Teknisi Aktif
+                Mode Demo Tim Aktif
               </div>
             )}
             <input 
               type="password" 
               className="input-field" 
-              placeholder="Masukkan PIN Anda" 
+              placeholder="PIN Tim" 
               value={pin}
               onChange={(e) => { setPin(e.target.value); setError(''); }}
               style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5rem' }}
@@ -572,7 +572,7 @@ export default function EmployeePortal() {
           </form>
 
           <button className="btn btn-ghost" style={{ marginTop: '1rem', width: '100%' }} onClick={() => navigate('/')}>
-            Kembali ke Beranda
+            Kembali ke UnitPro
           </button>
         </div>
       </div>
@@ -607,11 +607,11 @@ export default function EmployeePortal() {
   const employeeMobileTabs = isKasir
     ? [
         { id: 'pos', name: 'Kasir', icon: ShoppingCart },
-        { id: 'servis', name: 'Servis & Teknisi', icon: Wrench },
+        { id: 'servis', name: 'Alur Servis', icon: Wrench },
       ]
     : [
-        { id: 'tugas', name: 'Tugas', icon: Wrench },
-        { id: 'keuangan', name: 'Keuangan', icon: Wallet },
+        { id: 'tugas', name: 'Servis', icon: Wrench },
+        { id: 'keuangan', name: 'Komisi', icon: Wallet },
       ];
   const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
 
@@ -660,8 +660,8 @@ export default function EmployeePortal() {
 
       <div className="main-content employee-portal-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
         <div className="native-screen-heading native-employee-heading">
-          <p>{isKasir ? 'AREA KASIR' : 'AREA KARYAWAN'}</p>
-          <h2>{isKasir ? 'Kasir & Servis' : 'Tugas Hari Ini'}</h2>
+          <p>{isKasir ? 'AREA KASIR' : 'AREA TIM'}</p>
+          <h2>{isKasir ? 'Kasir & Alur Servis' : 'Servis Hari Ini'}</h2>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
           <div>
