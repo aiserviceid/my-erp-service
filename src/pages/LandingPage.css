@@ -40,7 +40,8 @@
 }
 
 .simple-brand strong { color: #0ea5e9; }
-.simple-brand-logo { display: inline-flex; align-items: center; }
+.simple-brand-logo { display: inline-flex; align-items: center; width: 205px; max-width: 48vw; }
+.simple-brand-logo img { width: 100% !important; height: auto !important; }
 
 .simple-nav-links {
   display: flex;

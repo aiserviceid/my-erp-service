@@ -52,7 +52,7 @@ const painPoints = [
 function BrandLogo() {
   return (
     <span className="simple-brand-logo">
-      <UnitProLogo size={42} />
+      <UnitProLogo size={54} wordmark />
     </span>
   );
 }
@@ -116,7 +116,6 @@ export default function LandingPage() {
       <nav className="simple-nav">
         <button type="button" className="simple-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <BrandLogo />
-          <span>Unit<strong>Pro</strong></span>
         </button>
         <div className="simple-nav-links">
           <a href="#fitur">Fitur</a>
