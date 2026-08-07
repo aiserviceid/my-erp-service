@@ -1,0 +1,42 @@
+name: package_landing_build
+
+on:
+  push:
+    branches:
+      - agent/sync-packages-landing
+    paths:
+      - '.github/workflows/temp-package-landing-build.yml'
+      - '.github/package-landing-build-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/sync-packages-landing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        run: npm run build
+      - name: Cleanup temporary workflow
+        if: always()
+        run: |
+          git config user.name "aiserviceid"
+          git config user.email "ai.interiorid@gmail.com"
+          git rm --ignore-unmatch .github/workflows/temp-package-landing-build.yml .github/package-landing-build-trigger.txt
+          if git diff --cached --quiet; then
+            echo "No cleanup changes"
+            exit 0
+          fi
+          git commit -m "chore: cleanup package landing build workflow"
+          git pull --rebase origin agent/sync-packages-landing
+          git push origin HEAD:agent/sync-packages-landing
