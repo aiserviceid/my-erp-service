@@ -179,9 +179,9 @@ export const TIER_CONFIG = {
     badge: 'PARTNER',
     color: '#0f766e',
     headline: 'Aplikasi dengan brand sendiri',
-    price: 'Mulai Rp2,5 juta',
-    period: 'setup',
-    monthly: 'Maintenance mulai Rp299.000/bulan',
+    price: 'Hubungi Partner',
+    period: '',
+    monthly: 'Konsultasi khusus white label',
     description: 'Untuk partner, distributor, komunitas, atau konsultan yang ingin menjual sistem servis dengan merek sendiri tanpa membeli source code.',
     limits: {
       maxServicesPerMonth: Infinity,
