@@ -1,0 +1,69 @@
+name: Apply Edit Nota Keterangan
+
+on:
+  push:
+    branches:
+      - agent/edit-nota-keterangan
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Add editable service note to Edit Nota
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          files = [Path('src/pages/AdminDashboard.jsx'), Path('src/pages/EmployeePortal.jsx')]
+          old_handler = "    const partFee = normalizeMoneyInput(fd.get('part_fee'));\n    const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));\n    const discount = normalizeMoneyInput(fd.get('discount'));\n"
+          new_handler = "    const note = String(fd.get('note') || '').trim();\n    const partFee = normalizeMoneyInput(fd.get('part_fee'));\n    const jasaFee = normalizeMoneyInput(fd.get('jasa_fee'));\n    const discount = normalizeMoneyInput(fd.get('discount'));\n"
+          old_issue = "    const updatedIssue = buildIssueWithDiscount(selectedService.issue || '', discount);\n"
+          new_issue = "    const updatedIssue = buildIssueWithDiscount(note, discount);\n"
+          old_modal = "            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>\n            <label className=\"label\">Biaya Sparepart (Rp)</label>\n"
+          new_modal = "            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '14px' }}>Resi: <strong>{selectedService.resi}</strong></p>\n            <label className=\"label\">Keterangan / Rincian Perbaikan</label>\n            <textarea\n              name=\"note\"\n              className=\"input-field\"\n              rows=\"4\"\n              defaultValue={buildIssueWithDiscount(selectedService.issue || '', 0)}\n              placeholder=\"Contoh: Ganti LCD, cleaning konektor, unit normal kembali\"\n            />\n            <label className=\"label\">Biaya Sparepart (Rp)</label>\n"
+
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              replacements = [
+                  (old_handler, new_handler, 'handler fields'),
+                  (old_issue, new_issue, 'issue update'),
+                  (old_modal, new_modal, 'modal note field'),
+              ]
+              for old, new, label in replacements:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected exactly 1 match for {label}, found {count}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          rm .github/workflows/temp-edit-nota-keterangan.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/AdminDashboard.jsx src/pages/EmployeePortal.jsx .github/workflows/temp-edit-nota-keterangan.yml
+          git commit -m "feat: allow editing service nota description"
+          git push origin HEAD:agent/edit-nota-keterangan
+
+# trigger after enabling workflow on default branch
