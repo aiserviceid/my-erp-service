@@ -1,0 +1,157 @@
+name: Apply Notification Service Refactor
+
+on:
+  push:
+    branches:
+      - agent/notification-service
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Apply notification service patch
+        shell: bash
+        run: |
+          cat > /tmp/notification_patch.py <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/EmployeePortal.jsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'EmployeePortal.jsx: expected 1 match for {label}, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "import { apiService } from '../services/api';\n",
+              "import { apiService } from '../services/api';\nimport { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';\n",
+              'notification service import'
+          )
+
+          replace_once(
+              "const waUrl = `https://wa.me/${serviceData.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;",
+              "const waUrl = buildManualWhatsAppUrl(serviceData.customer_phone, waText);",
+              'customer registration manual wa url'
+          )
+
+          replace_once(
+              "const waUrl = `https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(waText)}`;",
+              "const waUrl = buildManualWhatsAppUrl(selectedService.customer_phone, waText);",
+              'approval manual wa url'
+          )
+
+          old_transfer = """      const fonnteToken = tenant?.settings?.fonnte_token;
+      const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
+      if (waSenderMode === 'CUSTOM' && fonnteToken && replacement.phone) {
+        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
+        fetch('https://api.fonnte.com/send', {
+          method: 'POST',
+          headers: { Authorization: fonnteToken },
+          body: new URLSearchParams({ target: normalizePhone(replacement.phone), message }),
+        }).catch(console.error);
+      }
+"""
+          new_transfer = """      if (replacement.phone) {
+        const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
+        sendWhatsAppNotification({
+          tenant,
+          target: replacement.phone,
+          message,
+          openManual: false,
+        }).then((result) => {
+          if (result.status === 'failed') console.error('Gagal mengirim WA teknisi:', result.error);
+        });
+      }
+"""
+          replace_once(old_transfer, new_transfer, 'transfer technician notification')
+
+          old_tech = """          const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
+          const fonnteToken = tenant?.settings?.fonnte_token;
+          if (waSenderMode === 'CUSTOM' && fonnteToken) {
+            fetch('https://api.fonnte.com/send', {
+              method: 'POST',
+              headers: { 'Authorization': fonnteToken },
+              body: new URLSearchParams({
+                target: normalizePhone(tech.phone),
+                message: techWaText
+              })
+            }).catch(console.error);
+          }
+"""
+          new_tech = """          sendWhatsAppNotification({
+            tenant,
+            target: tech.phone,
+            message: techWaText,
+            openManual: false,
+          }).then((result) => {
+            if (result.status === 'failed') console.error('Gagal mengirim WA tugas teknisi:', result.error);
+          });
+"""
+          replace_once(old_tech, new_tech, 'new technician task notification')
+
+          old_finish = """                const fonnteToken = tenant?.settings?.fonnte_token;
+                const waSenderMode = tenant?.settings?.wa_sender_mode || 'SYSTEM';
+                
+                if (waSenderMode === 'CUSTOM' && fonnteToken) {
+                  try {
+                    await fetch('https://api.fonnte.com/send', {
+                      method: 'POST',
+                      headers: { 'Authorization': fonnteToken },
+                      body: new URLSearchParams({
+                        target: selectedService.customer_phone.replace(/^0/, '62'),
+                        message: message
+                      })
+                    });
+                  } catch(err) {
+                    console.error('Fonnte Error:', err);
+                  }
+                } else {
+                  window.open(`https://wa.me/${selectedService.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(message)}`, '_blank');
+                }
+"""
+          new_finish = """                const notificationResult = await sendWhatsAppNotification({
+                  tenant,
+                  target: selectedService.customer_phone,
+                  message,
+                  openManual: true,
+                });
+                if (notificationResult.status === 'failed') {
+                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
+                }
+"""
+          replace_once(old_finish, new_finish, 'finish customer notification')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          python /tmp/notification_patch.py
+
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          rm .github/workflows/temp-notification-service.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/EmployeePortal.jsx src/services/notificationService.js .github/workflows/temp-notification-service.yml
+          git commit -m "feat: centralize employee WhatsApp notifications"
+          git push origin HEAD:agent/notification-service
