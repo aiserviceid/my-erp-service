@@ -1,0 +1,61 @@
+name: UnitPro AI Agent Final Verify
+
+on:
+  push:
+    branches:
+      - agent/unitpro-ai-agent-auto-reply
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unitpro-ai-agent-auto-reply
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply final UI patch
+        run: python scripts/apply-ai-agent-takeover.py
+      - name: Syntax and static checks
+        run: |
+          node --check server/index.cjs
+          node --check server/ai-agent.cjs
+          python - <<'PY'
+          from pathlib import Path
+          crm=Path('src/components/CustomerCRMInsights.jsx').read_text()
+          agent=Path('server/ai-agent.cjs').read_text()
+          sa=Path('src/pages/SuperAdmin.jsx').read_text()
+          cfg=Path('src/components/SuperAdminAISettings.jsx').read_text()
+          checks={
+            'agent switch': 'handleToggleAgent' in crm and 'AI Agent' in crm,
+            'human takeover UI': 'handleConversationTakeover' in crm and 'Kembalikan ke AI' in crm and 'Ambil Alih' in crm,
+            'chat composer': 'AI WhatsApp Copywriter' in crm and 'Promo Barang' in crm and 'Promo Jasa' in crm,
+            'auto variables': "prompt: campaignGoal.trim()" in crm and "current_message: campaignMessage" in crm,
+            'webhook': '/api/webhooks/fonnte/:tenant/:secret' in agent,
+            'service context': 'DATA SERVIS PELANGGAN' in agent and 'KATALOG BARANG/JASA' in agent,
+            'handoff backend': "action: 'handoff'" in agent and 'human_takeover' in agent,
+            'superadmin': "setActiveTab('ai')" in sa and 'SuperAdminAISettings' in sa,
+            'masked key': 'masked_key' in cfg and 'Tes Koneksi' in cfg,
+          }
+          failed=[k for k,v in checks.items() if not v]
+          for k,v in checks.items(): print(('PASS' if v else 'FAIL'), k)
+          if failed: raise SystemExit(', '.join(failed))
+          PY
+      - name: Install
+        run: npm ci
+      - name: Runtime module smoke
+        run: node -e "const a=require('./server/ai-agent.cjs'); if(typeof a.registerAiAgentRoutes!=='function') process.exit(1); console.log('runtime smoke OK')"
+      - name: Production build
+        run: npm run build
+      - name: Commit final UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/CustomerCRMInsights.jsx
+          if git diff --cached --quiet; then echo "No UI changes"; else git commit -m "feat(ai): add human takeover controls" && git push origin HEAD:agent/unitpro-ai-agent-auto-reply; fi
