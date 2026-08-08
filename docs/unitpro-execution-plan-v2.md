@@ -57,8 +57,8 @@ Fokus roadmap ini adalah menyelesaikan fitur yang masih belum fix / belum sinkro
 
 ```text
 FASE 1 — Kontrol Bisnis & Monetisasi SaaS
-Batch 20 — Super Admin Control Center
-Batch 21 — Billing, Trial, Expired & Suspend System
+[x] Batch 20 — Super Admin Control Center (SELESAI)
+[x] Batch 21 — Billing, Trial, Expired & Suspend System (SELESAI)
 
 FASE 2 — Core Marketing Paket Pro
 Batch 23 — Promo Banner Publik Pro
@@ -88,7 +88,7 @@ Batch 38 — Branded APK / Domain Workflow
 ## Batch 20 — Super Admin Control Center
 
 **Prioritas:** Sangat tinggi  
-**Status:** Belum fix / belum lengkap
+**Status:** ✅ **SELESAI (8 AGUSTUS 2026)**
 
 ### Tujuan
 
@@ -129,7 +129,7 @@ Super Admin bukan untuk operasional toko, tapi untuk pemilik UnitPro agar bisa m
 ## Batch 21 — Billing, Trial, Expired & Suspend System
 
 **Prioritas:** Sangat tinggi  
-**Status:** Belum fix / wajib sebelum jual massal
+**Status:** ✅ **SELESAI (8 AGUSTUS 2026)**
 
 ### Tujuan
 
@@ -170,6 +170,7 @@ WA otomatis billing baru dikerjakan setelah Batch 24 atau setelah endpoint Whats
 - Toko expired dibatasi tanpa menghapus data.
 - Owner toko diarahkan upgrade/perpanjang.
 - Tidak ada data tenant yang bocor.
+
 
 ---
 
