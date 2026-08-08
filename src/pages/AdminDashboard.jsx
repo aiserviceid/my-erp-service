@@ -1529,7 +1529,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             setTimeout(() => {
                               const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
                               let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
-                              window.open(buildManualWhatsAppUrl(cleanPhone, personalizedMsg), '_blank');
+                              sendWhatsAppNotification({ tenant, target: cleanPhone, message: personalizedMsg, openManual: true });
                             }, idx * 800);
                           });
                         }}
@@ -1581,7 +1581,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                         onClick={() => {
                                           const msgInput = document.getElementById('waBlastMessage');
                                           const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
-                                          window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');
+                                          sendWhatsAppNotification({ tenant, target: cleanPhone, message: msgText, openManual: true });
                                         }}
                                       >
                                         Kirim WA 📲
@@ -1729,7 +1729,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
                       {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
                         <div style={{ marginBottom: '1.5rem' }}>
-                          <label className="label">Token API Fonnte / Wablas Toko Anda:</label>
+                          <label className="label">Token WhatsApp Gateway (Fonnte):</label>
                           <input 
                             type="password" 
                             className="input-field" 
@@ -1739,7 +1739,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             disabled={isFree}
                           />
                           <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '8px' }}>
-                            🔑 Pesan notifikasi akan dikirimkan langsung menggunakan nomor server WhatsApp Anda sendiri.
+                            🔑 Token ini dipakai untuk notifikasi servis, pesan teknisi, kirim satu pelanggan, dan broadcast WhatsApp Marketing.
                           </span>
                         </div>
                       ) : (
