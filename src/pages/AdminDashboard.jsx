@@ -744,22 +744,61 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
   const updateServiceStatusFromAction = async (service, newStatus) => {
-    if (newStatus === 'SELESAI') {
+    const normalizedStatus = newStatus === 'DI AMBIL' ? 'DIAMBIL' : newStatus;
+    if (normalizedStatus === 'SELESAI') {
       setSelectedService({ ...service, __markSelesaiFromAdmin: true });
       setShowEditServiceNota(true);
       return;
     }
-    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') && !service.part_fee && !service.jasa_fee) {
+    if (normalizedStatus === 'DIAMBIL' && !service.part_fee && !service.jasa_fee) {
       alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
       return;
     }
+    if (normalizedStatus === 'DIAMBIL') {
+      const confirmed = await (window.UnitProConfirm
+        ? window.UnitProConfirm({
+            title: 'Tandai barang diambil?',
+            message: 'Pembayaran akan masuk otomatis ke laporan toko dan aman diulang tanpa membuat omzet dobel.',
+            confirmText: 'Tandai Diambil',
+            tone: 'info',
+          })
+        : Promise.resolve(window.confirm('Ubah status menjadi Diambil (Lunas)?')));
+      if (!confirmed) return;
+    }
+
     try {
-      await apiService.post('/services/update', { resi: service.resi, status: newStatus });
-      setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));
+      if (normalizedStatus === 'DIAMBIL') {
+        const discountMatch = String(service.issue || '').match(/\[Diskon: Rp (.*?)\]/);
+        const discount = discountMatch ? normalizeMoneyInput(discountMatch[1]) : 0;
+        const result = await apiService.settleServicePickup({
+          tenant_code: tenant.code,
+          resi: service.resi,
+          part_fee: service.part_fee,
+          jasa_fee: service.jasa_fee,
+          discount,
+          technician_id: service.technician_id,
+          issue: service.issue,
+          customer_name: service.customer_name,
+        });
+        setServices((current) => current.map((item) => item.resi === service.resi ? { ...item, ...result.service, status: 'DIAMBIL' } : item));
+        const latestTransactions = await apiService.getTransactions(tenant.code);
+        setTransactions(latestTransactions);
+        if (result.alreadySettled) {
+          alert('Servis sudah lunas sebelumnya. Omzet tidak dibuat ulang.');
+        }
+      } else {
+        const updated = await apiService.post('/services/update', {
+          resi: service.resi,
+          tenant_code: tenant.code,
+          status: normalizedStatus,
+        });
+        setServices((current) => current.map((item) => item.resi === service.resi ? { ...item, ...updated, status: normalizedStatus } : item));
+      }
+
       if (hasFeature(tenant?.tier, 'whatsappNotif') && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WhatsApp pelanggan?', message: 'Status berhasil disimpan. Kirim update status ke WhatsApp pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'info' }) : Promise.resolve(window.confirm('Kirim update status ke WhatsApp pelanggan?')))) {
         const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
         const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
-        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(newStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
+        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(normalizedStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
         const phoneConflict = findEmployeePhoneConflict(service.customer_phone, users);
         if (phoneConflict) {
           alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
@@ -768,7 +807,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         }
       }
     } catch (error) {
-      alert('Gagal update status');
+      console.error('Gagal update status servis:', error);
+      alert(`Gagal update status: ${error?.message || 'data tidak dapat disimpan'}`);
     }
   };
 

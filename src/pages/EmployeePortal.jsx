@@ -230,7 +230,7 @@ export default function EmployeePortal() {
       const transferNote = `[Tugas dialihkan dari ${previousTechnician} ke ${replacement.name}${reason ? `: ${reason}` : ''}]`;
       const updatedIssue = `${transferService.issue || ''}\n${transferNote}`.trim();
 
-      await apiService.post('/services/update', { resi: transferService.resi, technician_id: replacement.id, issue: updatedIssue });
+      await apiService.post('/services/update', { resi: transferService.resi, tenant_code: employee.tenant_code || tenant.code, technician_id: replacement.id, issue: updatedIssue });
 
       if (replacement.phone) {
         const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
@@ -831,15 +831,15 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <div className="glass-panel technician-task-list">
                 <div className="technician-task-list-header">
                   <div><h3>Daftar Tugas Servis</h3><p>Unit yang ditugaskan kepada Anda.</p></div>
-                  <span>{services.filter(s => String(s.technician_id) === String(employee.id) && s.status !== 'DIAMBIL').length} aktif</span>
+                  <span>{services.filter(s => String(s.technician_id) === String(employee.id) && !isPaidServiceStatus(s.status)).length} aktif</span>
                 </div>
                 {services.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada antrian servis.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {services.filter(s => s.technician_id === employee.id).length === 0 ? (
+                    {services.filter(s => String(s.technician_id) === String(employee.id)).length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
-                    ) : services.filter(s => s.technician_id === employee.id).map(s => (
+                    ) : services.filter(s => String(s.technician_id) === String(employee.id)).map(s => (
                       <div key={s.resi} className="technician-task-card" style={{ padding: '16px', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div className="technician-task-detail" style={{ flex: 1 }}>
                           <div className="technician-task-title"><strong>{s.device_name}</strong><span className="badge badge-info">{s.status || 'PROSES'}</span></div>
@@ -861,7 +861,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             </button>
                           )}
                           
-                          {s.status !== 'DIAMBIL' ? (
+                          {!isPaidServiceStatus(s.status) ? (
                             <select 
                               className="input-field" 
                               style={{ padding: '4px 8px', fontSize: '0.8rem', width: '140px', background: 'white' }}
@@ -915,7 +915,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                   }
                                 } else {
                                   try {
-                                    await apiService.post(`/services/${s.resi}/status`, { status: newStatus });
+                                    await apiService.post(`/services/${s.resi}/status`, { status: newStatus, tenant_code: employee.tenant_code || tenant.code });
                                     fetchServices();
                                   } catch(err) { alert('Gagal update status'); }
                                 }
@@ -1054,10 +1054,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
                 await apiService.post('/services/finish', {
                   resi: selectedService.resi,
+                  tenant_code: employee.tenant_code || tenant.code,
                   status: 'SELESAI',
                   part_fee: partFee,
                   jasa_fee: jasaFee,
-                  technician_id: employee.id,
+                  technician_id: selectedService.technician_id || employee.id,
                   issue: updatedIssue
                 });
 
