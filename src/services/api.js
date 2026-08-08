@@ -131,6 +131,21 @@ export const apiService = {
           settingsToSave.qrisUrl = '';
         }
 
+        const nowMs = Date.now();
+        const trialEndsAtMs = nowMs + (30 * 24 * 60 * 60 * 1000);
+        if (!settingsToSave.trial_started_at) {
+          settingsToSave.trial_started_at = nowMs;
+        }
+        if (!settingsToSave.trial_ends_at) {
+          settingsToSave.trial_ends_at = trialEndsAtMs;
+        }
+        if (!settingsToSave.active_until) {
+          settingsToSave.active_until = trialEndsAtMs;
+        }
+        if (!settingsToSave.subscription_status) {
+          settingsToSave.subscription_status = 'trial';
+        }
+
         const supabaseRecord = {
           code: resultTenant.code,
           name: name || resultTenant.name || resultTenant.code,
@@ -258,7 +273,7 @@ export const apiService = {
       const cleanPrice = Math.max(0, Number(productData.price) || 0);
       const cleanStock = Math.max(0, Number(productData.stock) || 0);
       const cleanCat = (productData.category || 'SPAREPART').toUpperCase();
-      const img = productData.imageUrl || productData.image_url || '';
+      const img = productData.imageUrl || productData.image_url || productData.image || '';
 
       if (productData.tenant_code === 'DEMO-STORE') {
         return {
@@ -273,50 +288,65 @@ export const apiService = {
         };
       }
 
-      // Primary payload
-      const primaryPayload = {
-        tenant_code: productData.tenant_code,
-        name: cleanName,
-        price: cleanPrice,
-        stock: cleanStock,
-        category: cleanCat,
-        image_url: img
-      };
-
       let inserted = null;
       let insertErr = null;
 
+      // Try 1: image_url
       try {
-        const res = await supabase
-          .from('products')
-          .insert(primaryPayload)
-          .select()
-          .single();
-        inserted = res.data;
-        insertErr = res.error;
-      } catch (err) {
-        insertErr = err;
-      }
-
-      // Retry with basic columns if table schema differs
-      if (insertErr) {
-        console.warn('Product insert fallback:', insertErr?.message || insertErr);
-        const fallbackPayload = {
+        const res = await supabase.from('products').insert([{
           tenant_code: productData.tenant_code,
           name: cleanName,
           price: cleanPrice,
-          stock: cleanStock
-        };
-        // Database lama mungkin belum punya kolom image_url; simpan barang tanpa foto dulu.
+          stock: cleanStock,
+          category: cleanCat,
+          image_url: img
+        }]).select().single();
+        inserted = res.data;
+        insertErr = res.error;
+      } catch (e) { insertErr = e; }
 
-        const retryRes = await supabase
-          .from('products')
-          .insert(fallbackPayload)
-          .select()
-          .single();
+      // Try 2: imageUrl
+      if (insertErr && img) {
+        try {
+          const res = await supabase.from('products').insert([{
+            tenant_code: productData.tenant_code,
+            name: cleanName,
+            price: cleanPrice,
+            stock: cleanStock,
+            category: cleanCat,
+            imageUrl: img
+          }]).select().single();
+          if (!res.error) { inserted = res.data; insertErr = null; }
+        } catch (e) {}
+      }
+
+      // Try 3: image
+      if (insertErr && img) {
+        try {
+          const res = await supabase.from('products').insert([{
+            tenant_code: productData.tenant_code,
+            name: cleanName,
+            price: cleanPrice,
+            stock: cleanStock,
+            category: cleanCat,
+            image: img
+          }]).select().single();
+          if (!res.error) { inserted = res.data; insertErr = null; }
+        } catch (e) {}
+      }
+
+      // Try 4: Fallback basic insert without image column
+      if (insertErr) {
+        console.warn('Product insert schema fallback:', insertErr?.message || insertErr);
+        const retryRes = await supabase.from('products').insert([{
+          tenant_code: productData.tenant_code,
+          name: cleanName,
+          price: cleanPrice,
+          stock: cleanStock,
+          category: cleanCat
+        }]).select().single();
 
         if (retryRes.error) {
-          console.warn('Fallback product insert error:', retryRes.error);
           throw new Error(`Barang gagal disimpan ke database: ${retryRes.error.message || 'schema products tidak cocok'}`);
         }
         inserted = retryRes.data;
@@ -341,7 +371,7 @@ export const apiService = {
       return {
         ...inserted,
         category: inserted?.category || cleanCat,
-        imageUrl: inserted?.imageUrl || inserted?.image_url || img
+        imageUrl: inserted?.imageUrl || inserted?.image_url || inserted?.image || img
       };
     } catch (e) {
       console.error('addProduct exception:', e);
@@ -353,7 +383,7 @@ export const apiService = {
     try {
       const cleanPrice = productData.price !== undefined ? Math.max(0, Number(productData.price) || 0) : undefined;
       const cleanStock = productData.stock !== undefined ? Math.max(0, Number(productData.stock) || 0) : undefined;
-      const img = productData.imageUrl || productData.image_url || '';
+      const img = productData.imageUrl || productData.image_url || productData.image || '';
 
       if (productData.tenant_code === 'DEMO-STORE' || String(id).startsWith('PROD-')) {
         return { id, ...productData, imageUrl: img };
@@ -366,6 +396,8 @@ export const apiService = {
       if (cleanStock !== undefined) payload.stock = cleanStock;
       if (img) {
         payload.image_url = img;
+        payload.imageUrl = img;
+        payload.image = img;
       }
 
       let updated = null;
@@ -385,12 +417,20 @@ export const apiService = {
         if (cleanPrice !== undefined) basicPayload.price = cleanPrice;
         if (cleanStock !== undefined) basicPayload.stock = cleanStock;
         if (productData.category) basicPayload.category = String(productData.category || '').toUpperCase();
-        if (img) basicPayload.image_url = img;
+        if (img) {
+          basicPayload.image_url = img;
+        }
         const retryRes = await supabase.from('products').update(basicPayload).eq('id', id).select().single();
         if (!retryRes.error) {
           updated = retryRes.data;
         } else {
-          return { id, ...productData, imageUrl: img };
+          // Retry with imageUrl
+          if (img) {
+            delete basicPayload.image_url;
+            basicPayload.imageUrl = img;
+            const retryRes2 = await supabase.from('products').update(basicPayload).eq('id', id).select().single();
+            if (!retryRes2.error) updated = retryRes2.data;
+          }
         }
       }
 
@@ -416,7 +456,7 @@ export const apiService = {
       return {
         ...updated,
         category: updated?.category || productData.category,
-        imageUrl: updated?.imageUrl || updated?.image_url || img
+        imageUrl: updated?.imageUrl || updated?.image_url || updated?.image || img
       };
     } catch (e) {
       console.error('updateProduct exception:', e);
@@ -470,6 +510,35 @@ export const apiService = {
     }
   },
 
+  recordLedgerTransaction: async (tenantCode, ledgerData) => {
+    try {
+      const payload = {
+        tenant_code: tenantCode,
+        type: ledgerData.type || 'INCOME',
+        amount: Number(ledgerData.amount || 0),
+        description: ledgerData.description || 'Pencatatan Arus Kas',
+        payment_method: ledgerData.payment_method || 'Tunai',
+        created_at: ledgerData.created_at || new Date().toISOString()
+      };
+      if (tenantCode === 'DEMO-STORE') {
+        return { id: `LEDGER-${Date.now()}`, ...payload };
+      }
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([payload])
+        .select()
+        .single();
+      if (error) {
+        console.warn('Ledger transaction insert fallback:', error);
+        return { id: `LEDGER-${Date.now()}`, ...payload };
+      }
+      return data;
+    } catch (e) {
+      console.error('recordLedgerTransaction error:', e);
+      return { id: `LEDGER-${Date.now()}`, tenant_code: tenantCode, ...ledgerData };
+    }
+  },
+
   createTransaction: async (txData) => {
     try {
       if (txData.tenant_code === 'DEMO-STORE') {
@@ -480,22 +549,25 @@ export const apiService = {
         };
         return newTx;
       }
+      const payload = {
+        tenant_code: txData.tenant_code,
+        type: txData.type || 'EXPENSE',
+        amount: Number(txData.amount || 0),
+        description: txData.description || '',
+        payment_method: txData.payment_method || 'Tunai',
+        created_at: txData.created_at || new Date().toISOString()
+      };
+
       const { data, error } = await supabase
         .from('transactions')
-        .insert([{
-          tenant_code: txData.tenant_code,
-          type: txData.type || 'EXPENSE',
-          amount: Number(txData.amount || 0),
-          description: txData.description || '',
-          payment_method: txData.payment_method || 'Tunai',
-          created_at: txData.created_at || new Date().toISOString()
-        }])
+        .insert([payload])
         .select()
         .single();
+
       if (error) throw error;
       return data;
     } catch (e) {
-      console.error('createTransaction error:', e);
+      console.error('createTransaction atomic fallback error:', e);
       return {
         id: `TRX-${Date.now()}`,
         created_at: txData.created_at || new Date().toISOString(),
@@ -1155,6 +1227,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'UPDATE_TIER', `Mengubah paket toko ke ${newTier.toUpperCase()}`);
       return { success: true, data };
     } catch (e) {
       console.error(e);
@@ -1182,6 +1255,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'SET_TRIAL', `Atur trial ${targetTier.toUpperCase()} s/d ${trialEndsAtMs ? new Date(trialEndsAtMs).toLocaleDateString('id-ID') : 'Selesai'}`);
       return { success: true, data };
     } catch (e) {
       console.error(e);
@@ -1207,6 +1281,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'UPDATE_STATUS', `Ubah status langganan menjadi ${newStatus.toUpperCase()}`);
       return { success: true, data };
     } catch (e) {
       console.error('updateTenantSubscriptionStatus error:', e);
@@ -1230,6 +1305,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'UPDATE_NOTES', `Memperbarui catatan internal Super Admin`);
       return { success: true, data };
     } catch (e) {
       console.error('updateTenantAdminNotes error:', e);
@@ -1263,6 +1339,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'EXTEND_SUBSCRIPTION', `Perpanjang masa aktif +${days} hari. Catatan: ${paymentNote || '-'}`);
       return { success: true, data, newActiveUntilMs };
     } catch (e) {
       console.error('extendTenantSubscription error:', e);
@@ -1283,6 +1360,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'ADJUST_WALLET', `Penyesuaian saldo dompet ${deltaAmount >= 0 ? '+' : ''}${deltaAmount}`);
       return { success: true, data };
     } catch (e) {
       console.error(e);
@@ -1315,6 +1393,7 @@ export const apiService = {
         .select()
         .single();
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'RESET_PIN', `Mereset PIN akses toko`);
       return { success: true, data };
     } catch (e) {
       console.error(e);
@@ -1338,6 +1417,7 @@ export const apiService = {
         .single();
         
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'TOGGLE_BAN', `${isBanned ? 'Memblokir (Ban)' : 'Membuka blokir'} toko`);
       return { success: true, data };
     } catch (e) {
       console.error(e);
@@ -1361,6 +1441,7 @@ export const apiService = {
         .eq('code', tenantCode);
         
       if (error) throw error;
+      await apiService.logAdminActivity(tenantCode, 'DELETE_TENANT', `Menghapus toko secara permanen`);
       return { success: true };
     } catch (e) {
       console.error(e);
@@ -1531,6 +1612,139 @@ export const apiService = {
     } catch (e) {
       console.error('Reset data error:', e);
       throw e;
+    }
+  },
+
+  // ============================================================
+  // 13. SAAS AUDIT LOGS & MANUAL BILLING SYSTEM (Batch 20 & 21)
+  // ============================================================
+  logAdminActivity: async (tenantCode, actionType, details = '') => {
+    try {
+      const logEntry = {
+        id: 'LOG_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        tenant_code: tenantCode || 'SYSTEM',
+        action_type: actionType,
+        details: typeof details === 'object' ? JSON.stringify(details) : String(details),
+        created_at: new Date().toISOString(),
+        operator: 'Super Admin'
+      };
+
+      const { error } = await supabase.from('saas_admin_logs').insert(logEntry);
+      if (error) {
+        const existing = JSON.parse(localStorage.getItem('SAAS_ADMIN_LOGS') || '[]');
+        existing.unshift(logEntry);
+        localStorage.setItem('SAAS_ADMIN_LOGS', JSON.stringify(existing.slice(0, 100)));
+      }
+      return logEntry;
+    } catch (e) {
+      console.warn('logAdminActivity fallback to local storage:', e);
+      const logEntry = {
+        id: 'LOG_' + Date.now(),
+        tenant_code: tenantCode || 'SYSTEM',
+        action_type: actionType,
+        details: String(details),
+        created_at: new Date().toISOString(),
+        operator: 'Super Admin'
+      };
+      const existing = JSON.parse(localStorage.getItem('SAAS_ADMIN_LOGS') || '[]');
+      existing.unshift(logEntry);
+      localStorage.setItem('SAAS_ADMIN_LOGS', JSON.stringify(existing.slice(0, 100)));
+      return logEntry;
+    }
+  },
+
+  getSaasAdminLogs: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('saas_admin_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (!error && data && data.length > 0) return data;
+
+      const local = JSON.parse(localStorage.getItem('SAAS_ADMIN_LOGS') || '[]');
+      return local;
+    } catch (e) {
+      return JSON.parse(localStorage.getItem('SAAS_ADMIN_LOGS') || '[]');
+    }
+  },
+
+  recordManualPayment: async ({ tenantCode, amount, paymentMethod, periodDays, refNumber = '', notes = '', targetTier = 'pro' }) => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('settings, tier').eq('code', tenantCode).single();
+      const currentSettings = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings) : (tenant?.settings || {});
+
+      const currentActiveMs = currentSettings.active_until && currentSettings.active_until > Date.now()
+        ? currentSettings.active_until
+        : Date.now();
+
+      const daysToAdd = Number(periodDays) || 30;
+      const newActiveUntilMs = currentActiveMs + (daysToAdd * 24 * 60 * 60 * 1000);
+
+      const paymentRecord = {
+        id: 'PAY_' + Date.now(),
+        tenant_code: tenantCode,
+        amount: Number(amount) || 0,
+        payment_method: paymentMethod || 'Transfer Manual',
+        ref_number: refNumber,
+        period_days: daysToAdd,
+        tier: targetTier,
+        notes: notes,
+        created_at: new Date().toISOString()
+      };
+
+      await supabase.from('saas_billing_transactions').insert(paymentRecord).catch(() => null);
+
+      const newSettings = {
+        ...currentSettings,
+        active_until: newActiveUntilMs,
+        subscription_status: 'active',
+        is_banned: false,
+        last_payment_at: Date.now(),
+        last_payment_amount: Number(amount) || 0,
+        last_payment_method: paymentMethod,
+        last_payment_ref: refNumber,
+        last_payment_note: notes
+      };
+
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ tier: targetTier, settings: newSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await apiService.logAdminActivity(
+        tenantCode,
+        'RECORD_MANUAL_PAYMENT',
+        `Pembayaran Rp ${Number(amount).toLocaleString('id-ID')} via ${paymentMethod} (${daysToAdd} Hari, Tier: ${targetTier.toUpperCase()}). Ref: ${refNumber || '-'}`
+      );
+
+      return { success: true, data, newActiveUntilMs };
+    } catch (e) {
+      console.error('recordManualPayment error:', e);
+      throw e;
+    }
+  },
+
+  generateBillingWaMessage: (tenant, messageType = 'H-7') => {
+    const s = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant?.settings || {});
+    const activeUntil = s.active_until || s.trial_ends_at;
+    const dateStr = activeUntil ? new Date(activeUntil).toLocaleDateString('id-ID') : '-';
+    const storeName = tenant.name || tenant.code;
+    const tier = (tenant.tier || 'pro').toUpperCase();
+
+    if (messageType === 'H-7') {
+      return `Halo Admin *${storeName}* (${tenant.code}),\n\n📌 *Pengingat Masa Aktif Paket ${tier} UnitPro*\nMasa aktif langganan toko Anda akan berakhir dalam *7 Hari lagi* (Tanggal: *${dateStr}*).\n\nPerpanjang sekarang untuk menjaga kelancaran operasional servis & POS toko Anda:\n👉 Transfer ke BRI / DANA a/n Syaifudin\n\nBalas pesan ini jika memerlukan bantuan pembayaran. Terima kasih!`;
+    } else if (messageType === 'H-3') {
+      return `Halo Admin *${storeName}* (${tenant.code}),\n\n⚠️ *Peringatan H-3 Masa Aktif UnitPro*\nMasa langganan Paket *${tier}* Anda tersisa *3 Hari lagi* (s/d *${dateStr}*).\n\nSegera lakukan perpanjangan agar akses nota servis dan kasir toko tidak terhenti.\n\nHubungi Admin UnitPro untuk konfirmasi perpanjangan. Terima kasih!`;
+    } else if (messageType === 'H-1') {
+      return `🚨 *URGENT H-1 MASA AKTIF UNITPRO*\n\nHalo Admin *${storeName}* (${tenant.code}),\nMasa aktif langganan toko Anda BERAKHIR BESOK (*${dateStr}*)!\n\nLakukan perpanjangan hari ini untuk menghindari penguncian fitur toko (Mode Read-Only).\n\nKonfirmasi perpanjangan sekarang!`;
+    } else {
+      return `❌ *LANGGANAN UNITPRO EXPIRED*\n\nHalo Admin *${storeName}* (${tenant.code}),\nMasa langganan Paket *${tier}* toko Anda telah berakhir pada *${dateStr}*.\n\nStatus toko saat ini berada pada *Mode Read-Only*. Silakan perpanjang langganan sekarang untuk mengaktifkan kembali seluruh fitur transaksi & nota servis. Terima kasih!`;
     }
   }
 };

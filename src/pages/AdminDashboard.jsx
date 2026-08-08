@@ -19,6 +19,7 @@ import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
 import CustomerCRMInsights from '../components/CustomerCRMInsights';
 import PremiumFinanceReport from '../components/PremiumFinanceReport';
 import OnboardingProgressCard from '../components/OnboardingProgressCard';
+import AndroidUpdateModal from '../components/AndroidUpdateModal';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
@@ -72,8 +73,21 @@ export default function AdminDashboard() {
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+  const [selectedCustomerProfile, setSelectedCustomerProfile] = useState(null);
+  const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
   const appVersion = APP_VERSION;
   const latestApkUrl = APK_PUBLIC_URL;
+
+  useEffect(() => {
+    fetch('/version.json')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.version && data.version !== APP_VERSION) {
+          setAvailableUpdateInfo(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const openAppUpdate = async () => {
     if (Capacitor.isNativePlatform()) {
@@ -887,9 +901,9 @@ export default function AdminDashboard() {
 
               if (isSusp) {
                 return (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '16px', padding: '1.2rem', marginTop: '1rem', color: '#991b1b' }}>
+                  <div style={{ background: '#fef2f2', border: '2px solid #fca5a5', borderRadius: '16px', padding: '1.2rem', marginTop: '1rem', color: '#991b1b' }}>
                     <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '900', color: '#dc2626' }}>🚫 Akses Toko Anda Dibekukan (Suspended)</h4>
-                    <p style={{ margin: 0, fontSize: '0.85rem' }}>Akun toko ini sedang dalam status penangguhan oleh Super Admin. Hubungi customer support UnitPro untuk mengaktifkan kembali.</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>Akun toko ini sedang dalam status penangguhan oleh Super Admin. Toko berjalan dalam Mode Read-Only (Hanya Lihat). Hubungi customer support UnitPro untuk mengaktifkan kembali.</p>
                   </div>
                 );
               }
@@ -898,8 +912,8 @@ export default function AdminDashboard() {
                 return (
                   <div style={{ background: '#fff1f2', border: '2px solid #fda4af', borderRadius: '16px', padding: '1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '900', color: '#e11d48' }}>⚠️ Masa Langganan Toko Anda Telah Expired</h4>
-                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#9f1239' }}>Data operasional toko Anda tetap aman, namun fitur pencatatan transaksi baru dibatasi. Silakan perpanjang langganan Anda.</p>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '900', color: '#e11d48' }}>⚠️ Masa Langganan Toko Anda Telah Expired (Mode Read-Only)</h4>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#9f1239' }}>Data operasional toko Anda tetap aman, namun pencatatan transaksi & nota baru dibatasi. Silakan perpanjang langganan Anda.</p>
                     </div>
                     <a
                       href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20memperpanjang%20langganan%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
@@ -908,6 +922,69 @@ export default function AdminDashboard() {
                       style={{ background: '#e11d48', color: '#fff', fontWeight: '900', padding: '10px 18px', borderRadius: '10px', textDecoration: 'none' }}
                     >
                       💳 Perpanjang Langganan Sekarang →
+                    </a>
+                  </div>
+                );
+              }
+
+              if (daysLeft <= 1 && daysLeft >= 0) {
+                return (
+                  <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '16px', padding: '1rem 1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.4rem' }}>🚨</span>
+                      <div>
+                        <strong style={{ color: '#dc2626', fontSize: '0.95rem' }}>KRITIS: Masa Aktif Toko Berakhir BESOK (H-1)!</strong>
+                        <span style={{ display: 'block', fontSize: '0.8rem', color: '#b91c1c' }}>Perpanjang hari ini agar toko tidak masuk ke Mode Read-Only pada tanggal {activeUntil ? new Date(activeUntil).toLocaleDateString('id-ID') : '-'}.</span>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20URGENT%20perpanjang%20toko%20H-1%20${tenant?.name}%20(ID:%20${tenant?.code})`}
+                      target="_blank" rel="noreferrer"
+                      style={{ background: '#dc2626', color: '#fff', padding: '8px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', textDecoration: 'none' }}
+                    >
+                      ⚡ Perpanjang H-1 Sekarang →
+                    </a>
+                  </div>
+                );
+              }
+
+              if (daysLeft <= 3 && daysLeft > 1) {
+                return (
+                  <div style={{ background: '#fff7ed', border: '2px solid #fdba74', borderRadius: '16px', padding: '1rem 1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.3rem' }}>⚠️</span>
+                      <div>
+                        <strong style={{ color: '#c2410c', fontSize: '0.92rem' }}>Peringatan H-3: Masa Aktif Tinggal {daysLeft} Hari Lagi</strong>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#ea580c' }}>Berakhir pada {activeUntil ? new Date(activeUntil).toLocaleDateString('id-ID') : '-'}. Perpanjang sekarang untuk menjaga kelancaran toko.</span>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20perpanjang%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
+                      target="_blank" rel="noreferrer"
+                      style={{ background: '#ea580c', color: '#fff', padding: '8px 16px', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', textDecoration: 'none' }}
+                    >
+                      💳 Perpanjang H-3
+                    </a>
+                  </div>
+                );
+              }
+
+              if (daysLeft <= 7 && daysLeft > 3) {
+                return (
+                  <div style={{ background: '#fefce8', border: '1px solid #fef08a', borderRadius: '16px', padding: '1rem 1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>📌</span>
+                      <div>
+                        <strong style={{ color: '#854d0e', fontSize: '0.92rem' }}>Pengingat H-7: Masa Aktif Tinggal {daysLeft} Hari Lagi</strong>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#a16207' }}>Masa aktif langganan s/d {activeUntil ? new Date(activeUntil).toLocaleDateString('id-ID') : '-'}.</span>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20perpanjang%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
+                      target="_blank" rel="noreferrer"
+                      style={{ background: '#ca8a04', color: '#fff', padding: '6px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', textDecoration: 'none' }}
+                    >
+                      💳 Perpanjang Langganan
                     </a>
                   </div>
                 );
@@ -931,24 +1008,6 @@ export default function AdminDashboard() {
                       style={{ background: '#ca8a04', color: '#fff', padding: '6px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', textDecoration: 'none' }}
                     >
                       ⭐ Upgrade ke Pro Permanen
-                    </a>
-                  </div>
-                );
-              }
-
-              if (daysLeft <= 7 && daysLeft > 0) {
-                return (
-                  <div style={{ background: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '16px', padding: '1rem 1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                    <div>
-                      <strong style={{ color: '#c2410c', fontSize: '0.92rem' }}>⚠️ Masa Langganan Toko Tinggal {daysLeft} Hari Lagi</strong>
-                      <span style={{ display: 'block', fontSize: '0.78rem', color: '#ea580c' }}>Berakhir pada {new Date(activeUntil).toLocaleDateString('id-ID')}. Perpanjang agar operasional toko tidak terganggu.</span>
-                    </div>
-                    <a
-                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20perpanjang%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
-                      target="_blank" rel="noreferrer"
-                      style={{ background: '#ea580c', color: '#fff', padding: '6px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', textDecoration: 'none' }}
-                    >
-                      💳 Perpanjang Saja
                     </a>
                   </div>
                 );
@@ -1393,19 +1452,34 @@ export default function AdminDashboard() {
                                 <td><span className="badge badge-info">{s.customer_phone || '-'}</span></td>
                                 <td>{new Date(s.created_at || Date.now()).toLocaleDateString('id-ID')} ({s.status})</td>
                                 <td>
-                                  {cleanPhone ? (
-                                    <button 
-                                      className="btn btn-accent"
-                                      style={{ padding: '4px 12px', fontSize: '0.78rem', background: '#25D366', color: 'white', border: 'none' }}
-                                      onClick={() => {
-                                        const msgInput = document.getElementById('waBlastMessage');
-                                        const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
-                                        window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');
-                                      }}
+                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      className="btn"
+                                      style={{ padding: '4px 10px', fontSize: '0.78rem', background: '#0284c7', color: 'white', border: 'none', fontWeight: '800' }}
+                                      onClick={() => setSelectedCustomerProfile({
+                                        name: s.customer_name,
+                                        phone: s.customer_phone,
+                                        device: s.device_name,
+                                        resi: s.resi
+                                      })}
                                     >
-                                      Kirim WA 📲
+                                      👤 Profil & Timeline
                                     </button>
-                                  ) : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Tanpa No. WA</span>}
+                                    {cleanPhone ? (
+                                      <button 
+                                        className="btn btn-accent"
+                                        style={{ padding: '4px 10px', fontSize: '0.78rem', background: '#25D366', color: 'white', border: 'none' }}
+                                        onClick={() => {
+                                          const msgInput = document.getElementById('waBlastMessage');
+                                          const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
+                                          window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');
+                                        }}
+                                      >
+                                        Kirim WA 📲
+                                      </button>
+                                    ) : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Tanpa No. WA</span>}
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -1843,43 +1917,134 @@ export default function AdminDashboard() {
                 )}
 
                 {settingTab === 'promo' && (
-                  <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out', opacity: isFree ? 0.6 : 1 }}>
-                    <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Iklan & Promo {isFree && <span className="badge badge-warning">Premium</span>}</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Iklan akan tampil di Halaman Beranda Publik.</p>
-                    {settings.ads?.map((ad, index) => (
-                      <div key={ad.id} style={{ padding: '1.2rem', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '1rem', background: 'rgba(255,255,255,0.5)' }}>
-                        <div style={{ marginBottom: '1rem' }}>
-                          <label className="label">Judul Promo</label>
-                          <input type="text" className="input-field" value={ad.title} disabled={isFree}
-                            onChange={(e) => { const newAds = [...settings.ads]; newAds[index].title = e.target.value; updateTenantSettings({ ads: newAds }); }} 
-                          />
-                        </div>
-                        <div>
-                          <label className="label">Upload Gambar Promo (Otomatis dikompres oleh AI)</label>
-                          <input type="file" accept="image/*" className="input-field" disabled={isFree} 
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if(file) {
-                                handleImageUpload(file, (base64) => {
-                                  const newAds = [...settings.ads];
-                                  newAds[index].imageUrl = base64;
-                                  updateTenantSettings({ ads: newAds });
-                                });
-                              }
-                            }} 
-                          />
-                          {ad.imageUrl && (
-                            <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
-                              <img src={ad.imageUrl} alt="Promo" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover' }} />
-                              <button onClick={() => { const newAds = [...settings.ads]; newAds[index].imageUrl = ''; updateTenantSettings({ ads: newAds }); }} style={{ position: 'absolute', top: '-10px', right: '-10px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontSize: '12px' }}>×</button>
+                  <div style={{ maxWidth: '650px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '0.5rem', color: '#0f172a' }}>Iklan & Banner Promo Publik (Batch 23) {isFree && <span className="badge badge-warning">Paket Pro</span>}</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                      Kelola hingga 3 banner promo aktif yang akan tampil secara interaktif di Katalog Publik & Halaman Tracking Resi Pelanggan.
+                    </p>
+
+                    {isFree ? (
+                      <UpgradePrompt
+                        mode="card"
+                        featureName="Kelola Banner Promo Publik (Paket Pro)"
+                        featureDescription="Tampilkan iklan banner promo interaktif di Katalog Publik & Halaman Tracking Resi Pelanggan. Tingkatkan omzet & repeat order toko Anda!"
+                        usageLabel="Fitur Eksklusif Paket Pro & Enterprise"
+                      />
+                    ) : (
+                      <div>
+                        {((settings.promoBanners && settings.promoBanners.length > 0) ? settings.promoBanners : (settings.ads || [])).map((ad, index) => (
+                          <div key={ad.id || index} style={{ padding: '1.2rem', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '1rem', background: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                              <h4 style={{ margin: 0, color: '#0284c7', fontSize: '0.95rem' }}>Banner #{index + 1}</h4>
+                              <button 
+                                type="button"
+                                className="btn"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                                onClick={() => {
+                                  const currentBanners = settings.promoBanners || settings.ads || [];
+                                  const filtered = currentBanners.filter((_, i) => i !== index);
+                                  updateTenantSettings({ promoBanners: filtered, ads: filtered });
+                                }}
+                              >
+                                Hapus Banner
+                              </button>
                             </div>
-                          )}
-                        </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div>
+                                <label className="label">Judul Promo *</label>
+                                <input type="text" className="input-field" placeholder="Contoh: Diskon 20% Ganti LCD" value={ad.title || ''} 
+                                  onChange={(e) => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], title: e.target.value };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} 
+                                />
+                              </div>
+                              <div>
+                                <label className="label">Badge Tag (Opsional)</label>
+                                <input type="text" className="input-field" placeholder="Contoh: Terbatas / Populer" value={ad.badge || ''} 
+                                  onChange={(e) => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], badge: e.target.value };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} 
+                                />
+                              </div>
+                            </div>
+
+                            <div style={{ marginBottom: '10px' }}>
+                              <label className="label">Deskripsi Ringkas Promo</label>
+                              <input type="text" className="input-field" placeholder="Contoh: Khusus pengerjaan hari ini, garansi 30 hari original." value={ad.description || ''} 
+                                onChange={(e) => {
+                                  const list = [...((settings.promoBanners || settings.ads || []))];
+                                  list[index] = { ...list[index], description: e.target.value };
+                                  updateTenantSettings({ promoBanners: list, ads: list });
+                                }} 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="label">Gambar Banner Promo (Otomatis dikompres oleh AI)</label>
+                              <input type="file" accept="image/*" className="input-field" 
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if(file) {
+                                    handleImageUpload(file, (base64) => {
+                                      const list = [...((settings.promoBanners || settings.ads || []))];
+                                      list[index] = { ...list[index], imageUrl: base64 };
+                                      updateTenantSettings({ promoBanners: list, ads: list });
+                                    });
+                                  }
+                                }} 
+                              />
+                              {ad.imageUrl && (
+                                <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
+                                  <img src={ad.imageUrl} alt="Promo" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover' }} />
+                                  <button type="button" onClick={() => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], imageUrl: '' };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '12px' }}>×</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {((settings.promoBanners || settings.ads || []).length < 3) && (
+                          <button 
+                            type="button"
+                            className="btn" 
+                            style={{ background: '#f59e0b', color: 'white', border: 'none', width: '100%', marginBottom: '1rem' }} 
+                            onClick={() => {
+                              const list = [...((settings.promoBanners || settings.ads || []))];
+                              list.push({ id: Date.now().toString(), title: '', description: '', badge: 'PROMO', imageUrl: '', isActive: true });
+                              updateTenantSettings({ promoBanners: list, ads: list });
+                            }}
+                          >
+                            + Tambah Banner Promo Baru (Maks 3)
+                          </button>
+                        )}
+
+                        <button 
+                          type="button"
+                          className="btn" 
+                          style={{ background: '#059669', color: 'white', border: 'none', width: '100%', padding: '12px', fontWeight: '800' }}
+                          onClick={async () => {
+                            try {
+                              const banners = settings.promoBanners || settings.ads || [];
+                              const newSettings = { ...tenant?.settings, promoBanners: banners, ads: banners };
+                              await apiService.updateTenantSettings(tenant.code, newSettings);
+                              updateTenantSettings(newSettings);
+                              alert('📢 Banner promo publik berhasil disimpan!');
+                            } catch(e) { alert('Gagal menyimpan promo'); }
+                          }}
+                        >
+                          💾 Simpan Pengaturan Banner Promo
+                        </button>
                       </div>
-                    ))}
-                    <button className="btn" style={{ background: '#f59e0b', color: 'white', border: 'none' }} onClick={() => updateTenantSettings({ ads: [...(settings.ads||[]), {id: Date.now().toString(), title: '', imageUrl: '', isActive: true}] })} disabled={isFree}>
-                      + Tambah Promo Baru
-                    </button>
+                    )}
                   </div>
                 )}
 
@@ -2948,6 +3113,169 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* MODAL PROFIL & RIWAYAT GABUNGAN PELANGGAN (Batch 26) */}
+      {selectedCustomerProfile && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '16px'
+        }}>
+          <div style={{
+            background: 'white', borderRadius: '24px', width: '100%', maxWidth: '720px',
+            maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.3)', animation: 'fadeIn 0.2s'
+          }}>
+            {(() => {
+              const phoneKey = (selectedCustomerProfile.phone || '').replace(/[^0-9]/g, '');
+              const custKey = phoneKey || (selectedCustomerProfile.name || '').toLowerCase().trim();
+
+              const custServices = services.filter(s => {
+                const sPhone = (s.customer_phone || '').replace(/[^0-9]/g, '');
+                return (phoneKey && sPhone && sPhone === phoneKey) || (s.customer_name || '').toLowerCase().trim() === (selectedCustomerProfile.name || '').toLowerCase().trim();
+              });
+
+              const custPos = transactions.filter(t => {
+                if (t.type !== 'POS_SALES') return false;
+                const desc = t.description || '';
+                const custMatch = desc.match(/\| Cust: ([^\|]+)/);
+                const waMatch = desc.match(/\| WA: ([^\|]+)/);
+                const posPhone = waMatch ? waMatch[1].replace(/[^0-9]/g, '') : '';
+                const posName = custMatch ? custMatch[1].toLowerCase().trim() : '';
+                return (phoneKey && posPhone && posPhone === phoneKey) || (posName && posName === (selectedCustomerProfile.name || '').toLowerCase().trim());
+              });
+
+              const totalServiceSpent = custServices.reduce((sum, s) => sum + (Number(s.total || 0) || Number(s.amount || 0) || ((Number(s.jasa_fee || 0) + Number(s.part_fee || 0)))), 0);
+              const totalPosSpent = custPos.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+              const grandTotalSpent = totalServiceSpent + totalPosSpent;
+
+              const timelineItems = [
+                ...custServices.map(s => ({
+                  id: 'SRV_' + s.resi,
+                  type: 'SERVIS',
+                  date: new Date(s.created_at || Date.now()),
+                  title: `Servis: ${s.device_name || 'Perangkat'}`,
+                  resi: s.resi,
+                  details: s.issue || s.problem || 'Servis Perangkat',
+                  status: s.status,
+                  amount: Number(s.total || 0) || Number(s.amount || 0) || (Number(s.jasa_fee || 0) + Number(s.part_fee || 0))
+                })),
+                ...custPos.map(t => ({
+                  id: 'POS_' + t.id,
+                  type: 'POS',
+                  date: new Date(t.created_at || Date.now()),
+                  title: 'Pembelian Kasir (POS)',
+                  resi: 'POS-' + t.id,
+                  details: t.description || 'Pembelian Barang',
+                  status: 'SELESAI',
+                  amount: Number(t.amount || 0)
+                }))
+              ].sort((a, b) => b.date - a.date);
+
+              const isLaptop = custServices.some(s => /laptop|macbook|notebook/i.test(s.device_name || ''));
+              const isLcd = custServices.some(s => /lcd|layar|screen/i.test((s.issue || '') + (s.device_name || '')));
+              const isBattery = custServices.some(s => /baterai|battery|batre/i.test((s.issue || '') + (s.device_name || '')));
+              const isVip = grandTotalSpent >= 500000 || (custServices.length + custPos.length) >= 3;
+
+              const existingNotes = tenant?.settings?.customerNotes?.[custKey] || '';
+
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.2rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.3rem', color: '#0f172a', fontWeight: '900' }}>{selectedCustomerProfile.name}</h3>
+                        {isVip && <span style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '900' }}>⭐ VIP / Prioritas</span>}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
+                        📱 WhatsApp: {selectedCustomerProfile.phone || 'Tanpa No. WA'}
+                      </div>
+                    </div>
+                    <button onClick={() => setSelectedCustomerProfile(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '1rem', fontWeight: '800' }}>×</button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.2rem' }}>
+                    {isLaptop && <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>💻 Pelanggan Laptop</span>}
+                    {isLcd && <span style={{ background: '#f3e8ff', color: '#7e22ce', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>📱 Perbaikan LCD</span>}
+                    {isBattery && <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>🔋 Ganti Baterai</span>}
+                    {custServices.length > 0 && <span style={{ background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>{custServices.length}x Servis</span>}
+                    {custPos.length > 0 && <span style={{ background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>{custPos.length}x Transaksi POS</span>}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.2rem' }}>
+                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Total Akumulasi Transaksi</span>
+                      <strong style={{ fontSize: '1.2rem', color: '#059669' }}>Rp {grandTotalSpent.toLocaleString('id-ID')}</strong>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Total Kunjungan Toko</span>
+                      <strong style={{ fontSize: '1.2rem', color: '#0284c7' }}>{custServices.length + custPos.length} Transaksi</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '12px', marginBottom: '1.2rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#b45309', marginBottom: '6px' }}>
+                      📝 Catatan Khusus Admin untuk Pelanggan Ini:
+                    </label>
+                    <textarea
+                      id="custAdminNoteText"
+                      className="input-field"
+                      placeholder="Tulis catatan khusus (misal: Pelanggan langganan Pak Budi, klaim garansi diperpanjang 2 minggu, dll)..."
+                      defaultValue={existingNotes}
+                      style={{ width: '100%', minHeight: '60px', fontSize: '0.82rem', resize: 'vertical', marginBottom: '8px' }}
+                    />
+                    <button
+                      className="btn"
+                      style={{ background: '#b45309', color: 'white', border: 'none', padding: '6px 12px', fontSize: '0.78rem', fontWeight: '800' }}
+                      onClick={async () => {
+                        const noteVal = document.getElementById('custAdminNoteText').value;
+                        try {
+                          const currentNotes = tenant?.settings?.customerNotes || {};
+                          const newNotes = { ...currentNotes, [custKey]: noteVal };
+                          const newSettings = { ...tenant?.settings, customerNotes: newNotes };
+                          await apiService.updateTenantSettings(tenant.code, newSettings);
+                          updateTenantSettings(newSettings);
+                          alert('Catatan khusus pelanggan berhasil disimpan!');
+                        } catch(e) { alert('Gagal menyimpan catatan'); }
+                      }}
+                    >
+                      💾 Simpan Catatan Admin
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem', color: '#0f172a', fontWeight: '800' }}>
+                      ⏳ Riwayat & Timeline Gabungan (Servis + POS Kasir)
+                    </h4>
+                    {timelineItems.length === 0 ? (
+                      <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Belum ada riwayat transaksi terdeteksi.</div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        {timelineItems.map((item) => (
+                          <div key={item.id} style={{ padding: '10px 12px', borderRadius: '10px', background: item.type === 'SERVIS' ? '#f0f9ff' : '#f0fdf4', border: `1px solid ${item.type === 'SERVIS' ? '#bae6fd' : '#bbf7d0'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '900', background: item.type === 'SERVIS' ? '#0284c7' : '#16a34a', color: 'white', padding: '1px 6px', borderRadius: '4px' }}>{item.type}</span>
+                                <strong style={{ fontSize: '0.86rem', color: '#0f172a' }}>{item.title}</strong>
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{item.details} • Resi: {item.resi}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>Rp {item.amount.toLocaleString('id-ID')}</strong>
+                              <small style={{ fontSize: '0.72rem', color: '#64748b' }}>{item.date.toLocaleDateString('id-ID')}</small>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* UPGRADE PROMPT MODAL (FOR EXCEL EXPORT & PRO FEATURES) */}
       {showUpgradeModal && (
         <UpgradePrompt
@@ -2956,6 +3284,14 @@ export default function AdminDashboard() {
           featureDescription="Fitur Export/Import Excel, WhatsApp Gateway Notifikasi Otomatis, & Laporan Arus Kas Lengkap eksklusif untuk pengguna Paket Pro Titan."
           usageLabel="Fitur Eksklusif Paket Pro Titan"
           onClose={() => setShowUpgradeModal(false)}
+        />
+      )}
+
+      {/* ANDROID UPDATE MANAGER MODAL (Batch 25) */}
+      {availableUpdateInfo && (
+        <AndroidUpdateModal
+          updateInfo={availableUpdateInfo}
+          onClose={() => setAvailableUpdateInfo(null)}
         />
       )}
 

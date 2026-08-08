@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ============================================================
@@ -481,6 +481,19 @@ export default function SuperAdmin() {
   const [editingNotesTenant, setEditingNotesTenant] = useState(null);
   const [adminNotesInput, setAdminNotesInput] = useState('');
 
+  // Audit Logs & Billing Modals State
+  const [saasLogs, setSaasLogs] = useState([]);
+  const [manualPayTenant, setManualPayTenant] = useState(null);
+  const [payAmount, setPayAmount] = useState('149000');
+  const [payMethod, setPayMethod] = useState('Transfer Bank (BRI)');
+  const [payDays, setPayDays] = useState(30);
+  const [payRef, setPayRef] = useState('');
+  const [payNotes, setPayNotes] = useState('Pembayaran langganan Pro');
+  const [payTier, setPayTier] = useState('pro');
+
+  const [waModalTenant, setWaModalTenant] = useState(null);
+  const [waMessageType, setWaMessageType] = useState('H-7');
+
   // Helper untuk menentukan status langganan tenant secara presisi
   const getSubStatus = (tenant) => {
     const s = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant.settings || {});
@@ -550,20 +563,47 @@ export default function SuperAdmin() {
     }
   };
 
+  const handleRecordManualPayment = async (e) => {
+    e.preventDefault();
+    if (!manualPayTenant) return;
+    try {
+      setUpdatingCode(manualPayTenant.code);
+      await apiService.recordManualPayment({
+        tenantCode: manualPayTenant.code,
+        amount: payAmount,
+        paymentMethod: payMethod,
+        periodDays: payDays,
+        refNumber: payRef,
+        notes: payNotes,
+        targetTier: payTier
+      });
+      alert(`✅ Transaksi pembayaran manual Rp ${Number(payAmount).toLocaleString('id-ID')} untuk toko ${manualPayTenant.code} berhasil dicatat! Masa aktif bertambah +${payDays} hari.`);
+      setManualPayTenant(null);
+      setPayRef('');
+      loadStats();
+    } catch (err) {
+      alert('Gagal mencatat pembayaran manual: ' + err.message);
+    } finally {
+      setUpdatingCode(null);
+    }
+  };
+
 
   // Semua hooks HARUS sebelum return kondisional (Rules of Hooks)
   
   const loadStats = async () => {
     setLoading(true);
     try {
-      const [data, affResult, reviewData] = await Promise.all([
+      const [data, affResult, reviewData, logs] = await Promise.all([
         apiService.getAdminStats(),
         apiService.getAffiliateAdminData(),
         apiService.getAdminPlatformReviews(),
+        apiService.getSaasAdminLogs(),
       ]);
       setStats(data);
       setAffData(affResult);
       setReviews(reviewData);
+      setSaasLogs(logs || []);
     } catch (e) {
       console.error(e);
     }
@@ -844,6 +884,19 @@ export default function SuperAdmin() {
           >
             <MessageSquare size={18} /> Server WA Gateway
           </button>
+
+          <button 
+            onClick={() => setActiveTab('saaslogs')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
+              background: activeTab === 'saaslogs' ? '#4f46e5' : '#ffffff', color: activeTab === 'saaslogs' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'saaslogs' ? '0 4px 12px rgba(79, 70, 229, 0.3)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'saaslogs' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <FileText size={18} /> Log Aktivitas SaaS ({saasLogs.length})
+          </button>
         </div>
 
         {/* MAIN CONTENT AREA */}
@@ -1107,6 +1160,19 @@ export default function SuperAdmin() {
                                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '300px' }}>
                                   <button 
                                     onClick={() => {
+                                      setManualPayTenant(t);
+                                      setPayAmount(t.tier === 'enterprise' ? '299000' : '149000');
+                                      setPayTier(t.tier || 'pro');
+                                      setPayDays(30);
+                                      setPayNotes(`Pembayaran langganan ${t.tier?.toUpperCase() || 'PRO'}`);
+                                    }}
+                                    style={{ background: '#059669', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
+                                  >
+                                    💳 Catat Bayar
+                                  </button>
+
+                                  <button 
+                                    onClick={() => {
                                       setExtendingTenant(t);
                                       setExtendDays(30);
                                       setExtendNote('Pembayaran manual langganan 1 bulan');
@@ -1119,11 +1185,16 @@ export default function SuperAdmin() {
                                   {(tSettings.store_wa || t.phone) && (
                                     <button 
                                       onClick={() => {
-                                        const rawPhone = (tSettings.store_wa || t.phone).replace(/^0/, '62');
-                                        const statusStr = subStatus.toUpperCase();
-                                        const expiryStr = activeUntilMs ? new Date(activeUntilMs).toLocaleDateString('id-ID') : 'Tidak terbatas';
-                                        const msg = `Halo Owner ${t.name} (Kode: ${t.code}),\n\nInformasi status langganan UnitPro Anda saat ini:\n• Paket: ${t.tier?.toUpperCase() || 'STARTER'}\n• Status: ${statusStr}\n• Masa Aktif s/d: ${expiryStr}\n\nUntuk perpanjangan / upgrade paket langganan, silakan hubungi tim Admin UnitPro. Terima kasih!`;
-                                        window.open(`https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                        const subStatusStr = getSubStatus(t);
+                                        let initialType = 'H-7';
+                                        if (subStatusStr === 'expired') initialType = 'EXPIRED';
+                                        else if (activeUntilMs) {
+                                          const days = Math.ceil((activeUntilMs - Date.now()) / (24*3600*1000));
+                                          if (days <= 1) initialType = 'H-1';
+                                          else if (days <= 3) initialType = 'H-3';
+                                        }
+                                        setWaMessageType(initialType);
+                                        setWaModalTenant(t);
                                       }}
                                       style={{ background: '#25D366', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
                                     >
@@ -1448,6 +1519,79 @@ export default function SuperAdmin() {
             </div>
           )}
 
+          {/* SAAS AUDIT LOGS TAB */}
+          {activeTab === 'saaslogs' && (
+            <div style={{ padding: '1.8rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={22} color="#4f46e5" /> Audit Trail & Log Aktivitas Administrasi SaaS
+                  </h2>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                    Riwayat aktivitas Super Admin dalam mengelola tier, status langganan, pembayaran manual, reset PIN, dan pembekuan toko.
+                  </p>
+                </div>
+                <button onClick={loadStats} style={{ padding: '7px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <RefreshCw size={14} /> Refresh Log
+                </button>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ padding: '10px' }}>Waktu Audit</th>
+                      <th style={{ padding: '10px' }}>ID Toko (Tenant)</th>
+                      <th style={{ padding: '10px' }}>Jenis Aksi</th>
+                      <th style={{ padding: '10px' }}>Operator</th>
+                      <th style={{ padding: '10px' }}>Detail & Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {saasLogs.map(log => {
+                      const dateStr = log.created_at ? new Date(log.created_at).toLocaleString('id-ID') : '-';
+                      return (
+                        <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '10px', color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                            <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                            {dateStr}
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.78rem' }}>
+                              {log.tenant_code}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{
+                              padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.75rem',
+                              background: log.action_type === 'RECORD_MANUAL_PAYMENT' ? '#dcfce7' : log.action_type === 'UPDATE_TIER' ? '#f3e8ff' : log.action_type === 'TOGGLE_BAN' ? '#fee2e2' : '#f1f5f9',
+                              color: log.action_type === 'RECORD_MANUAL_PAYMENT' ? '#15803d' : log.action_type === 'UPDATE_TIER' ? '#7c3aed' : log.action_type === 'TOGGLE_BAN' ? '#dc2626' : '#475569'
+                            }}>
+                              {log.action_type}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px', fontWeight: '600', color: '#334155' }}>
+                            {log.operator || 'Super Admin'}
+                          </td>
+                          <td style={{ padding: '10px', color: '#0f172a', fontWeight: '500' }}>
+                            {log.details}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {saasLogs.length === 0 && (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                          Belum ada catatan aktivitas administrasi SaaS.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -1567,6 +1711,181 @@ export default function SuperAdmin() {
                 style={{ padding: '8px 18px', borderRadius: '10px', border: 'none', background: '#059669', color: '#fff', fontWeight: '800', cursor: 'pointer' }}
               >
                 💾 Simpan Catatan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: CATAT PEMBAYARAN MANUAL SAAS */}
+      {manualPayTenant && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '500px', padding: '1.8rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.3rem', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CreditCard size={22} color="#059669" /> Catat Pembayaran Manual SaaS
+            </h3>
+            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.85rem', color: '#64748b' }}>
+              Toko: <strong>{manualPayTenant.name}</strong> ({manualPayTenant.code})
+            </p>
+
+            <form onSubmit={handleRecordManualPayment}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#374151', marginBottom: '4px' }}>Nominal (Rp):</label>
+                  <input
+                    type="number"
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box', fontWeight: '700' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#374151', marginBottom: '4px' }}>Target Paket:</label>
+                  <select
+                    value={payTier}
+                    onChange={(e) => setPayTier(e.target.value)}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box', fontWeight: '700', background: '#fff' }}
+                  >
+                    <option value="pro">Pro Titan</option>
+                    <option value="enterprise">Enterprise Multi</option>
+                    <option value="whitelabel">White Label</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#374151', marginBottom: '4px' }}>Metode Pembayaran:</label>
+                  <select
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value)}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box', background: '#fff' }}
+                  >
+                    <option value="Transfer Bank (BRI)">Transfer Bank (BRI)</option>
+                    <option value="E-Wallet (DANA)">E-Wallet (DANA)</option>
+                    <option value="QRIS Direct">QRIS Direct</option>
+                    <option value="Tunai / Cash">Tunai / Cash</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#374151', marginBottom: '4px' }}>Durasi Langganan:</label>
+                  <select
+                    value={payDays}
+                    onChange={(e) => setPayDays(Number(e.target.value))}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box', background: '#fff' }}
+                  >
+                    <option value={30}>+30 Hari (1 Bulan)</option>
+                    <option value={90}>+90 Hari (3 Bulan)</option>
+                    <option value={180}>+180 Hari (6 Bulan)</option>
+                    <option value={365}>+365 Hari (1 Tahun)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#374151', marginBottom: '4px' }}>No. Referensi Transfer / Bukti:</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: REF98762512 / TRX-BCA-9812"
+                  value={payRef}
+                  onChange={(e) => setPayRef(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.4rem' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '800', color: '#374151', marginBottom: '4px' }}>Catatan Transaksi:</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Promo diskon perpanjangan tahun pertama"
+                  value={payNotes}
+                  onChange={(e) => setPayNotes(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setManualPayTenant(null)}
+                  style={{ padding: '9px 16px', borderRadius: '10px', border: 'none', background: '#f1f5f9', color: '#475569', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingCode === manualPayTenant.code}
+                  style={{ padding: '9px 20px', borderRadius: '10px', border: 'none', background: '#059669', color: '#fff', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <CheckCircle size={16} /> Simpan Pembayaran & Perpanjang
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: KIRIM TAGIHAN BILLING WA */}
+      {waModalTenant && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: '24px', width: '100%', maxWidth: '520px', padding: '1.8rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.3rem', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Send size={22} color="#25D366" /> Kirim Pengingat Tagihan WhatsApp
+            </h3>
+            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.85rem', color: '#64748b' }}>
+              Toko: <strong>{waModalTenant.name}</strong> ({waModalTenant.code}) · WA: <strong>{(typeof waModalTenant.settings === 'string' ? JSON.parse(waModalTenant.settings||'{}') : (waModalTenant.settings||{})).store_wa || waModalTenant.phone || '-'}</strong>
+            </p>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#374151', marginBottom: '6px' }}>Pilih Template Pesan:</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                {['H-7', 'H-3', 'H-1', 'EXPIRED'].map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setWaMessageType(t)}
+                    style={{
+                      padding: '8px 4px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                      background: waMessageType === t ? '#25D366' : '#f8fafc',
+                      color: waMessageType === t ? '#fff' : '#334155',
+                      fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', textAlign: 'center'
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.4rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#374151', marginBottom: '6px' }}>Pratinjau Pesan:</label>
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '1rem', fontSize: '0.85rem', color: '#166534', whiteSpace: 'pre-wrap', fontFamily: 'sans-serif', maxHeight: '180px', overflowY: 'auto' }}>
+                {apiService.generateBillingWaMessage(waModalTenant, waMessageType)}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setWaModalTenant(null)}
+                style={{ padding: '9px 16px', borderRadius: '10px', border: 'none', background: '#f1f5f9', color: '#475569', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetPhone = ((typeof waModalTenant.settings === 'string' ? JSON.parse(waModalTenant.settings||'{}') : (waModalTenant.settings||{})).store_wa || waModalTenant.phone || '').replace(/^0/, '62');
+                  const msg = apiService.generateBillingWaMessage(waModalTenant, waMessageType);
+                  if (!targetPhone) return alert('Nomor WhatsApp toko belum diisi!');
+                  window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                  apiService.logAdminActivity(waModalTenant.code, 'SEND_BILLING_WA', `Mengirim WA billing reminder template ${waMessageType} ke ${targetPhone}`);
+                  setWaModalTenant(null);
+                }}
+                style={{ padding: '9px 20px', borderRadius: '10px', border: 'none', background: '#25D366', color: '#fff', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                💬 Buka WhatsApp Sekarang →
               </button>
             </div>
           </div>

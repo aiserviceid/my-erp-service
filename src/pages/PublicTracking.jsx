@@ -408,6 +408,36 @@ export default function PublicTracking() {
                 )}
               </div>
             )}
+
+            {/* ── PROMO BANNER TOKO (Batch 23) ── */}
+            {tenantInfo && (tenantInfo.tier || 'free').toLowerCase() !== 'free' && (tenantSettings.ads?.length > 0 || tenantSettings.promoBanners?.length > 0) && (
+              <div style={{
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                borderRadius: '20px', padding: '20px', color: 'white',
+                marginTop: '16px', border: '1px solid #334155'
+              }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
+                  🔥 Promo Spesial Toko Kami
+                </div>
+                {(tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b.isActive !== false).slice(0, 2).map((banner, i) => (
+                  <div key={banner.id || i} style={{ borderTop: i > 0 ? '1px solid #334155' : 'none', paddingTop: i > 0 ? '12px' : 0, marginTop: i > 0 ? '12px' : 0 }}>
+                    <div style={{ fontWeight: '800', fontSize: '1rem', color: '#ffffff', marginBottom: '4px' }}>
+                      {banner.title}
+                    </div>
+                    {banner.description && <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4', marginBottom: '8px' }}>{banner.description}</div>}
+                    {tenantSettings.store_wa && (
+                      <a
+                        href={`https://wa.me/${(tenantSettings.store_wa || '').replace(/\D/g,'')}?text=${encodeURIComponent(`Halo ${tenantInfo.name}, saya melacak resi ${result.resi} dan tertarik promo: ${banner.title}`)}`}
+                        target="_blank" rel="noreferrer"
+                        style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        Tanyakan Promo Ini →
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -48,7 +48,7 @@ export default function PublicCatalog() {
       </header>
 
       <main style={{ flex: 1, padding: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ marginBottom: '0.5rem', color: 'var(--text-dark)' }}>Katalog Etalase Barang</h1>
           <p style={{ color: 'var(--text-muted)' }}>Temukan sparepart dan aksesori terbaik di toko kami.</p>
           
@@ -66,6 +66,49 @@ export default function PublicCatalog() {
             </div>
           </div>
         </div>
+
+        {/* PROMO BANNERS UNTUK PAKET PRO / ENTERPRISE (Batch 23) */}
+        {((tenant?.tier || 'free').toLowerCase() !== 'free') && (tenant?.settings?.ads?.length > 0 || tenant?.settings?.promoBanners?.length > 0) && (
+          <div style={{ marginBottom: '2.5rem' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🔥 Promo & Penawaran Spesial Toko
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {(tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b.isActive !== false).map((banner, i) => (
+                <div 
+                  key={banner.id || i}
+                  style={{
+                    background: 'linear-gradient(135deg, #0284c7 0%, #1e40af 100%)',
+                    borderRadius: '16px', padding: '1.2rem', color: 'white',
+                    boxShadow: '0 8px 20px rgba(2, 132, 199, 0.2)',
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden'
+                  }}
+                >
+                  {banner.imageUrl && (
+                    <img src={banner.imageUrl} alt={banner.title} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '10px', marginBottom: '10px' }} />
+                  )}
+                  <div>
+                    {banner.badge && <span style={{ background: '#fbbf24', color: '#78350f', padding: '2px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '900', textTransform: 'uppercase' }}>{banner.badge}</span>}
+                    <h4 style={{ margin: '6px 0 4px 0', fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>{banner.title || 'Promo Spesial Servis'}</h4>
+                    {banner.description && <p style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: '#e0f2fe', lineHeight: '1.4' }}>{banner.description}</p>}
+                  </div>
+                  {tenant?.settings?.store_wa && (
+                    <button
+                      onClick={() => {
+                        const targetWa = (tenant.settings.store_wa || '').replace(/\D/g, '');
+                        const msg = `Halo ${tenant.name}, saya tertarik dengan promo: ${banner.title || 'Promo Toko'}. Apakah masih berlaku?`;
+                        window.open(`https://wa.me/${targetWa}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      style={{ background: '#25D366', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', alignSelf: 'flex-start' }}
+                    >
+                      💬 Klaim Promo via WA →
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {filteredProducts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
