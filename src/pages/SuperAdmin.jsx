@@ -471,6 +471,86 @@ export default function SuperAdmin() {
   const [updatingCode, setUpdatingCode] = useState(null);
   const navigate = useNavigate();
 
+  // SaaS Control Center States (Batch 20 & 21)
+  const [searchTenant, setSearchTenant] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
+  const [extendingTenant, setExtendingTenant] = useState(null);
+  const [extendDays, setExtendDays] = useState(30);
+  const [extendNote, setExtendNote] = useState('');
+  const [editingNotesTenant, setEditingNotesTenant] = useState(null);
+  const [adminNotesInput, setAdminNotesInput] = useState('');
+
+  // Helper untuk menentukan status langganan tenant secara presisi
+  const getSubStatus = (tenant) => {
+    const s = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant.settings || {});
+    if (s.is_banned || s.subscription_status === 'suspended') return 'suspended';
+    const now = Date.now();
+    const activeUntil = s.active_until || s.trial_ends_at;
+    if (s.subscription_status === 'trial' || (!s.subscription_status && s.trial_ends_at)) {
+      if (activeUntil && activeUntil < now) return 'expired';
+      return 'trial';
+    }
+    if (s.subscription_status === 'expired') return 'expired';
+    if (activeUntil && activeUntil < now) return 'expired';
+    return 'active';
+  };
+
+  const handleStatusChange = async (tenantCode, newStatus) => {
+    try {
+      setUpdatingCode(tenantCode);
+      const tenantItem = stats.tenants.find(t => t.code === tenantCode);
+      const s = typeof tenantItem?.settings === 'string' ? JSON.parse(tenantItem.settings || '{}') : (tenantItem?.settings || {});
+      
+      let activeUntilMs = s.active_until;
+      if (newStatus === 'trial' && !activeUntilMs) {
+        activeUntilMs = Date.now() + (30 * 24 * 60 * 60 * 1000);
+      } else if (newStatus === 'active' && (!activeUntilMs || activeUntilMs < Date.now())) {
+        activeUntilMs = Date.now() + (30 * 24 * 60 * 60 * 1000);
+      }
+
+      await apiService.updateTenantSubscriptionStatus(tenantCode, newStatus, activeUntilMs);
+      alert(`Status langganan ${tenantCode} berhasil diubah menjadi ${newStatus.toUpperCase()}`);
+      loadStats();
+    } catch (e) {
+      alert('Gagal mengubah status langganan: ' + e.message);
+    } finally {
+      setUpdatingCode(null);
+    }
+  };
+
+  const handleSaveExtension = async () => {
+    if (!extendingTenant) return;
+    try {
+      setUpdatingCode(extendingTenant.code);
+      await apiService.extendTenantSubscription(extendingTenant.code, extendDays, extendNote);
+      alert(`Masa aktif toko ${extendingTenant.code} berhasil diperpanjang +${extendDays} hari!`);
+      setExtendingTenant(null);
+      setExtendNote('');
+      loadStats();
+    } catch (e) {
+      alert('Gagal memperpanjang masa aktif toko: ' + e.message);
+    } finally {
+      setUpdatingCode(null);
+    }
+  };
+
+  const handleSaveAdminNotes = async () => {
+    if (!editingNotesTenant) return;
+    try {
+      setUpdatingCode(editingNotesTenant.code);
+      await apiService.updateTenantAdminNotes(editingNotesTenant.code, adminNotesInput);
+      alert(`Catatan internal Super Admin untuk ${editingNotesTenant.code} berhasil disimpan!`);
+      setEditingNotesTenant(null);
+      loadStats();
+    } catch (e) {
+      alert('Gagal menyimpan catatan internal: ' + e.message);
+    } finally {
+      setUpdatingCode(null);
+    }
+  };
+
+
   // Semua hooks HARUS sebelum return kondisional (Rules of Hooks)
   
   const loadStats = async () => {
@@ -786,144 +866,301 @@ export default function SuperAdmin() {
                 </div>
                 
                 {/* Total Stores */}
-                <div style={{ padding: '1.8rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total Toko Terdaftar</div>
-                  <h1 style={{ margin: '8px 0 0 0', fontSize: '2.6rem', fontWeight: '900', color: '#0f172a' }}>{stats.tenants.length}</h1>
-                  <div style={{ fontSize: '0.8rem', color: '#059669', marginTop: '6px', fontWeight: '600' }}>
-                    {stats.tenants.filter(t => t.tier === 'pro' || t.tier === 'enterprise').length} Toko Berlangganan Pro/Enterprise
+                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total Toko Terdaftar</div>
+                  <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#0f172a' }}>{stats.tenants.length}</h1>
+                  <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '4px', fontWeight: '600' }}>
+                    {stats.tenants.filter(t => (t.tier || 'free').toLowerCase() !== 'free').length} Berlangganan (Pro/Enterprise)
                   </div>
                 </div>
 
+                {/* Trial Stores */}
+                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0', borderLeft: '4px solid #f59e0b', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Trial Aktif</div>
+                  <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#d97706' }}>
+                    {stats.tenants.filter(t => getSubStatus(t) === 'trial').length}
+                  </h1>
+                  <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px', fontWeight: '600' }}>Masa Percobaan 30 Hari</div>
+                </div>
+
+                {/* Expired Stores */}
+                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0', borderLeft: '4px solid #ef4444', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Toko Expired</div>
+                  <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#dc2626' }}>
+                    {stats.tenants.filter(t => getSubStatus(t) === 'expired').length}
+                  </h1>
+                  <div style={{ fontSize: '0.75rem', color: '#991b1b', marginTop: '4px', fontWeight: '600' }}>Perlu Di-follow up</div>
+                </div>
+
+                {/* Suspended Stores */}
+                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0', borderLeft: '4px solid #475569', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Toko Suspended</div>
+                  <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#475569' }}>
+                    {stats.tenants.filter(t => getSubStatus(t) === 'suspended').length}
+                  </h1>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>Akses Dibekukan</div>
+                </div>
+
                 {/* Pending Withdrawals */}
-                <div style={{ padding: '1.8rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Permintaan Withdraw Pending</div>
-                  <h1 style={{ margin: '8px 0 0 0', fontSize: '2.6rem', fontWeight: '900', color: '#d97706' }}>
+                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Withdraw Pending</div>
+                  <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#d97706' }}>
                     {stats.withdrawals.filter(w => w.status === 'PENDING').length}
                   </h1>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '6px' }}>Menunggu approval admin</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Permintaan Teknisian</div>
                 </div>
               </div>
 
               {/* Quick Info Box */}
-              <div style={{ padding: '1.8rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.15rem', fontWeight: '800' }}>Petunjuk Operasional Super Admin</h3>
-                <ul style={{ margin: 0, paddingLeft: '20px', color: '#475569', lineHeight: '1.8', fontSize: '0.92rem' }}>
-                  <li><strong>Aktivasi Toko Pro / Enterprise:</strong> Buka tab <em>"Manajemen Toko"</em>, ubah pilihan paket toko yang baru saja transfer pembayaran menjadi <code>PRO</code> atau <code>ENTERPRISE</code>.</li>
-                  <li><strong>Persetujuan Penarikan Teknisi (Withdraw):</strong> Buka tab <em>"Penarikan Saldo"</em>, cek nomor rekening tujuan teknisi, transfer dananya, lalu klik <strong>"Setujui Transfer"</strong>.</li>
+              <div style={{ padding: '1.5rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', fontWeight: '800' }}>🛡️ Panduan Pengelolaan SaaS Super Admin</h3>
+                <ul style={{ margin: 0, paddingLeft: '20px', color: '#475569', lineHeight: '1.7', fontSize: '0.88rem' }}>
+                  <li><strong>Aktivasi Langganan:</strong> Buka tab <em>"Manajemen Toko"</em>, ubah paket toko menjadi <code>PRO</code> atau <code>ENTERPRISE</code> dan atur status ke <code>ACTIVE</code>.</li>
+                  <li><strong>Perpanjang Masa Aktif:</strong> Klik tombol <code>📅 Perpanjang</code> untuk menambah masa aktif +30 hari / +1 tahun dan catat bukti bayar.</li>
+                  <li><strong>Peringatan Expired:</strong> Gunakan tombol <code>💬 Billing WA</code> untuk mengirim reminder tagihan via WhatsApp secara langsung.</li>
                 </ul>
               </div>
             </div>
           )}
 
-          {/* 2. TENANTS MANAGEMENT */}
+          {/* 2. TENANTS CONTROL CENTER MANAGEMENT */}
           {activeTab === 'tenants' && (
-            <div style={{ padding: '2rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>Daftar Toko & Aktivasi Langganan</h2>
-                <button onClick={loadStats} style={{ padding: '6px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
+            <div style={{ padding: '1.8rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900' }}>Super Admin Control Center</h2>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>Kelola seluruh tenant, langganan, paket, dan status operasional toko SaaS UnitPro</p>
+                </div>
+                <button onClick={loadStats} style={{ padding: '7px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.82rem' }}>
                   Refresh Data 🔄
                 </button>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px' }}>Kode Toko</th>
-                      <th style={{ padding: '12px' }}>Nama Toko</th>
-                      <th style={{ padding: '12px' }}>No. WhatsApp</th>
-                      <th style={{ padding: '12px' }}>Paket (Tier)</th>
-                      <th style={{ padding: '12px' }}>Reputasi</th>
-                      <th style={{ padding: '12px' }}>Saldo Dompet</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Aksi / Upgrade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.tenants.map(t => {
-                      const tSettings = typeof t.settings === 'string' ? JSON.parse(t.settings) : (t.settings || {});
-                      return (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #e2e8f0', opacity: tSettings.is_banned ? 0.6 : 1 }}>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{ background: tSettings.is_banned ? '#fee2e2' : '#e0f2fe', color: tSettings.is_banned ? '#991b1b' : '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.8rem' }}>
-                            {t.code}
-                          </span>
-                          {tSettings.is_banned && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#dc2626', fontWeight: 'bold' }}>(BANNED)</span>}
-                        </td>
-                        <td style={{ padding: '12px', fontWeight: '700' }}>{t.name}</td>
-                        <td style={{ padding: '12px', color: '#334155' }}>
-                          {tSettings.store_wa || t.phone ? (
-                            <a href={`https://wa.me/${(tSettings.store_wa || t.phone).replace(/^0/, '62')}`} target="_blank" rel="noreferrer" style={{ color: '#059669', fontWeight: '700', textDecoration: 'none' }}>
-                              📱 {tSettings.store_wa || t.phone}
-                            </a>
-                          ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <select 
-                            value={t.tier || 'free'} 
-                            onChange={(e) => handleTierChange(t.code, e.target.value)}
-                            disabled={updatingCode === t.code}
-                            style={{
-                              padding: '5px 8px', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-                              background: t.tier === 'enterprise' ? '#f3e8ff' : t.tier === 'pro' ? '#e0f2fe' : '#f1f5f9',
-                              color: t.tier === 'enterprise' ? '#7c3aed' : t.tier === 'pro' ? '#0284c7' : '#475569',
-                              border: '1px solid #cbd5e1'
-                            }}
-                          >
-                            <option value="free">Starter (Gratis)</option>
-                            <option value="pro">Pro Titan (Rp 49rb)</option>
-                            <option value="enterprise">Enterprise (Rp 79rb)</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: '12px' }}>⭐ {t.reputation_points || 0}</td>
-                        <td style={{ padding: '12px', fontWeight: '700', color: '#059669' }}>
-                          Rp {(t.wallet_balance || 0).toLocaleString('id-ID')}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '250px' }}>
-                            <button 
-                              onClick={() => handleAdjustWallet(t.code)}
-                              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' }}
-                            >
-                              💳 Saldo
-                            </button>
-                            <button 
-                              onClick={() => handleResetPin(t.code)}
-                              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#0284c7' }}
-                            >
-                              🔑 Reset PIN
-                            </button>
-                            <button 
-                              onClick={() => handleToggleBan(t.code, tSettings.is_banned)}
-                              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: tSettings.is_banned ? '#15803d' : '#b45309' }}
-                            >
-                              {tSettings.is_banned ? '✅ Aktifkan' : '🚫 Ban'}
-                            </button>
-                            <button 
-                              onClick={() => handleSetTrial(t.code)}
-                              style={{ background: '#fef3c7', border: '1px solid #fde68a', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#d97706' }}
-                            >
-                              ⏳ Set Trial
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteTenant(t.code)}
-                              style={{ background: '#fee2e2', border: '1px solid #fecaca', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#dc2626' }}
-                            >
-                              🗑️ Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );})}
-                    {stats.tenants.length === 0 && (
-                      <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada toko yang mendaftar</td></tr>
-                    )}
-                  </tbody>
-                </table>
+              {/* SEARCH & FILTER CONTROLS */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={searchTenant}
+                    onChange={(e) => setSearchTenant(e.target.value)}
+                    placeholder="Cari toko, kode, WA, atau owner..."
+                    style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: '700', background: '#fff' }}
+                >
+                  <option value="all">Semua Status Langganan</option>
+                  <option value="trial">⏳ Trial</option>
+                  <option value="active">✓ Active</option>
+                  <option value="expired">⚠️ Expired</option>
+                  <option value="suspended">🚫 Suspended</option>
+                </select>
+
+                <select
+                  value={tierFilter}
+                  onChange={(e) => setTierFilter(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: '700', background: '#fff' }}
+                >
+                  <option value="all">Semua Paket (Tier)</option>
+                  <option value="free">Starter (Free)</option>
+                  <option value="pro">Pro Titan</option>
+                  <option value="enterprise">Enterprise</option>
+                  <option value="whitelabel">White Label Partner</option>
+                </select>
               </div>
+
+              {/* TABLE LISTING TENANTS */}
+              {(() => {
+                const q = searchTenant.trim().toLowerCase();
+                const filteredTenants = stats.tenants.filter(t => {
+                  const tSettings = typeof t.settings === 'string' ? JSON.parse(t.settings || '{}') : (t.settings || {});
+                  const subStatus = getSubStatus(t);
+                  
+                  const matchesSearch = !q ||
+                    (t.name || '').toLowerCase().includes(q) ||
+                    (t.code || '').toLowerCase().includes(q) ||
+                    (t.phone || '').includes(q) ||
+                    (tSettings.store_wa || '').includes(q);
+
+                  const matchesStatus = statusFilter === 'all' || subStatus === statusFilter;
+                  const matchesTier = tierFilter === 'all' || (t.tier || 'free').toLowerCase() === tierFilter;
+
+                  return matchesSearch && matchesStatus && matchesTier;
+                });
+
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                          <th style={{ padding: '10px' }}>Kode & Toko</th>
+                          <th style={{ padding: '10px' }}>No. WhatsApp</th>
+                          <th style={{ padding: '10px' }}>Paket (Tier)</th>
+                          <th style={{ padding: '10px' }}>Status Langganan</th>
+                          <th style={{ padding: '10px' }}>Masa Aktif s/d</th>
+                          <th style={{ padding: '10px' }}>Catatan Internal</th>
+                          <th style={{ padding: '10px', textAlign: 'center' }}>Aksi Super Admin</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTenants.map(t => {
+                          const tSettings = typeof t.settings === 'string' ? JSON.parse(t.settings || '{}') : (t.settings || {});
+                          const subStatus = getSubStatus(t);
+                          const activeUntilMs = tSettings.active_until || tSettings.trial_ends_at;
+
+                          return (
+                            <tr key={t.id} style={{ borderBottom: '1px solid #e2e8f0', background: subStatus === 'suspended' ? '#fef2f2' : 'transparent' }}>
+                              <td style={{ padding: '10px' }}>
+                                <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.78rem' }}>
+                                  {t.code}
+                                </span>
+                                <strong style={{ display: 'block', color: '#0f172a', marginTop: '3px', fontSize: '0.9rem' }}>{t.name}</strong>
+                              </td>
+
+                              <td style={{ padding: '10px', color: '#334155' }}>
+                                {tSettings.store_wa || t.phone ? (
+                                  <a href={`https://wa.me/${(tSettings.store_wa || t.phone).replace(/^0/, '62')}`} target="_blank" rel="noreferrer" style={{ color: '#059669', fontWeight: '700', textDecoration: 'none' }}>
+                                    📱 {tSettings.store_wa || t.phone}
+                                  </a>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>-</span>
+                                )}
+                              </td>
+
+                              {/* TIER DROPDOWN */}
+                              <td style={{ padding: '10px' }}>
+                                <select 
+                                  value={t.tier || 'free'} 
+                                  onChange={(e) => handleTierChange(t.code, e.target.value)}
+                                  disabled={updatingCode === t.code}
+                                  style={{
+                                    padding: '4px 8px', borderRadius: '8px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer',
+                                    background: t.tier === 'enterprise' ? '#f3e8ff' : t.tier === 'pro' ? '#e0f2fe' : t.tier === 'whitelabel' ? '#fef3c7' : '#f1f5f9',
+                                    color: t.tier === 'enterprise' ? '#7c3aed' : t.tier === 'pro' ? '#0284c7' : t.tier === 'whitelabel' ? '#b45309' : '#475569',
+                                    border: '1px solid #cbd5e1'
+                                  }}
+                                >
+                                  <option value="free">Starter (Gratis)</option>
+                                  <option value="pro">Pro Titan (Rp 149rb)</option>
+                                  <option value="enterprise">Enterprise (Rp 299rb)</option>
+                                  <option value="whitelabel">White Label Partner</option>
+                                </select>
+                              </td>
+
+                              {/* SUBSCRIPTION STATUS DROPDOWN */}
+                              <td style={{ padding: '10px' }}>
+                                <select
+                                  value={subStatus}
+                                  onChange={(e) => handleStatusChange(t.code, e.target.value)}
+                                  disabled={updatingCode === t.code}
+                                  style={{
+                                    padding: '4px 8px', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer',
+                                    background: subStatus === 'active' ? '#dcfce7' : subStatus === 'trial' ? '#fef3c7' : subStatus === 'expired' ? '#fee2e2' : '#f1f5f9',
+                                    color: subStatus === 'active' ? '#15803d' : subStatus === 'trial' ? '#b45309' : subStatus === 'expired' ? '#dc2626' : '#475569',
+                                    border: '1px solid #cbd5e1'
+                                  }}
+                                >
+                                  <option value="trial">⏳ Trial 30 Hari</option>
+                                  <option value="active">✓ Active (Aktif)</option>
+                                  <option value="expired">⚠️ Expired</option>
+                                  <option value="suspended">🚫 Suspended</option>
+                                </select>
+                              </td>
+
+                              {/* MASA AKTIF */}
+                              <td style={{ padding: '10px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                {activeUntilMs ? (
+                                  <div>
+                                    <strong style={{ color: activeUntilMs < Date.now() ? '#dc2626' : '#059669' }}>
+                                      {new Date(activeUntilMs).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </strong>
+                                    <small style={{ display: 'block', color: '#64748b' }}>
+                                      {activeUntilMs < Date.now() ? 'Expired' : `Sisa ${Math.ceil((activeUntilMs - Date.now()) / (24*3600*1000))} hari`}
+                                    </small>
+                                  </div>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>Tak Terbatas</span>
+                                )}
+                              </td>
+
+                              {/* CATATAN INTERNAL */}
+                              <td style={{ padding: '10px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingNotesTenant(t);
+                                    setAdminNotesInput(tSettings.admin_notes || '');
+                                  }}
+                                  style={{ padding: '3px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: tSettings.admin_notes ? '#f0fdf4' : '#f8fafc', color: tSettings.admin_notes ? '#166534' : '#64748b', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600' }}
+                                >
+                                  📝 {tSettings.admin_notes ? 'Ada Catatan' : '+ Catatan'}
+                                </button>
+                              </td>
+
+                              {/* AKSI BUTTONS */}
+                              <td style={{ padding: '10px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '300px' }}>
+                                  <button 
+                                    onClick={() => {
+                                      setExtendingTenant(t);
+                                      setExtendDays(30);
+                                      setExtendNote('Pembayaran manual langganan 1 bulan');
+                                    }}
+                                    style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
+                                  >
+                                    📅 Perpanjang
+                                  </button>
+
+                                  {(tSettings.store_wa || t.phone) && (
+                                    <button 
+                                      onClick={() => {
+                                        const rawPhone = (tSettings.store_wa || t.phone).replace(/^0/, '62');
+                                        const statusStr = subStatus.toUpperCase();
+                                        const expiryStr = activeUntilMs ? new Date(activeUntilMs).toLocaleDateString('id-ID') : 'Tidak terbatas';
+                                        const msg = `Halo Owner ${t.name} (Kode: ${t.code}),\n\nInformasi status langganan UnitPro Anda saat ini:\n• Paket: ${t.tier?.toUpperCase() || 'STARTER'}\n• Status: ${statusStr}\n• Masa Aktif s/d: ${expiryStr}\n\nUntuk perpanjangan / upgrade paket langganan, silakan hubungi tim Admin UnitPro. Terima kasih!`;
+                                        window.open(`https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                      }}
+                                      style={{ background: '#25D366', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
+                                    >
+                                      💬 Billing WA
+                                    </button>
+                                  )}
+
+                                  <button 
+                                    onClick={() => handleResetPin(t.code)}
+                                    style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#0284c7' }}
+                                  >
+                                    🔑 PIN
+                                  </button>
+
+                                  <button 
+                                    onClick={() => handleDeleteTenant(t.code)}
+                                    style={{ background: '#fee2e2', border: '1px solid #fecaca', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#dc2626' }}
+                                  >
+                                    🗑️ Hapus
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+
+                        {filteredTenants.length === 0 && (
+                          <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Tidak ada toko yang sesuai dengan pencarian/filter.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           )}
+
 
           {/* 2B. CRM PELANGGAN — dikelompokkan berdasarkan paket */}
           {activeTab === 'crm' && (
@@ -1214,6 +1451,129 @@ export default function SuperAdmin() {
         </div>
       </div>
 
+      {/* MODAL 1: PERPANJANG MASA AKTIF LANGGANAN */}
+      {extendingTenant && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '460px', padding: '1.6rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}>
+              📅 Perpanjang Masa Aktif Langganan
+            </h3>
+            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.82rem', color: '#64748b' }}>
+              Toko: <strong>{extendingTenant.name}</strong> ({extendingTenant.code})
+            </p>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>Pilih Durasi Perpanjangan:</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setExtendDays(30)}
+                  style={{ padding: '8px', borderRadius: '10px', border: '1px solid #cbd5e1', background: extendDays === 30 ? '#0284c7' : '#fff', color: extendDays === 30 ? '#fff' : '#334155', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  +30 Hari (1 Bln)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtendDays(90)}
+                  style={{ padding: '8px', borderRadius: '10px', border: '1px solid #cbd5e1', background: extendDays === 90 ? '#0284c7' : '#fff', color: extendDays === 90 ? '#fff' : '#334155', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  +90 Hari (3 Bln)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtendDays(365)}
+                  style={{ padding: '8px', borderRadius: '10px', border: '1px solid #cbd5e1', background: extendDays === 365 ? '#0284c7' : '#fff', color: extendDays === 365 ? '#fff' : '#334155', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  +365 Hari (1 Thn)
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.2rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Ketik Jumlah Hari Custom:</label>
+              <input
+                type="number"
+                value={extendDays}
+                onChange={(e) => setExtendDays(Number(e.target.value))}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.4rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Catatan / Bukti Pembayaran:</label>
+              <input
+                type="text"
+                placeholder="Contoh: Transfer BCA Rp 149.000 tgl 8 Aug"
+                value={extendNote}
+                onChange={(e) => setExtendNote(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setExtendingTenant(null)}
+                style={{ padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#f1f5f9', color: '#475569', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveExtension}
+                disabled={updatingCode === extendingTenant.code}
+                style={{ padding: '8px 18px', borderRadius: '10px', border: 'none', background: '#0284c7', color: '#fff', fontWeight: '800', cursor: 'pointer' }}
+              >
+                💾 Simpan Perpanjangan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: EDIT CATATAN INTERNAL SUPER ADMIN */}
+      {editingNotesTenant && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '460px', padding: '1.6rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}>
+              📝 Catatan Internal Super Admin
+            </h3>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.82rem', color: '#64748b' }}>
+              Toko: <strong>{editingNotesTenant.name}</strong> ({editingNotesTenant.code}) — Hanya terlihat oleh Super Admin.
+            </p>
+
+            <div style={{ marginBottom: '1.4rem' }}>
+              <textarea
+                rows={4}
+                value={adminNotesInput}
+                onChange={(e) => setAdminNotesInput(e.target.value)}
+                placeholder="Tulis catatan internal untuk tim Super Admin (misal: Janji bayar tgl 10, minta diskon perpanjangan, dsb)..."
+                style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setEditingNotesTenant(null)}
+                style={{ padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#f1f5f9', color: '#475569', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAdminNotes}
+                disabled={updatingCode === editingNotesTenant.code}
+                style={{ padding: '8px 18px', borderRadius: '10px', border: 'none', background: '#059669', color: '#fff', fontWeight: '800', cursor: 'pointer' }}
+              >
+                💾 Simpan Catatan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+

@@ -875,6 +875,89 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* ⚠️ EXPIRATION / TRIAL / SUSPENDED WARNING BANNERS */}
+            {(() => {
+              const s = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant?.settings || {});
+              const activeUntil = s.active_until || s.trial_ends_at;
+              const subStatus = s.subscription_status || (s.trial_ends_at ? 'trial' : 'active');
+              const now = Date.now();
+              const daysLeft = activeUntil ? Math.ceil((activeUntil - now) / (24 * 3600 * 1000)) : 999;
+              const isExp = subStatus === 'expired' || (activeUntil && activeUntil < now);
+              const isSusp = s.is_banned || subStatus === 'suspended';
+
+              if (isSusp) {
+                return (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '16px', padding: '1.2rem', marginTop: '1rem', color: '#991b1b' }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '900', color: '#dc2626' }}>🚫 Akses Toko Anda Dibekukan (Suspended)</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>Akun toko ini sedang dalam status penangguhan oleh Super Admin. Hubungi customer support UnitPro untuk mengaktifkan kembali.</p>
+                  </div>
+                );
+              }
+
+              if (isExp) {
+                return (
+                  <div style={{ background: '#fff1f2', border: '2px solid #fda4af', borderRadius: '16px', padding: '1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '900', color: '#e11d48' }}>⚠️ Masa Langganan Toko Anda Telah Expired</h4>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#9f1239' }}>Data operasional toko Anda tetap aman, namun fitur pencatatan transaksi baru dibatasi. Silakan perpanjang langganan Anda.</p>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20memperpanjang%20langganan%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
+                      target="_blank" rel="noreferrer"
+                      className="btn"
+                      style={{ background: '#e11d48', color: '#fff', fontWeight: '900', padding: '10px 18px', borderRadius: '10px', textDecoration: 'none' }}
+                    >
+                      💳 Perpanjang Langganan Sekarang →
+                    </a>
+                  </div>
+                );
+              }
+
+              if (subStatus === 'trial' && daysLeft <= 30) {
+                return (
+                  <div style={{ background: '#fefce8', border: '1px solid #fef08a', borderRadius: '16px', padding: '1rem 1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>⏳</span>
+                      <div>
+                        <strong style={{ color: '#854d0e', fontSize: '0.92rem' }}>Masa Percobaan (Trial) 30 Hari Aktif</strong>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#a16207' }}>
+                          Sisa waktu trial: <strong>{Math.max(0, daysLeft)} Hari lagi</strong> (s/d {activeUntil ? new Date(activeUntil).toLocaleDateString('id-ID') : '-'})
+                        </span>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20upgrade%20dari%20Trial%20ke%20Pro%20untuk%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
+                      target="_blank" rel="noreferrer"
+                      style={{ background: '#ca8a04', color: '#fff', padding: '6px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', textDecoration: 'none' }}
+                    >
+                      ⭐ Upgrade ke Pro Permanen
+                    </a>
+                  </div>
+                );
+              }
+
+              if (daysLeft <= 7 && daysLeft > 0) {
+                return (
+                  <div style={{ background: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '16px', padding: '1rem 1.2rem', marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <strong style={{ color: '#c2410c', fontSize: '0.92rem' }}>⚠️ Masa Langganan Toko Tinggal {daysLeft} Hari Lagi</strong>
+                      <span style={{ display: 'block', fontSize: '0.78rem', color: '#ea580c' }}>Berakhir pada {new Date(activeUntil).toLocaleDateString('id-ID')}. Perpanjang agar operasional toko tidak terganggu.</span>
+                    </div>
+                    <a
+                      href={`https://wa.me/6285382535050?text=Halo%20Admin%20UnitPro,%20saya%20ingin%20perpanjang%20toko%20${tenant?.name}%20(ID:%20${tenant?.code})`}
+                      target="_blank" rel="noreferrer"
+                      style={{ background: '#ea580c', color: '#fff', padding: '6px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', textDecoration: 'none' }}
+                    >
+                      💳 Perpanjang Saja
+                    </a>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
+
+
             {/* 🔥 CTA UPGRADE BANNER — hanya untuk tier Free */}
             {isFree && (
               <div className="dashboard-upgrade-banner" style={{

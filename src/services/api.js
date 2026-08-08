@@ -1166,7 +1166,14 @@ export const apiService = {
     try {
       const { data: tenant } = await supabase.from('tenants').select('settings').eq('code', tenantCode).single();
       const currentSettings = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings) : (tenant.settings || {});
-      const newSettings = { ...currentSettings, trial_ends_at: trialEndsAtMs };
+      const nowMs = Date.now();
+      const newSettings = {
+        ...currentSettings,
+        trial_started_at: currentSettings.trial_started_at || nowMs,
+        trial_ends_at: trialEndsAtMs,
+        active_until: trialEndsAtMs,
+        subscription_status: trialEndsAtMs && trialEndsAtMs > nowMs ? 'trial' : 'expired'
+      };
       
       const { data, error } = await supabase
         .from('tenants')
@@ -1181,6 +1188,88 @@ export const apiService = {
       throw e;
     }
   },
+
+  updateTenantSubscriptionStatus: async (tenantCode, newStatus, activeUntilMs) => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('settings').eq('code', tenantCode).single();
+      const currentSettings = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings) : (tenant.settings || {});
+      const newSettings = {
+        ...currentSettings,
+        subscription_status: newStatus,
+        is_banned: newStatus === 'suspended',
+        active_until: activeUntilMs !== undefined ? activeUntilMs : currentSettings.active_until
+      };
+
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ settings: newSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error('updateTenantSubscriptionStatus error:', e);
+      throw e;
+    }
+  },
+
+  updateTenantAdminNotes: async (tenantCode, adminNotes) => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('settings').eq('code', tenantCode).single();
+      const currentSettings = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings) : (tenant.settings || {});
+      const newSettings = {
+        ...currentSettings,
+        admin_notes: adminNotes
+      };
+
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ settings: newSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error('updateTenantAdminNotes error:', e);
+      throw e;
+    }
+  },
+
+  extendTenantSubscription: async (tenantCode, days, paymentNote = '') => {
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('settings, tier').eq('code', tenantCode).single();
+      const currentSettings = typeof tenant.settings === 'string' ? JSON.parse(tenant.settings) : (tenant.settings || {});
+      
+      const currentActiveMs = currentSettings.active_until && currentSettings.active_until > Date.now()
+        ? currentSettings.active_until
+        : Date.now();
+      
+      const newActiveUntilMs = currentActiveMs + (Number(days) * 24 * 60 * 60 * 1000);
+      const newSettings = {
+        ...currentSettings,
+        active_until: newActiveUntilMs,
+        subscription_status: 'active',
+        is_banned: false,
+        last_payment_note: paymentNote,
+        last_payment_at: Date.now()
+      };
+
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ settings: newSettings })
+        .eq('code', tenantCode)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data, newActiveUntilMs };
+    } catch (e) {
+      console.error('extendTenantSubscription error:', e);
+      throw e;
+    }
+  },
+
 
   adjustTenantWallet: async (tenantCode, deltaAmount) => {
     try {
