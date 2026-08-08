@@ -19,7 +19,6 @@ import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
 import CustomerCRMInsights from '../components/CustomerCRMInsights';
 import PremiumFinanceReport from '../components/PremiumFinanceReport';
 import OnboardingProgressCard from '../components/OnboardingProgressCard';
-import SecurityReadinessPanel from '../components/SecurityReadinessPanel';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
@@ -2223,7 +2222,6 @@ export default function AdminDashboard() {
         ) : activeTab === 'keuangan' ? (
           <div className="glass-panel finance-report" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
             <PremiumFinanceReport transactions={transactions} services={services} products={products} users={users} tenant={tenant} />
-            <SecurityReadinessPanel tenant={tenant} users={users} products={products} services={services} transactions={transactions} />
           </div>
         ) : activeTab === 'karyawan' ? (
           isFree ? (
