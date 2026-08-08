@@ -1,0 +1,78 @@
+name: UnitPro AI Agent Verify
+
+on:
+  push:
+    branches:
+      - agent/unitpro-ai-agent-auto-reply
+
+permissions:
+  contents: write
+
+jobs:
+  verify-build-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unitpro-ai-agent-auto-reply
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply AI Agent integration patch
+        run: python scripts/apply-ai-agent-integration.py
+
+      - name: Backend syntax checks
+        run: |
+          node --check server/index.cjs
+          node --check server/ai-agent.cjs
+          node -e "const m=require('./server/ai-agent.cjs'); if(typeof m.registerAiAgentRoutes!=='function') process.exit(1); if(!m.DEFAULT_AGENT_SYSTEM_PROMPT.includes('human handoff')) process.exit(1); console.log('AI module smoke OK')"
+
+      - name: Static integration guards
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          server=Path('server/index.cjs').read_text()
+          agent=Path('server/ai-agent.cjs').read_text()
+          superadmin=Path('src/pages/SuperAdmin.jsx').read_text()
+          crm=Path('src/components/CustomerCRMInsights.jsx').read_text()
+          schema=Path('server/supabase_schema.sql').read_text()
+          checks={
+            'backend mounted': "registerAiAgentRoutes(app" in server,
+            'old route removed': "app.post('/api/ai/copywriting'" not in server,
+            'new campaign route': "app.post('/api/ai/copywriting'" in agent,
+            'webhook route': "/api/webhooks/fonnte/:tenant/:secret" in agent,
+            'fonnte setup': "update-device" in agent and "autoread: 'true'" in agent,
+            'handoff': "human_takeover" in agent,
+            'super admin panel': "SuperAdminAISettings" in superadmin and "setActiveTab('ai')" in superadmin,
+            'agent toggle': "handleToggleAgent" in crm and "UnitPro AI Agent" in crm,
+            'chat composer': "AI WhatsApp Copywriter" in crm and "Promo Barang" in crm and "Promo Jasa" in crm,
+            'app config schema': 'CREATE TABLE IF NOT EXISTS app_config' in schema and 'REVOKE ALL ON app_config FROM anon, authenticated' in schema,
+          }
+          failed=[name for name, ok in checks.items() if not ok]
+          for name, ok in checks.items(): print(('PASS' if ok else 'FAIL'), name)
+          if failed: raise SystemExit('Static guards failed: '+', '.join(failed))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Commit verified product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/index.cjs server/ai-agent.cjs server/supabase_schema.sql src/pages/SuperAdmin.jsx src/components/SuperAdminAISettings.jsx src/components/CustomerCRMInsights.jsx
+          if git diff --cached --quiet; then
+            echo "No product changes to commit"
+          else
+            git commit -m "feat(ai): integrate auto-reply agent and smart campaigns"
+            git push origin HEAD:agent/unitpro-ai-agent-auto-reply
+          fi
