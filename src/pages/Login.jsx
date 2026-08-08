@@ -181,17 +181,15 @@ export default function Login() {
       }}>
         
         {/* Brand Header */}
-        <div className="native-login-brand" style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('/login')}>
-          <div style={{ width: '52px', height: '52px', margin: '0 auto 12px auto' }}>
-            <UnitProLogo size={52} />
+        <div className="native-login-brand" style={{ textAlign: 'center', marginBottom: '1.8rem', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+          <div style={{ margin: '0 auto 8px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <UnitProLogo variant="wordmark" size={56} height={56} width="auto" />
           </div>
-          <h2 style={{ fontSize: '1.65rem', fontWeight: '900', margin: 0, color: '#0f172a' }}>
-            UnitPro
-          </h2>
-          <p style={{ color: '#0284c7', fontSize: '0.85rem', fontWeight: '700', margin: '4px 0 0 0' }}>
+          <p style={{ color: '#0284c7', fontSize: '0.88rem', fontWeight: '700', margin: '4px 0 0 0' }}>
             {isNativeApp ? 'Operasional Toko dalam Genggaman' : 'Sistem Operasional Toko Servis Modern'}
           </p>
         </div>
+
 
         {/* TAB SWITCHER */}
         <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '12px', padding: '4px', marginBottom: '1.8rem', border: '1px solid #e2e8f0' }}>

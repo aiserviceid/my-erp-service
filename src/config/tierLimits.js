@@ -263,9 +263,10 @@ export const ADMIN_TABS = [
   { id: 'dashboard',   name: 'Ringkasan',          feature: 'basicReport',    iconName: 'LayoutDashboard' },
   { id: 'servis',      name: 'Servis',             feature: 'services',       iconName: 'Wrench' },
   { id: 'pos',         name: 'Kasir',              feature: 'pos',            iconName: 'ShoppingCart' },
-  { id: 'master',      name: 'Inventori',          feature: 'masterProducts', iconName: 'Package' },
+  { id: 'master',      name: 'Barang/Jasa',        feature: 'masterProducts', iconName: 'Package' },
   { id: 'pelanggan',   name: 'Pelanggan & WA',     feature: 'basicReport',    iconName: 'MessageSquare' },
   { id: 'keuangan',    name: 'Laporan',            feature: 'basicReport',    iconName: 'TrendingUp' },
   { id: 'karyawan',    name: 'Tim',                feature: 'employees',      iconName: 'Users' },
-  { id: 'pengaturan',  name: 'Toko',               feature: 'themeSettings',  iconName: 'Settings' },
+  { id: 'pengaturan',  name: 'Pengaturan Toko',    feature: 'themeSettings',  iconName: 'Settings' },
 ];
+

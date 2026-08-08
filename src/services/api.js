@@ -470,7 +470,42 @@ export const apiService = {
     }
   },
 
+  createTransaction: async (txData) => {
+    try {
+      if (txData.tenant_code === 'DEMO-STORE') {
+        const newTx = {
+          id: `TRX-${Date.now()}`,
+          created_at: txData.created_at || new Date().toISOString(),
+          ...txData
+        };
+        return newTx;
+      }
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([{
+          tenant_code: txData.tenant_code,
+          type: txData.type || 'EXPENSE',
+          amount: Number(txData.amount || 0),
+          description: txData.description || '',
+          payment_method: txData.payment_method || 'Tunai',
+          created_at: txData.created_at || new Date().toISOString()
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('createTransaction error:', e);
+      return {
+        id: `TRX-${Date.now()}`,
+        created_at: txData.created_at || new Date().toISOString(),
+        ...txData
+      };
+    }
+  },
+
   updateTransaction: async (id, transactionData) => {
+
     try {
       const { data, error } = await supabase
         .from('transactions')

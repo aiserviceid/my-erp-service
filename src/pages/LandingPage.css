@@ -39,14 +39,17 @@
 .simple-brand-logo {
   display: inline-flex;
   align-items: center;
-  width: 230px;
-  max-width: 52vw;
+  width: 260px;
+  max-width: 60vw;
+  height: 54px;
 }
 
 .simple-brand-logo img {
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
 }
+
 
 .simple-nav-links {
   display: flex;
