@@ -25,6 +25,7 @@ import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit,
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
+import { parseKasbonDescription } from '../utils/financeUtils';
 
 const formatRupiahAxis = (value = 0) => {
   const amount = Number(value || 0);
@@ -32,7 +33,8 @@ const formatRupiahAxis = (value = 0) => {
     const millions = amount / 1000000;
     return `Rp ${Number.isInteger(millions) ? millions : millions.toFixed(1).replace('.0', '')}jt`;
   }
-  if (amount > 0) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount >= 1000) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount > 0) return `Rp ${Math.round(amount)}`;
   return 'Rp 0';
 };
 
@@ -688,6 +690,17 @@ export default function AdminDashboard() {
   const newServiceCount = services.filter(s => new Date(s.created_at || Date.now()).toDateString() === todayStr && s.status === 'PROSES').length;
   const newAttendanceCount = transactions.filter(t => t.type === 'ATTENDANCE_IN' && new Date(t.created_at).toDateString() === todayStr).length;
   const pendingKasbonCount = transactions.filter(t => t.type === 'BON_PENDING').length;
+  const kasbonTransactions = transactions
+    .filter((transaction) => ['BON_PENDING', 'BON_KARYAWAN', 'BON_REJECTED'].includes(transaction.type))
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const resolveKasbonEmployee = (transaction) => {
+    const meta = parseKasbonDescription(transaction?.description);
+    const employeeMatch = users.find((user) => String(user.id) === String(meta.employeeId));
+    return {
+      id: meta.employeeId,
+      name: employeeMatch?.name || meta.employeeName || `Karyawan (${meta.employeeId || '-'})`,
+    };
+  };
 
   // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
   const tabs = ADMIN_TABS.map(tabItem => {
@@ -2686,43 +2699,51 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
              {empTab === 'kasbon' && (
                <div className="animate-fade-in">
                  <table className="table">
-                   <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+                   <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
                    <tbody>
-                     {transactions.filter(t => t.type === 'BON_PENDING').map(t => {
-                       const empId = t.description.replace('EMP_', '');
-                       const emp = users.find(u => u.id === empId);
+                     {kasbonTransactions.map((transaction) => {
+                       const kasbonEmployee = resolveKasbonEmployee(transaction);
+                       const statusLabel = transaction.type === 'BON_PENDING' ? 'Menunggu' : transaction.type === 'BON_KARYAWAN' ? 'Disetujui' : 'Ditolak';
+                       const statusClass = transaction.type === 'BON_PENDING' ? 'badge-warning' : transaction.type === 'BON_KARYAWAN' ? 'badge-success' : 'badge-danger';
                        return (
-                         <tr key={t.id}>
-                           <td>{emp ? emp.name : 'Unknown'}</td>
-                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {t.amount?.toLocaleString('id-ID')}</td>
-                           <td>{new Date(t.created_at).toLocaleString('id-ID')}</td>
+                         <tr key={transaction.id}>
+                           <td><strong>{kasbonEmployee.name}</strong></td>
+                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {Number(transaction.amount || 0).toLocaleString('id-ID')}</td>
+                           <td>{new Date(transaction.created_at).toLocaleString('id-ID')}</td>
+                           <td><span className={`badge ${statusClass}`}>{statusLabel}</span></td>
                            <td>
-                             <div style={{ display: 'flex', gap: '5px' }}>
-                               <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
-                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Setujui kasbon?', message: 'Nominal ini akan memotong THP anggota tim.', confirmText: 'Setujui', tone: 'warning' }) : Promise.resolve(window.confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')))) {
-                                   try {
-                                     await apiService.post('/transactions/update-type', { id: t.id, type: 'BON_KARYAWAN' });
-                                     await apiService.delete(`/transactions/${t.id}`);
-                                     await apiService.post('/transactions', { tenant_code: tenant.code, type: 'BON_KARYAWAN', amount: t.amount, description: t.description });
-                                     apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
-                                     alert('Kasbon disetujui!');
-                                   } catch(e) { alert('Gagal update kasbon'); }
-                                 }
-                               }}>Setujui</button>
-                               <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tolak kasbon?', message: 'Pengajuan kasbon ini akan ditolak dan dihapus dari daftar.', confirmText: 'Tolak', tone: 'warning' }) : Promise.resolve(window.confirm('Tolak kasbon ini?')))) {
-                                   try {
-                                     await apiService.delete(`/transactions/${t.id}`);
-                                     apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
-                                   } catch(e) { alert('Gagal tolak kasbon'); }
-                                 }
-                               }}>Tolak</button>
-                             </div>
+                             {transaction.type === 'BON_PENDING' ? (
+                               <div style={{ display: 'flex', gap: '5px' }}>
+                                 <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
+                                   if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Setujui kasbon?', message: 'Nominal ini akan memotong THP anggota tim dan tetap tersimpan di riwayat.', confirmText: 'Setujui', tone: 'warning' }) : Promise.resolve(window.confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')))) {
+                                     try {
+                                       await apiService.post(`/transactions/${transaction.id}/update`, { type: 'BON_KARYAWAN' });
+                                       setTransactions((current) => current.map((item) => item.id === transaction.id ? { ...item, type: 'BON_KARYAWAN' } : item));
+                                       alert('Kasbon disetujui dan tersimpan di riwayat.');
+                                     } catch (error) {
+                                       console.error('Gagal menyetujui kasbon:', error);
+                                       alert('Gagal update kasbon');
+                                     }
+                                   }
+                                 }}>Setujui</button>
+                                 <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                                   if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tolak kasbon?', message: 'Pengajuan akan ditandai Ditolak dan tetap tersimpan di riwayat.', confirmText: 'Tolak', tone: 'warning' }) : Promise.resolve(window.confirm('Tolak kasbon ini?')))) {
+                                     try {
+                                       await apiService.post(`/transactions/${transaction.id}/update`, { type: 'BON_REJECTED' });
+                                       setTransactions((current) => current.map((item) => item.id === transaction.id ? { ...item, type: 'BON_REJECTED' } : item));
+                                     } catch (error) {
+                                       console.error('Gagal menolak kasbon:', error);
+                                       alert('Gagal tolak kasbon');
+                                     }
+                                   }
+                                 }}>Tolak</button>
+                               </div>
+                             ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Tersimpan</span>}
                            </td>
                          </tr>
-                       )
+                       );
                      })}
-                     {transactions.filter(t => t.type === 'BON_PENDING').length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada permintaan kasbon.</td></tr>}
+                     {kasbonTransactions.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada riwayat kasbon.</td></tr>}
                    </tbody>
                  </table>
                </div>
@@ -2788,25 +2809,24 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
       {transactions.filter(t => t.type === 'BON_PENDING').length > 0 && (
         <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {transactions.filter(t => t.type === 'BON_PENDING').map(bon => {
-            const empId = bon.description.replace('EMP_', '');
-            const emp = users.find(u => u.id === empId);
+            const kasbonEmployee = resolveKasbonEmployee(bon);
             return (
               <div key={bon.id} className="glass-panel animate-fade-in" style={{ padding: '15px', background: 'var(--bg-light)', borderLeft: '4px solid var(--warning)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', width: '300px' }}>
                 <h4 style={{ margin: '0 0 5px 0' }}>Ajuan Kasbon Baru</h4>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>
-                  <strong>{emp ? emp.name : `Karyawan (${empId})`}</strong> mengajukan Kasbon sebesar <strong>Rp {bon.amount.toLocaleString('id-ID')}</strong>.
+                  <strong>{kasbonEmployee.name}</strong> mengajukan Kasbon sebesar <strong>Rp {Number(bon.amount || 0).toLocaleString('id-ID')}</strong>.
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
                     try {
                       await apiService.post(`/transactions/${bon.id}/update`, { type: 'BON_KARYAWAN' });
-                      setTransactions(transactions.map(t => t.id === bon.id ? { ...t, type: 'BON_KARYAWAN' } : t));
+                      setTransactions((current) => current.map(t => t.id === bon.id ? { ...t, type: 'BON_KARYAWAN' } : t));
                     } catch(e) { alert('Gagal menyetujui'); }
                   }}>Setujui</button>
                   <button className="btn btn-danger" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
                     try {
                       await apiService.post(`/transactions/${bon.id}/update`, { type: 'BON_REJECTED' });
-                      setTransactions(transactions.map(t => t.id === bon.id ? { ...t, type: 'BON_REJECTED' } : t));
+                      setTransactions((current) => current.map(t => t.id === bon.id ? { ...t, type: 'BON_REJECTED' } : t));
                     } catch(e) { alert('Gagal menolak'); }
                   }}>Tolak</button>
                 </div>
