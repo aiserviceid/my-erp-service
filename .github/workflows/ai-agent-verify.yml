@@ -31,7 +31,6 @@ jobs:
         run: |
           node --check server/index.cjs
           node --check server/ai-agent.cjs
-          node -e "const m=require('./server/ai-agent.cjs'); if(typeof m.registerAiAgentRoutes!=='function') process.exit(1); if(!m.DEFAULT_AGENT_SYSTEM_PROMPT.includes('human handoff')) process.exit(1); console.log('AI module smoke OK')"
 
       - name: Static integration guards
         run: |
@@ -61,6 +60,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: AI module runtime smoke
+        run: |
+          node -e "const m=require('./server/ai-agent.cjs'); if(typeof m.registerAiAgentRoutes!=='function') process.exit(1); if(!m.DEFAULT_AGENT_SYSTEM_PROMPT.includes('human handoff')) process.exit(1); console.log('AI module smoke OK')"
 
       - name: Build production app
         run: npm run build
