@@ -217,80 +217,8 @@ app.post('/api/whatsapp/send', secureRoute, async (req, res) => {
   }
 });
 
-app.post('/api/ai/copywriting', secureRoute, async (req, res) => {
-  if (!GEMINI_API_KEY) {
-    return res.status(503).json({ error: 'Gemini belum dikonfigurasi. Tambahkan GEMINI_API_KEY di environment server.' });
-  }
-
-  const goal = String(req.body?.goal || '').trim().slice(0, 1200);
-  const segmentLabel = String(req.body?.segment_label || 'Pelanggan').trim().slice(0, 100);
-  const tone = String(req.body?.tone || 'Ramah, singkat, profesional').trim().slice(0, 120);
-  const cta = String(req.body?.cta || '').trim().slice(0, 300);
-  if (!goal) return res.status(400).json({ error: 'Tujuan campaign wajib diisi.' });
-
-  const supportedVariables = [
-    '{nama_pelanggan}', '{nama_toko}', '{resi}', '{perangkat}',
-    '{biaya}', '{link_tracking}', '{hari_sejak_terakhir}', '{jumlah_transaksi}'
-  ];
-  const systemInstruction = [
-    'Anda adalah copywriter WhatsApp untuk toko servis elektronik di Indonesia.',
-    'Tulis SATU pesan WhatsApp siap pakai dalam Bahasa Indonesia.',
-    'Jangan buat klaim harga, diskon, bonus, garansi, stok, atau tenggat yang tidak disebutkan pengguna.',
-    'Gunakan placeholder dinamis persis seperti yang disediakan dan jangan menggantinya dengan nama contoh.',
-    'Gunakan minimal {nama_pelanggan} dan {nama_toko}.',
-    'Pesan harus mudah dibaca, tidak spammy, tidak manipulatif, dan memiliki CTA yang jelas.',
-    'Jangan gunakan code fence, judul analisis, atau penjelasan di luar isi pesan.',
-    'Idealnya 300-900 karakter kecuali tujuan membutuhkan lebih pendek.'
-  ].join(' ');
-  const input = [
-    `Segment pelanggan: ${segmentLabel}.`,
-    `Tujuan campaign: ${goal}`,
-    `Gaya bahasa: ${tone}.`,
-    cta ? `CTA yang diinginkan: ${cta}` : '',
-    `Placeholder yang boleh digunakan: ${supportedVariables.join(', ')}.`
-  ].filter(Boolean).join('\n');
-
-  try {
-    const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        model: GEMINI_MODEL,
-        input,
-        system_instruction: systemInstruction,
-        store: false,
-        generation_config: { thinking_level: 'low' },
-      }),
-    });
-    const payload = await geminiResponse.json().catch(() => ({}));
-    if (!geminiResponse.ok) {
-      const reason = payload?.error?.message || `HTTP ${geminiResponse.status}`;
-      return res.status(502).json({ error: `Gemini gagal membuat copywriting: ${reason}` });
-    }
-
-    const stepText = (payload.steps || [])
-      .filter((step) => step?.type === 'model_output')
-      .flatMap((step) => step?.content || [])
-      .filter((item) => item?.type === 'text' && item?.text)
-      .map((item) => item.text)
-      .join('\n')
-      .trim();
-    const legacyText = (payload.outputs || [])
-      .filter((item) => item?.type === 'text' && item?.text)
-      .map((item) => item.text)
-      .join('\n')
-      .trim();
-    const generatedText = String(payload.output_text || stepText || legacyText || '').trim();
-    if (!generatedText) return res.status(502).json({ error: 'Gemini tidak mengembalikan teks copywriting.' });
-    return res.json({ text: generatedText, model: GEMINI_MODEL });
-  } catch (error) {
-    console.error('Gemini copywriting error:', error.message);
-    return res.status(502).json({ error: 'Tidak dapat terhubung ke Gemini API.' });
-  }
-});
+const { registerAiAgentRoutes } = require('./ai-agent.cjs');
+registerAiAgentRoutes(app, { db });
 
 // Middleware to enforce premium feature limits & tiers on the backend server-side
 const requirePremiumFeature = (req, res, next) => {

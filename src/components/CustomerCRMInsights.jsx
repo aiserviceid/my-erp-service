@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Users,
   MessageCircle,
@@ -15,6 +15,9 @@ import {
   Play,
   AlertCircle,
   RefreshCw,
+  Bot,
+  Pause,
+  Sparkles,
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { getWhatsAppSenderConfig, sendWhatsAppNotification } from '../services/notificationService';
@@ -81,6 +84,15 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
   const [showGuide, setShowGuide] = useState(false);
   const [gatewayTestStatus, setGatewayTestStatus] = useState('idle');
   const messageRef = useRef(null);
+  const [agentEnabled, setAgentEnabled] = useState(Boolean(settings.ai_agent_enabled));
+  const [agentPausedUntil, setAgentPausedUntil] = useState(Number(settings.ai_agent_paused_until || 0));
+  const [agentBusy, setAgentBusy] = useState(false);
+  const [agentStatus, setAgentStatus] = useState('');
+
+  useEffect(() => {
+    setAgentEnabled(Boolean(settings.ai_agent_enabled));
+    setAgentPausedUntil(Number(settings.ai_agent_paused_until || 0));
+  }, [settings.ai_agent_enabled, settings.ai_agent_paused_until]);
 
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastProgress, setBroadcastProgress] = useState(0);
@@ -260,26 +272,91 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
     });
   };
 
-  const handleGenerateCopy = async () => {
-    if (!campaignGoal.trim()) return alert('Isi tujuan campaign terlebih dahulu.');
+  const handleGenerateCopy = async (instruction = '') => {
+    if (!campaignGoal.trim()) return alert('Tulis permintaan untuk AI terlebih dahulu.');
     setIsGeneratingCopy(true);
     try {
       const result = await apiService.post('/ai/copywriting', {
         tenant_code: tenant?.code,
-        goal: campaignGoal.trim(),
+        prompt: campaignGoal.trim(),
+        segment_key: selectedSegment,
         segment_label: activeSegment.label,
-        tone: campaignTone,
-        cta: campaignCta,
-        allowed_variables: CAMPAIGN_VARIABLES.map((item) => item.token),
+        current_message: campaignMessage,
+        instruction,
       });
       if (result?.error) throw new Error(result.error);
       const text = String(result?.text || '').trim();
       if (!text) throw new Error('Gemini tidak mengembalikan teks.');
       setCampaignMessage(text);
     } catch (error) {
-      alert(`Gagal membuat copywriting: ${error?.message || 'layanan Gemini belum siap'}`);
+      alert(`Gagal membuat pesan: ${error?.message || 'layanan Gemini belum siap'}`);
     } finally {
       setIsGeneratingCopy(false);
+    }
+  };
+
+  const saveAgentSettings = async (patch) => {
+    const nextSettings = { ...settings, ai_agent_enabled: agentEnabled, ai_agent_paused_until: agentPausedUntil, ...patch };
+    await apiService.updateTenantSettings(tenant.code, nextSettings);
+    return nextSettings;
+  };
+
+  const handleToggleAgent = async () => {
+    if (!tenant?.code) return;
+    const nextEnabled = !agentEnabled;
+    if (nextEnabled && !(senderConfig.mode === 'CUSTOM' && senderConfig.token)) {
+      return alert('AI Agent otomatis membutuhkan mode CUSTOM + Token Fonnte. Isi di Pengaturan → WhatsApp Gateway terlebih dahulu.');
+    }
+    setAgentBusy(true);
+    setAgentStatus('');
+    try {
+      if (nextEnabled) {
+        await saveAgentSettings({ ai_agent_enabled: true, ai_agent_paused_until: 0 });
+        const setup = await apiService.post('/whatsapp/setup-agent', { tenant_code: tenant.code });
+        if (setup?.error) throw new Error(setup.error);
+        setAgentEnabled(true);
+        setAgentPausedUntil(0);
+        setAgentStatus(`✅ AI Agent aktif. Webhook Fonnte dipasang otomatis${setup?.device ? ` pada ${setup.device}` : ''}.`);
+      } else {
+        await saveAgentSettings({ ai_agent_enabled: false });
+        setAgentEnabled(false);
+        setAgentStatus('AI Agent OFF — chat pelanggan tidak dibalas otomatis.');
+      }
+    } catch (error) {
+      if (nextEnabled) {
+        try { await saveAgentSettings({ ai_agent_enabled: false }); } catch { /* best effort rollback */ }
+        setAgentEnabled(false);
+      }
+      setAgentStatus(`❌ ${error?.message || 'Gagal mengatur AI Agent.'}`);
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
+  const handlePauseAgent = async () => {
+    const pausedUntil = Date.now() + (60 * 60 * 1000);
+    setAgentBusy(true);
+    try {
+      await saveAgentSettings({ ai_agent_paused_until: pausedUntil });
+      setAgentPausedUntil(pausedUntil);
+      setAgentStatus('⏸️ AI Agent dipause 1 jam.');
+    } catch (error) {
+      setAgentStatus(`❌ ${error.message}`);
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
+  const handleResumeAgent = async () => {
+    setAgentBusy(true);
+    try {
+      await saveAgentSettings({ ai_agent_paused_until: 0 });
+      setAgentPausedUntil(0);
+      setAgentStatus('✅ AI Agent aktif kembali.');
+    } catch (error) {
+      setAgentStatus(`❌ ${error.message}`);
+    } finally {
+      setAgentBusy(false);
     }
   };
 
@@ -378,8 +455,8 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
       <div className="customer-crm-hero">
         <div>
           <p>CRM PELANGGAN & WHATSAPP MARKETING</p>
-          <h3>Follow-up pelanggan tanpa template kaku</h3>
-          <span>Pilih target, tulis sendiri atau buat copywriting dengan Gemini, lalu variabel pelanggan terisi otomatis saat pesan dikirim.</span>
+          <h3>AI Agent + Campaign yang memahami data toko</h3>
+          <span>Balas WhatsApp otomatis, buat promo barang/jasa, follow-up CRM, dan personalisasi pesan cukup dengan bahasa sehari-hari.</span>
         </div>
         <div className="customer-crm-pro-badge"><Crown size={15} /> WhatsApp Marketing Pro</div>
       </div>
@@ -408,16 +485,38 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
 
       {showGuide && (
         <div style={{ marginTop: '10px', padding: '14px', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
-          <strong style={{ display: 'block', marginBottom: '8px' }}>Cara pakai paling ringkas</strong>
+          <strong style={{ display: 'block', marginBottom: '8px' }}>Tutorial UnitPro AI + WhatsApp</strong>
           <div style={{ display: 'grid', gap: '6px', fontSize: '0.84rem', lineHeight: 1.5 }}>
-            <span><b>1.</b> Pengaturan → WhatsApp Gateway → pilih CUSTOM → isi token Fonnte → Simpan.</span>
-            <span><b>2.</b> Klik <b>Tes Gateway</b>. Jika sukses, pilih segment pelanggan di bawah.</span>
-            <span><b>3.</b> Isi tujuan campaign → <b>Buat dengan Gemini</b>, atau tulis pesan sendiri. Semua teks tetap bisa diedit.</span>
-            <span><b>4.</b> Sisipkan variabel seperti <code>{'{nama_pelanggan}'}</code> dan <code>{'{resi}'}</code>. UnitPro mengisinya berbeda untuk tiap pelanggan saat kirim.</span>
-            <span><b>5.</b> Kirim dulu ke 1 pelanggan untuk cek hasil, lalu jalankan broadcast bertahap dan pantau log.</span>
+            <span><b>1.</b> Pengaturan → WhatsApp Gateway → CUSTOM → isi Token Fonnte → Simpan → Tes Gateway.</span>
+            <span><b>2.</b> Aktifkan <b>AI Agent</b>. UnitPro otomatis memasang webhook Fonnte dan auto-read chat personal.</span>
+            <span><b>3.</b> AI menjawab status servis, tracking, informasi toko, serta barang/jasa dari data UnitPro. Jika tidak yakin atau ada komplain serius, AI melakukan human handoff.</span>
+            <span><b>4.</b> Untuk campaign, pilih target lalu ketik seperti chat: <i>“Buat promo cleaning laptop untuk pelanggan lama.”</i></span>
+            <span><b>5.</b> Gemini otomatis menulis copywriting dan memilih variabel personalisasi. Cek preview, edit bila perlu, kirim 1 tes, lalu broadcast.</span>
+            <span><b>6.</b> Owner dapat mematikan atau pause AI Agent kapan saja.</span>
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5,#eff6ff)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', background: agentEnabled ? '#16a34a' : '#64748b', color: '#fff' }}><Bot size={22} /></div>
+            <div>
+              <strong style={{ display: 'block', color: '#0f172a' }}>UnitPro AI Agent</strong>
+              <small style={{ color: '#64748b' }}>{agentEnabled ? (agentPausedUntil > Date.now() ? 'Dipause sementara' : 'Membalas WhatsApp otomatis dengan konteks servis & CRM') : 'OFF — pelanggan ditangani manual'}</small>
+            </div>
+          </div>
+          <button type="button" disabled={agentBusy} onClick={handleToggleAgent} style={{ minWidth: 115, border: 'none', borderRadius: 999, padding: '9px 14px', cursor: agentBusy ? 'wait' : 'pointer', background: agentEnabled ? '#16a34a' : '#334155', color: '#fff', fontWeight: 900 }}>
+            {agentBusy ? 'Memproses...' : agentEnabled ? '🟢 AI ON' : '⚫ AI OFF'}
+          </button>
+        </div>
+        {agentEnabled && <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>
+          {agentPausedUntil > Date.now()
+            ? <button type="button" className="btn btn-ghost" onClick={handleResumeAgent}><Play size={14} /> Aktifkan Sekarang</button>
+            : <button type="button" className="btn btn-ghost" onClick={handlePauseAgent}><Pause size={14} /> Pause 1 Jam</button>}
+        </div>}
+        {agentStatus && <div style={{ marginTop: 8, fontSize: '0.8rem', fontWeight: 700, color: agentStatus.startsWith('❌') ? '#b91c1c' : '#166534' }}>{agentStatus}</div>}
+      </div>
 
       <div className="customer-segment-grid" style={{ marginTop: '1rem' }}>
         {segments.map((segment) => {
@@ -459,41 +558,41 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
         <div style={{ background: 'linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%)', border: '1px solid #bbf7d0', borderRadius: '18px', padding: '1.2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ color: '#166534', fontWeight: '900', fontSize: '1rem' }}>✍️ Editor Pesan + Gemini Copywriting</div>
-              <small style={{ color: '#64748b' }}>Tidak ada template tetap. Pesan sepenuhnya milik toko dan selalu bisa diedit.</small>
+              <div style={{ color: '#5b21b6', fontWeight: '900', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={17} /> AI WhatsApp Copywriter</div>
+              <small style={{ color: '#64748b' }}>Ketik seperti ngobrol dengan AI. Gemini mengurus gaya, CTA, dan variabel UnitPro.</small>
             </div>
             <span style={{ fontSize: '0.76rem', fontWeight: '800', color: '#0f766e', background: '#ccfbf1', padding: '5px 10px', borderRadius: '999px' }}>
               {selectedCustomers.filter((c) => c.phone).length} WA Target
             </span>
           </div>
 
-          <div style={{ marginTop: '12px', padding: '12px', background: '#fff', border: '1px solid #dbeafe', borderRadius: '14px' }}>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '900', color: '#334155', marginBottom: '4px' }}>Tujuan Campaign</label>
-            <textarea className="input-field" value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} rows={3} placeholder="Contoh: ajak pelanggan servis laptop yang sudah 60 hari tidak datang..." style={{ resize: 'vertical', lineHeight: 1.45 }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', fontWeight: '800' }}>Gaya Bahasa</label>
-                <select className="input-field" value={campaignTone} onChange={(e) => setCampaignTone(e.target.value)}>
-                  <option>Ramah, singkat, profesional</option>
-                  <option>Santai dan akrab</option>
-                  <option>Profesional dan meyakinkan</option>
-                  <option>Promosi kuat tapi tidak berlebihan</option>
-                  <option>Reminder singkat dan sopan</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', fontWeight: '800' }}>Call to Action</label>
-                <input className="input-field" value={campaignCta} onChange={(e) => setCampaignCta(e.target.value)} placeholder="Contoh: balas MAU untuk booking" />
-              </div>
+          <div style={{ marginTop: '12px', background: '#fff', border: '1px solid #ddd6fe', borderRadius: '14px', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 12px', background: '#faf5ff', borderBottom: '1px solid #ede9fe', fontSize: '0.8rem', color: '#5b21b6', lineHeight: 1.45 }}>
+              <b>🤖 UnitPro AI:</b> Ceritakan apa yang ingin disampaikan. Saya akan membuat pesan WhatsApp dan memilih personalisasi yang tepat otomatis.
             </div>
-            <button type="button" className="btn" onClick={handleGenerateCopy} disabled={isGeneratingCopy} style={{ marginTop: '9px', width: '100%', background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)', color: '#fff', fontWeight: '900' }}>
-              <Star size={16} /> {isGeneratingCopy ? 'Gemini sedang menulis...' : 'Buat Copywriting dengan Gemini ✨'}
-            </button>
+            <div style={{ padding: '10px' }}>
+              <textarea className="input-field" value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} rows={4} placeholder="Contoh: Buat promo SSD 512GB untuk pelanggan laptop, ramah dan singkat..." style={{ resize: 'vertical', lineHeight: 1.45 }} />
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal('Buat campaign promo barang yang stoknya tersedia dan relevan untuk target ini. Gunakan harga dan stok dari data UnitPro, jangan mengarang diskon.')} style={{ fontSize: '0.72rem' }}>📦 Promo Barang</button>
+                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal('Buat campaign jasa servis atau maintenance yang paling relevan untuk target ini berdasarkan data UnitPro.')} style={{ fontSize: '0.72rem' }}>🛠️ Promo Jasa</button>
+                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.ready)} style={{ fontSize: '0.72rem' }}>✅ Servis Selesai</button>
+                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.dormant)} style={{ fontSize: '0.72rem' }}>💤 Pelanggan Lama</button>
+              </div>
+              <button type="button" className="btn" onClick={() => handleGenerateCopy('')} disabled={isGeneratingCopy} style={{ marginTop: '9px', width: '100%', background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)', color: '#fff', fontWeight: '900' }}>
+                <Sparkles size={16} /> {isGeneratingCopy ? 'AI sedang menulis...' : 'Buat Pesan ✨'}
+              </button>
+            </div>
           </div>
 
           <div style={{ marginTop: '12px' }}>
             <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '900', color: '#166534', marginBottom: '5px' }}>Pesan WhatsApp — bebas diedit</label>
             <textarea ref={messageRef} className="input-field" value={campaignMessage} onChange={(e) => setCampaignMessage(e.target.value)} rows={9} placeholder={'Contoh: Halo Kak {nama_pelanggan}, ...'} style={{ resize: 'vertical', lineHeight: 1.5, background: '#fff' }} />
+            {campaignMessage && <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}>
+              <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Buat lebih singkat dan langsung ke inti')} disabled={isGeneratingCopy}>Lebih Singkat</button>
+              <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Buat lebih ramah dan natural seperti CS toko Indonesia')} disabled={isGeneratingCopy}>Lebih Ramah</button>
+              <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Perbaiki copywriting tanpa mengubah fakta atau mengarang klaim baru')} disabled={isGeneratingCopy}>Perbaiki dengan AI</button>
+            </div>}
+            <small style={{ display: 'block', marginTop: '7px', color: '#64748b' }}>Variabel di bawah hanya untuk edit manual lanjutan. Gemini sudah memilih variabel otomatis.</small>
             <div style={{ marginTop: '7px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {CAMPAIGN_VARIABLES.map((variable) => (
                 <button key={variable.token} type="button" className="btn btn-ghost" onClick={() => insertVariable(variable.token)} style={{ padding: '5px 8px', fontSize: '0.72rem', background: '#fff', border: '1px solid #cbd5e1' }} title={`${variable.label} → ${variable.example}`}>
