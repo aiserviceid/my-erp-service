@@ -26,6 +26,41 @@ export const normalizeTransactionAmounts = (transactions = []) => (
   }))
 );
 
+export const allocateServiceDiscount = (partFeeValue = 0, jasaFeeValue = 0, discountValue = 0) => {
+  const partFee = Math.max(0, normalizeMoneyInteger(partFeeValue));
+  const jasaFee = Math.max(0, normalizeMoneyInteger(jasaFeeValue));
+  const discount = Math.max(0, normalizeMoneyInteger(discountValue));
+  const subtotal = partFee + jasaFee;
+  const appliedDiscount = Math.min(discount, subtotal);
+  const jasaDiscount = Math.min(appliedDiscount, jasaFee);
+  const jasaAfterDiscount = Math.max(0, jasaFee - jasaDiscount);
+  const remainingDiscount = Math.max(0, appliedDiscount - jasaDiscount);
+  const partAfterDiscount = Math.max(0, partFee - remainingDiscount);
+
+  return {
+    partFee,
+    jasaFee,
+    discount,
+    subtotal,
+    partAfterDiscount,
+    jasaAfterDiscount,
+    totalAfterDiscount: partAfterDiscount + jasaAfterDiscount,
+  };
+};
+
+export const transactionMatchesServiceResi = (description = '', resi = '') => {
+  const source = String(description || '').toUpperCase();
+  const serviceResi = String(resi || '').trim().toUpperCase();
+  if (!serviceResi) return false;
+  const markers = [`RESI ${serviceResi}`, `RESI: ${serviceResi}`, `RESI:${serviceResi}`];
+  return markers.some((marker) => {
+    const index = source.indexOf(marker);
+    if (index < 0) return false;
+    const nextChar = source[index + marker.length] || '';
+    return !/[A-Z0-9_-]/.test(nextChar);
+  });
+};
+
 export const buildKasbonDescription = (employee = {}) => {
   const employeeId = String(employee?.id ?? '').trim();
   const employeeName = String(employee?.name ?? '').trim();

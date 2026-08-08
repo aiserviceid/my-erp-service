@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { compressImageFile } from '../utils/imageCompressor';
-import { normalizeKasbonAmount, normalizeMoneyInteger, normalizeTransactionAmounts } from '../utils/financeUtils';
+import { allocateServiceDiscount, normalizeKasbonAmount, normalizeMoneyInteger, normalizeTransactionAmounts, transactionMatchesServiceResi } from '../utils/financeUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
@@ -742,26 +742,39 @@ export const apiService = {
     const serviceResi = String(resi || '').trim();
     if (!tenantCode || !serviceResi) throw new Error('Kode toko dan resi wajib diisi.');
 
-    const partFee = Math.max(0, normalizeMoneyInteger(part_fee));
-    const jasaFee = Math.max(0, normalizeMoneyInteger(jasa_fee));
-    const discountValue = Math.max(0, normalizeMoneyInteger(discount));
-    const jasaAfterDiscount = Math.max(0, jasaFee - discountValue);
+    const {
+      partFee,
+      jasaFee,
+      discount: discountValue,
+      subtotal,
+      partAfterDiscount,
+      jasaAfterDiscount,
+    } = allocateServiceDiscount(part_fee, jasa_fee, discount);
 
-    if (partFee <= 0 && jasaAfterDiscount <= 0) {
+    if (subtotal <= 0) {
       throw new Error('Rincian pembayaran servis belum diisi. Tandai Selesai dan isi biaya terlebih dahulu.');
+    }
+    if (discountValue > subtotal) {
+      throw new Error('Diskon tidak boleh lebih besar dari total biaya servis.');
     }
 
     const { data: existingRows, error: existingError } = await supabase
       .from('transactions')
       .select('id,type,amount,description')
       .eq('tenant_code', tenantCode)
-      .ilike('description', `%Resi ${serviceResi}%`);
+      .ilike('description', `%${serviceResi}%`);
     if (existingError) throw existingError;
 
-    const existing = existingRows || [];
+    // The DB search is intentionally broad, then narrowed to an exact resi token.
+    // This prevents TRX-123 from being treated as already paid because TRX-1234 exists.
+    const existing = (existingRows || []).filter((row) => transactionMatchesServiceResi(row.description, serviceResi));
     const hasCombinedIncome = existing.some((row) => String(row.type || '').toUpperCase() === 'INCOME');
     const hasJasaIncome = hasCombinedIncome || existing.some((row) => String(row.type || '').toUpperCase() === 'INCOME_JASA');
     const hasPartIncome = hasCombinedIncome || existing.some((row) => String(row.type || '').toUpperCase() === 'INCOME_SPAREPART');
+    const alreadySettledBefore =
+      (jasaAfterDiscount <= 0 || hasJasaIncome) &&
+      (partAfterDiscount <= 0 || hasPartIncome) &&
+      (jasaAfterDiscount > 0 || partAfterDiscount > 0);
     const rowsToInsert = [];
     const customerLabel = String(customer_name || '').trim();
     const customerSuffix = customerLabel ? ` (${customerLabel})` : '';
@@ -774,11 +787,11 @@ export const apiService = {
         description: `Jasa Servis Resi ${serviceResi}${customerSuffix}`,
       });
     }
-    if (partFee > 0 && !hasPartIncome) {
+    if (partAfterDiscount > 0 && !hasPartIncome) {
       rowsToInsert.push({
         tenant_code: tenantCode,
         type: 'INCOME_SPAREPART',
-        amount: partFee,
+        amount: partAfterDiscount,
         description: `Sparepart Servis Resi ${serviceResi}${customerSuffix}`,
       });
     }
@@ -813,7 +826,7 @@ export const apiService = {
     return {
       service,
       createdTransactions,
-      alreadySettled: rowsToInsert.length === 0,
+      alreadySettled: alreadySettledBefore,
     };
   },
 
@@ -848,7 +861,9 @@ export const apiService = {
       }
       if (endpoint.startsWith('/services/') && endpoint.endsWith('/status')) {
         const resi = endpoint.split('/')[2];
-        const { data, error } = await supabase.from('services').update({ status: body.status }).eq('resi', resi).select().single();
+        let query = supabase.from('services').update({ status: body.status }).eq('resi', resi);
+        if (body.tenant_code) query = query.eq('tenant_code', body.tenant_code);
+        const { data, error } = await query.select().single();
         if (error) throw error;
         return data;
       }
