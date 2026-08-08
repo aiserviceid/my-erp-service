@@ -1,0 +1,78 @@
+name: QA Final Verify
+
+on:
+  push:
+    branches:
+      - agent/qa-fix-priority-findings
+    paths:
+      - .github/workflows/qa-final-verify.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/qa-fix-priority-findings
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Normalize employee phone regex and assert QA guards
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          employee = Path('src/pages/EmployeePortal.jsx')
+          text = employee.read_text(encoding='utf-8')
+          old = r'/^(?:\\+?62|0)8\\d{7,12}$/'
+          new = r'/^(?:\+?62|0)8\d{7,12}$/'
+          count = text.count(old)
+          if count < 1:
+              raise SystemExit('Expected legacy double-escaped employee phone regex not found')
+          text = text.replace(old, new)
+          employee.write_text(text, encoding='utf-8')
+
+          checks = {
+              'src/pages/AdminDashboard.jsx': ['findEmployeePhoneConflict', 'customer_phone: normalizedPhone'],
+              'src/components/PremiumFinanceReport.jsx': ['Sama dengan WA karyawan', 'findEmployeePhoneConflict'],
+              'src/components/POSView.jsx': ["from '../utils/productCategory'", 'isServiceItem'],
+              'src/pages/EmployeePortal.jsx': ['findEmployeePhoneConflict', 'normalizedCustomerPhone', 'isServiceItem'],
+              'src/components/OnboardingProgressCard.jsx': ['done: products.length > 0'],
+              'src/App.jsx': ['path="/track/:resi"', 'TrackResiRedirect'],
+              'src/index.css': ['desktop admin sidebar must remain visible'],
+              'src/store/useStore.js': ["localStorage.removeItem('EMPLOYEE_TOKEN')"],
+          }
+          for file_name, needles in checks.items():
+              source = Path(file_name).read_text(encoding='utf-8')
+              for needle in needles:
+                  if needle not in source:
+                      raise SystemExit(f'Missing QA guard in {file_name}: {needle}')
+          print(f'Fixed {count} employee phone regex occurrence(s); QA static guards passed.')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Commit verified regex fix
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/EmployeePortal.jsx
+          git commit -m "fix(qa): normalize employee WhatsApp validation"
+          git push origin HEAD:agent/qa-fix-priority-findings
