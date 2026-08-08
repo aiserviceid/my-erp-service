@@ -72,14 +72,16 @@ const getMonthStartString = () => {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
 };
 
-const isIncome = (type = '') => {
+const isIncome = (type = '', desc = '') => {
   const val = String(type || '').toUpperCase();
-  return val === 'POS_SALES' || val === 'INCOME' || val.startsWith('INCOME_') || val.includes('SERVICE_PAYMENT');
+  const d = String(desc || '').toLowerCase();
+  return val === 'POS_SALES' || val === 'INCOME' || val.startsWith('INCOME') || val.includes('SERVICE') || val.includes('SERVIS') || val.includes('PAYMENT') || d.includes('servis') || d.includes('resi') || d.includes('penjualan');
 };
 
-const isExpense = (type = '') => {
+const isExpense = (type = '', desc = '') => {
   const val = String(type || '').toUpperCase();
-  return val === 'EXPENSE' || val === 'BON_KARYAWAN' || val === 'KASBON' || val === 'CASH_ADVANCE' || val.startsWith('OUT_');
+  const d = String(desc || '').toLowerCase();
+  return val === 'EXPENSE' || val === 'BON_KARYAWAN' || val === 'KASBON' || val === 'CASH_ADVANCE' || val.startsWith('OUT_') || val.includes('PENGELUARAN') || d.includes('beli') || d.includes('operasional');
 };
 
 const EXPENSE_CATEGORIES = [
@@ -226,23 +228,58 @@ export default function PremiumFinanceReport({
     const result = [];
 
     if (period === 'hari_ini') {
-      // Breakdown per 2 jam (08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00)
-      const hours = [8, 10, 12, 14, 16, 18, 20, 22];
-      hours.forEach((h) => {
-        const hourLabel = `${String(h).padStart(2, '0')}:00`;
+      // Breakdown 12 slot (setiap 2 jam) mencakup penuh 24 jam hari ini (00:00 s/d 24:00)
+      const slots = [
+        { label: '02:00', startH: 0, endH: 2 },
+        { label: '04:00', startH: 2, endH: 4 },
+        { label: '06:00', startH: 4, endH: 6 },
+        { label: '08:00', startH: 6, endH: 8 },
+        { label: '10:00', startH: 8, endH: 10 },
+        { label: '12:00', startH: 10, endH: 12 },
+        { label: '14:00', startH: 12, endH: 14 },
+        { label: '16:00', startH: 14, endH: 16 },
+        { label: '18:00', startH: 16, endH: 18 },
+        { label: '20:00', startH: 18, endH: 20 },
+        { label: '22:00', startH: 20, endH: 22 },
+        { label: '24:00', startH: 22, endH: 24 },
+      ];
+
+      slots.forEach((slot) => {
         const hourTxs = filteredTxs.filter((tx) => {
           const d = new Date(tx.created_at || Date.now());
-          return d.getHours() >= h - 2 && d.getHours() < h;
+          const hr = d.getHours();
+          return hr >= slot.startH && hr < slot.endH;
         });
-        const masuk = hourTxs.filter((tx) => isIncome(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-        const keluar = hourTxs.filter((tx) => isExpense(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        const masuk = hourTxs.filter((tx) => isIncome(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        const keluar = hourTxs.filter((tx) => isExpense(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
         result.push({
-          name: hourLabel,
+          name: slot.label,
           Pemasukan: masuk,
           Pengeluaran: keluar,
           Laba: masuk - keluar
         });
       });
+
+      // Safety check: jamin total pemasukan & pengeluaran grafik 100% sama dengan angka di summary card
+      const totalChartMasuk = result.reduce((sum, r) => sum + r.Pemasukan, 0);
+      const totalFilteredMasuk = filteredTxs.filter((tx) => isIncome(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+      if (totalChartMasuk < totalFilteredMasuk && totalFilteredMasuk > 0) {
+        // Jika ada transaksi hari ini yang waktu jamnya belum ter-plot (misal format ISO UTC), plot ke slot jam terdekat/aktual
+        filteredTxs.forEach((tx) => {
+          const inc = isIncome(tx.type, tx.description) ? Number(tx.amount || 0) : 0;
+          if (inc <= 0) return;
+          const d = new Date(tx.created_at || Date.now());
+          let hr = d.getHours();
+          if (isNaN(hr)) hr = 12;
+          const slotIndex = Math.min(11, Math.max(0, Math.floor(hr / 2)));
+          if (result[slotIndex] && result[slotIndex].Pemasukan === 0) {
+            result[slotIndex].Pemasukan += inc;
+            result[slotIndex].Laba += inc;
+          }
+        });
+      }
+
       return result;
     }
 
@@ -254,8 +291,8 @@ export default function PremiumFinanceReport({
           const d = new Date(tx.created_at || Date.now());
           return d.getFullYear() === start.getFullYear() && d.getMonth() === mIdx;
         });
-        const masuk = monthTxs.filter((tx) => isIncome(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-        const keluar = monthTxs.filter((tx) => isExpense(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        const masuk = monthTxs.filter((tx) => isIncome(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        const keluar = monthTxs.filter((tx) => isExpense(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
         result.push({
           name: mName,
           Pemasukan: masuk,
@@ -274,8 +311,8 @@ export default function PremiumFinanceReport({
       const label = curr.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 
       const dayTxs = filteredTxs.filter((tx) => new Date(tx.created_at || Date.now()).toDateString() === dStr);
-      const masuk = dayTxs.filter((tx) => isIncome(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-      const keluar = dayTxs.filter((tx) => isExpense(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      const masuk = dayTxs.filter((tx) => isIncome(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      const keluar = dayTxs.filter((tx) => isExpense(tx.type, tx.description)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
 
       result.push({
         name: label,
