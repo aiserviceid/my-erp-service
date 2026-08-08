@@ -1,0 +1,67 @@
+name: remove_security_readiness_panel
+
+on:
+  push:
+    branches:
+      - agent/remove-security-readiness-panel
+    paths:
+      - '.github/remove-security-panel-trigger.txt'
+      - '.github/workflows/temp-remove-security-panel.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/remove-security-readiness-panel
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Remove security readiness panel
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/AdminDashboard.jsx')
+          text = path.read_text()
+          text = text.replace("import SecurityReadinessPanel from '../components/SecurityReadinessPanel';\n", "")
+          lines = []
+          skip_block = False
+          for line in text.splitlines():
+              if '<SecurityReadinessPanel' in line:
+                  # Skip one-line JSX usage. If it ever becomes multiline, skip until closing />.
+                  if '/>' not in line:
+                      skip_block = True
+                  continue
+              if skip_block:
+                  if '/>' in line or '</SecurityReadinessPanel>' in line:
+                      skip_block = False
+                  continue
+              lines.append(line)
+          path.write_text('\n'.join(lines) + '\n')
+          component = Path('src/components/SecurityReadinessPanel.jsx')
+          if component.exists():
+              component.unlink()
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        run: npm run build
+      - name: Commit changes and cleanup
+        run: |
+          rm -f .github/remove-security-panel-trigger.txt
+          rm -f .github/workflows/temp-remove-security-panel.yml
+          git config user.name "unitpro-agent"
+          git config user.email "unitpro-agent@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Remove security readiness panel from admin UI"
+            git push origin agent/remove-security-readiness-panel
+          fi
