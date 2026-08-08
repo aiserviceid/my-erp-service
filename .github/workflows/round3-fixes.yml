@@ -28,6 +28,19 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Preserve generated JavaScript escapes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-round3-operational-fixes.py')
+          source = path.read_text(encoding='utf-8')
+          old = 'new_branch = """'
+          if old not in source:
+              raise SystemExit('new_branch generator marker not found')
+          path.write_text(source.replace(old, 'new_branch = r"""', 1), encoding='utf-8')
+          PY
+
       - name: Apply deterministic fixes
         run: python3 scripts/apply-round3-operational-fixes.py
 
