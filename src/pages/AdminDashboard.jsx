@@ -23,11 +23,13 @@ import SecurityReadinessPanel from '../components/SecurityReadinessPanel';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
+import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentLang, setCurrentLang] = useState(getAppLanguage());
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [selectedResi, setSelectedResi] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -664,16 +666,18 @@ export default function AdminDashboard() {
   const pendingKasbonCount = transactions.filter(t => t.type === 'BON_PENDING').length;
 
   // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
-  const tabs = ADMIN_TABS.map(t => {
-    let badge = t.proOnly && isFree ? 'PRO' : null;
-    if (t.id === 'servis' && newServiceCount > 0) badge = newServiceCount;
-    if (t.id === 'karyawan' && (newAttendanceCount + pendingKasbonCount) > 0) badge = newAttendanceCount + pendingKasbonCount;
+  const tabs = ADMIN_TABS.map(tabItem => {
+    let badge = tabItem.proOnly && isFree ? 'PRO' : null;
+    if (tabItem.id === 'servis' && newServiceCount > 0) badge = newServiceCount;
+    if (tabItem.id === 'karyawan' && (newAttendanceCount + pendingKasbonCount) > 0) badge = newAttendanceCount + pendingKasbonCount;
     return {
-      ...t,
-      icon: iconMap[t.iconName] || Package,
+      ...tabItem,
+      name: t('tab_' + tabItem.id, tabItem.name, currentLang),
+      icon: iconMap[tabItem.iconName] || Package,
       badge: badge,
     };
   });
+
 
   // Monthly service/transaction counts for limit enforcement  
   const currentMonth = new Date().getMonth();
@@ -717,11 +721,11 @@ export default function AdminDashboard() {
     <div className="dashboard-layout">
       {/* MOBILE TOP BAR (Visible only on mobile) */}
       <header className="mobile-top-bar native-app-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img src={tenantLogoUrl} alt="Logo" style={{ height: '32px', maxWidth: '110px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src={tenantLogoUrl} alt="Logo" style={{ height: '42px', maxWidth: '160px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
           <div>
-            <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.9rem' }}>{settings.storeName || 'UnitPro'}</h3>
-            <div style={{ fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '0.95rem' }}>{settings.storeName || 'UnitPro'}</h3>
+            <div style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Building2 size={10} /> {tenant?.name || tenant?.code}
             </div>
             {trialDaysLeft !== null && (
@@ -740,12 +744,13 @@ export default function AdminDashboard() {
 
       {/* SIDEBAR (Desktop only) */}
       <div className="sidebar animate-slide-in">
-        <div style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid var(--border-light)', marginBottom: '1rem' }}>
-          <img src={tenantLogoUrl} alt="Logo" style={{ height: '45px', maxWidth: '160px', objectFit: 'contain', opacity: tenantLogoOpacity, display: 'block', margin: '0 auto 0.5rem auto' }} />
-          <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.05rem' }}>{settings.storeName || 'UnitPro'}</h3>
+        <div style={{ padding: '1.2rem 1rem 0.8rem 1rem', textAlign: 'center', borderBottom: '1px solid var(--border-light)', marginBottom: '1rem' }}>
+          <img src={tenantLogoUrl} alt="Logo" style={{ height: '78px', maxWidth: '220px', objectFit: 'contain', opacity: tenantLogoOpacity, display: 'block', margin: '0 auto 2px auto' }} />
+          <div style={{ margin: '2px 0 4px 0', color: '#475569', fontSize: '0.82rem', fontWeight: '600' }}>{settings.storeName || 'UnitPro Toko'}</div>
+
           
           {/* Active Branch Badge */}
-          <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+          <div style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
             <Building2 size={12} /> {tenant?.name || tenant?.code}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px' }}>
@@ -913,13 +918,26 @@ export default function AdminDashboard() {
             <OnboardingProgressCard tenant={tenant} users={users} products={products} services={services} setActiveTab={setActiveTab} />
 
             {/* METRICS CARDS: HARI INI */}
-            <div className="dashboard-section-heading">
+            <div className="dashboard-section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div>
                 <p>RINGKASAN HARI INI</p>
                 <h4>Kondisi toko saat ini</h4>
               </div>
-              <span>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>
+                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setActiveTab('keuangan')}
+                  style={{ padding: '7px 14px', fontSize: '0.82rem', fontWeight: '800' }}
+                >
+                  Lihat Laporan Lengkap →
+                </button>
+              </div>
             </div>
+
             <div className="dashboard-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
               
               {/* Card 1: Omzet Hari Ini */}
@@ -1386,6 +1404,23 @@ export default function AdminDashboard() {
                         <option value="dark">Dark (Mode Gelap)</option>
                       </select>
                     </div>
+
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label" style={{ fontWeight: '700' }}>🌐 {t('language_label', 'Bahasa Aplikasi / Language', currentLang)}</label>
+                      <select className="input-field" 
+                        value={settings.language || currentLang} 
+                        onChange={(e) => {
+                          const langVal = e.target.value;
+                          updateTenantSettings({ language: langVal });
+                          setAppLanguage(langVal);
+                          setCurrentLang(langVal);
+                        }}
+                      >
+                        <option value="id">{t('indonesian', '🇮🇩 Bahasa Indonesia', currentLang)}</option>
+                        <option value="en">{t('english', '🇬🇧 English', currentLang)}</option>
+                      </select>
+                    </div>
+
 
                     <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                       <button className="btn btn-primary" onClick={async () => {
@@ -2221,10 +2256,21 @@ export default function AdminDashboard() {
               )}
            </div>
         ) : activeTab === 'keuangan' ? (
-          <div className="glass-panel finance-report" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out' }}>
-            <PremiumFinanceReport transactions={transactions} services={services} products={products} users={users} tenant={tenant} />
-            <SecurityReadinessPanel tenant={tenant} users={users} products={products} services={services} transactions={transactions} />
+          <div className="glass-panel finance-report" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out', padding: '0', background: 'transparent', border: 'none', boxShadow: 'none' }}>
+            <PremiumFinanceReport
+              transactions={transactions}
+              services={services}
+              products={products}
+              users={users}
+              tenant={tenant}
+              settings={settings}
+              onRefreshData={() => {
+                apiService.getTransactions(tenant?.code).then(setTransactions).catch(() => {});
+                apiService.getServices(tenant?.code).then(setServices).catch(() => {});
+              }}
+            />
           </div>
+
         ) : activeTab === 'karyawan' ? (
           isFree ? (
             <UpgradePrompt

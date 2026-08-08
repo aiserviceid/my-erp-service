@@ -15,7 +15,9 @@ import {
 import { useStore } from '../store/useStore';
 import { APP_VERSION, APK_DOWNLOAD_PATH, APK_FILE_NAME } from '../config/appInfo';
 import UnitProLogo from '../components/UnitProLogo';
+import { t, getAppLanguage } from '../utils/i18n';
 import './LandingPage.css';
+
 
 const salesWhatsapp = import.meta.env.VITE_SALES_WHATSAPP || '6281234567890';
 const whatsappUrl = `https://wa.me/${salesWhatsapp}?text=${encodeURIComponent('Halo UnitPro, saya ingin coba aplikasi untuk toko servis saya.')}`;
@@ -104,6 +106,8 @@ function BrandLogo() {
 export default function LandingPage() {
   const navigate = useNavigate();
   const setTenant = useStore((state) => state.setTenant);
+  const currentLang = getAppLanguage();
+
 
   const startDemo = (role = 'owner') => {
     const demoSettings = {
@@ -170,30 +174,31 @@ export default function LandingPage() {
           <BrandLogo />
         </button>
         <div className="simple-nav-links">
-          <a href="#fitur">Fitur</a>
-          <a href="#harga">Harga</a>
-          <button type="button" onClick={login}>Masuk</button>
+          <a href="#fitur">{t('nav_features', 'Fitur', currentLang)}</a>
+          <a href="#harga">{t('nav_pricing', 'Harga', currentLang)}</a>
+          <button type="button" onClick={login}>{t('login_btn', 'Masuk Toko', currentLang)}</button>
         </div>
       </nav>
 
       <section className="simple-hero">
         <div className="simple-hero-copy">
-          <p className="simple-kicker"><Wrench size={16} /> Untuk toko servis HP, laptop, dan elektronik</p>
-          <h1>Satu aplikasi untuk mengatur servis, kasir, stok, teknisi, dan pelanggan.</h1>
+          <p className="simple-kicker"><Wrench size={16} /> {t('landing_badge', 'Aplikasi Kasir & Servis No.1', currentLang)}</p>
+          <h1>{t('landing_hero_title', 'Satu aplikasi untuk mengatur servis, kasir, barang/jasa, teknisi, dan pelanggan.', currentLang)}</h1>
           <p className="simple-subtitle">
-            UnitPro membantu toko servis bekerja lebih rapi dari unit masuk sampai unit diambil pelanggan.
+            {t('landing_hero_subtitle', 'UnitPro membantu toko servis & penjualan barang/jasa bekerja lebih rapi dari unit masuk sampai unit diambil pelanggan.', currentLang)}
           </p>
           <div className="simple-actions">
             <button type="button" className="simple-btn primary" onClick={registerFree}>
-              Coba gratis <ArrowRight size={18} />
+              {t('register_free_btn', 'Coba gratis', currentLang)} <ArrowRight size={18} />
             </button>
             <button type="button" className="simple-btn secondary" onClick={() => startDemo('owner')}>
-              Lihat demo
+              {t('see_demo_btn', 'Lihat demo', currentLang)}
             </button>
             <a className="simple-btn ghost" href={whatsappUrl} target="_blank" rel="noreferrer">
-              <MessageCircle size={18} /> Konsultasi
+              <MessageCircle size={18} /> {t('consultation_btn', 'Konsultasi', currentLang)}
             </a>
           </div>
+
           <p className="simple-note">Tidak perlu install server. Bisa dibuka dari browser dan Android.</p>
         </div>
 
