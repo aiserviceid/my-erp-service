@@ -1,0 +1,81 @@
+name: Round3 Operational Fixes
+
+on:
+  push:
+    branches:
+      - agent/fix-operational-blockers-round3
+    paths:
+      - scripts/apply-round3-operational-fixes.py
+      - src/utils/financeUtils.js
+      - .github/workflows/round3-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-operational-blockers-round3
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply deterministic fixes
+        run: python3 scripts/apply-round3-operational-fixes.py
+
+      - name: Smoke test finance helpers
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {
+            normalizeKasbonAmount,
+            buildKasbonDescription,
+            parseKasbonDescription,
+            isPaidServiceStatus,
+          } from './src/utils/financeUtils.js';
+          const assert = (condition, message) => { if (!condition) throw new Error(message); };
+          assert(normalizeKasbonAmount('50.000', 'BON_PENDING') === 50000, '50.000 must become 50000');
+          assert(normalizeKasbonAmount(50, 'BON_KARYAWAN') === 50000, 'legacy 50 must read as 50000');
+          const desc = buildKasbonDescription({ id: 18, name: 'syaif' });
+          const meta = parseKasbonDescription(desc);
+          assert(meta.employeeId === '18' && meta.employeeName === 'syaif', 'employee kasbon identity must roundtrip');
+          assert(isPaidServiceStatus('DIAMBIL') && isPaidServiceStatus('DI AMBIL'), 'paid status aliases must resolve');
+          console.log('finance helper smoke tests passed');
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Static regression checks
+        shell: bash
+        run: |
+          grep -q "settleServicePickup" src/services/api.js
+          grep -q "normalizeKasbonAmount(new FormData" src/pages/EmployeePortal.jsx
+          grep -q "kasbonTransactions.map" src/pages/AdminDashboard.jsx
+          grep -q "Pengajuan akan ditandai Ditolak dan tetap tersimpan di riwayat" src/pages/AdminDashboard.jsx
+          ! grep -q "prompt('Berapa HARI garansi" src/pages/EmployeePortal.jsx
+          ! grep -q "await apiService.delete(\`/transactions/\${t.id}\`)" src/pages/AdminDashboard.jsx
+
+      - name: Commit verified changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No generated source changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/services/api.js src/pages/EmployeePortal.jsx src/pages/AdminDashboard.jsx src/components/PremiumFinanceReport.jsx src/components/EmployeeFinanceInsights.jsx src/components/IssueChips.jsx src/unitpro-ui-polish.css
+          git commit -m "fix(round3): kasbon history and service settlement"
+          git push origin HEAD:agent/fix-operational-blockers-round3
