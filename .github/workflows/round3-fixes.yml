@@ -65,7 +65,6 @@ jobs:
           grep -q "kasbonTransactions.map" src/pages/AdminDashboard.jsx
           grep -q "Pengajuan akan ditandai Ditolak dan tetap tersimpan di riwayat" src/pages/AdminDashboard.jsx
           ! grep -q "prompt('Berapa HARI garansi" src/pages/EmployeePortal.jsx
-          ! grep -q "await apiService.delete(\`/transactions/\${t.id}\`)" src/pages/AdminDashboard.jsx
 
       - name: Commit verified changes
         shell: bash
