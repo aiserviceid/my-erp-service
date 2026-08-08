@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
 import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import SuperAdminAISettings from '../components/SuperAdminAISettings';
 
 // ============================================================
 // KONFIGURASI KEAMANAN SUPER ADMIN
@@ -872,6 +873,19 @@ export default function SuperAdmin() {
             )}
           </button>
 
+          <button
+            onClick={() => setActiveTab('ai')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
+              background: activeTab === 'ai' ? '#7c3aed' : '#ffffff', color: activeTab === 'ai' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'ai' ? '0 4px 12px rgba(124,58,237,.3)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'ai' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <span style={{ fontSize: '1rem' }}>🤖</span> AI & Automation
+          </button>
+
           <button 
             onClick={() => setActiveTab('wagateway')}
             style={{
@@ -1236,6 +1250,10 @@ export default function SuperAdmin() {
           {/* 2B. CRM PELANGGAN — dikelompokkan berdasarkan paket */}
           {activeTab === 'crm' && (
             <CrmPelangganPanel tenants={stats.tenants} onRefresh={loadStats} />
+          )}
+
+          {activeTab === 'ai' && (
+            <SuperAdminAISettings />
           )}
 
           {activeTab === 'reviews' && (

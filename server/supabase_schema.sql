@@ -143,3 +143,13 @@ CREATE POLICY "public can read visible platform reviews"
   ON platform_reviews FOR SELECT USING (is_visible = TRUE);
 CREATE POLICY "public can submit platform reviews"
   ON platform_reviews FOR INSERT WITH CHECK (is_visible = TRUE);
+
+
+-- 12. Private application config (server/service-role only)
+CREATE TABLE IF NOT EXISTS app_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON app_config FROM anon, authenticated;
