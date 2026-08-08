@@ -100,7 +100,7 @@ export default function PremiumFinanceReport({
   settings,
   onRefreshData
 }) {
-  const [period, setPeriod] = useState('bulan_ini'); // 'hari_ini' | 'minggu_ini' | 'bulan_ini' | 'tahun_ini' | 'custom'
+  const [period, setPeriod] = useState('hari_ini'); // 'hari_ini' | 'minggu_ini' | 'bulan_ini' | 'tahun_ini' | 'custom'
   const [customStart, setCustomStart] = useState(getMonthStartString());
   const [customEnd, setCustomEnd] = useState(getTodayString());
   const [activeSubTab, setActiveSubTab] = useState('ringkasan'); // 'ringkasan' | 'arus_kas' | 'pengeluaran' | 'laba_rugi' | 'sumber_omzet' | 'piutang' | 'export'
@@ -220,12 +220,54 @@ export default function PremiumFinanceReport({
     };
   }, [filteredTxs, services]);
 
-  // Daily / Period Trend Data for Professional Chart
+  // Daily / Hourly / Period Trend Data for Professional Chart
   const chartTrendData = useMemo(() => {
     const { start, end } = periodBounds;
     const result = [];
+
+    if (period === 'hari_ini') {
+      // Breakdown per 2 jam (08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00)
+      const hours = [8, 10, 12, 14, 16, 18, 20, 22];
+      hours.forEach((h) => {
+        const hourLabel = `${String(h).padStart(2, '0')}:00`;
+        const hourTxs = filteredTxs.filter((tx) => {
+          const d = new Date(tx.created_at || Date.now());
+          return d.getHours() >= h - 2 && d.getHours() < h;
+        });
+        const masuk = hourTxs.filter((tx) => isIncome(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        const keluar = hourTxs.filter((tx) => isExpense(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        result.push({
+          name: hourLabel,
+          Pemasukan: masuk,
+          Pengeluaran: keluar,
+          Laba: masuk - keluar
+        });
+      });
+      return result;
+    }
+
+    if (period === 'tahun_ini') {
+      // Breakdown 12 bulan (Jan - Des)
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      months.forEach((mName, mIdx) => {
+        const monthTxs = transactions.filter((tx) => {
+          const d = new Date(tx.created_at || Date.now());
+          return d.getFullYear() === start.getFullYear() && d.getMonth() === mIdx;
+        });
+        const masuk = monthTxs.filter((tx) => isIncome(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        const keluar = monthTxs.filter((tx) => isExpense(tx.type)).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        result.push({
+          name: mName,
+          Pemasukan: masuk,
+          Pengeluaran: keluar,
+          Laba: masuk - keluar
+        });
+      });
+      return result;
+    }
+
+    // Default per hari (Minggu ini / Bulan ini / Custom)
     const curr = new Date(start);
-    
     let maxLoop = 31;
     while (curr.getTime() <= end.getTime() && maxLoop > 0) {
       const dStr = curr.toDateString();
@@ -246,7 +288,7 @@ export default function PremiumFinanceReport({
       maxLoop--;
     }
     return result;
-  }, [filteredTxs, periodBounds]);
+  }, [filteredTxs, transactions, period, periodBounds]);
 
   // Arus Kas Combined Timeline (Sorted newest first)
 
