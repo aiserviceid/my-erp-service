@@ -188,7 +188,7 @@ export default function EmployeePortal() {
       setServiceWizardError('Lengkapi data pada langkah ini sebelum melanjutkan.');
       return;
     }
-    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\\+?62|0)8\\d{7,12}$/.test(serviceForm.phone.trim())) {
+    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\+?62|0)8\d{7,12}$/.test(serviceForm.phone.trim())) {
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
     }
@@ -316,7 +316,7 @@ export default function EmployeePortal() {
     e.preventDefault();
     const fd = new FormData(e.target);
     const customerPhone = String(fd.get('phone') || '').trim();
-    if (!/^(?:\\+?62|0)8\\d{7,12}$/.test(customerPhone)) {
+    if (!/^(?:\+?62|0)8\d{7,12}$/.test(customerPhone)) {
       setServiceWizardStep(1);
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
