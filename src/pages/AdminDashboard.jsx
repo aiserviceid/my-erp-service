@@ -2108,9 +2108,9 @@ export default function AdminDashboard() {
               
               <div className="service-action-card">
                 <div>
-                  <p>PENERIMAAN UNIT</p>
-                  <h3>Daftarkan servis tanpa memenuhi layar</h3>
-                  <span>Data pelanggan, unit, keluhan, dan teknisi diisi dalam satu formulir ringkas.</span>
+                  <p>PENERIMAAN UNIT SERVIS</p>
+                  <h3>Terima & Catat Servis Baru</h3>
+                  <span>Isi data pelanggan, perangkat, keluhan, dan penugasan teknisi dalam 1 formulir ringkas.</span>
                 </div>
                 <button type="button" className="btn btn-primary" onClick={() => setShowServiceRegistration(true)}>
                   <Plus size={18} /> Daftarkan & Tugaskan
