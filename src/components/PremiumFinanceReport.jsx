@@ -54,7 +54,8 @@ const formatRupiahAxis = (value = 0) => {
     const millions = amount / 1000000;
     return `Rp ${Number.isInteger(millions) ? millions : millions.toFixed(1).replace('.0', '')}jt`;
   }
-  if (amount > 0) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount >= 1000) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount > 0) return `Rp ${Math.round(amount)}`;
   return 'Rp 0';
 };
 

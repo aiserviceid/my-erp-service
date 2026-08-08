@@ -11,6 +11,7 @@ import UnitProLogo from '../components/UnitProLogo';
 import IssueChips from '../components/IssueChips';
 import EmployeeFinanceInsights from '../components/EmployeeFinanceInsights';
 import { SERVICE_STATUSES } from '../config/tierLimits';
+import { buildKasbonDescription, isPaidServiceStatus, normalizeKasbonAmount, parseKasbonDescription } from '../utils/financeUtils';
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -382,7 +383,7 @@ export default function EmployeePortal() {
 
   const handleBon = async (event) => {
     event.preventDefault();
-    const amount = Number(new FormData(event.currentTarget).get('amount'));
+    const amount = normalizeKasbonAmount(new FormData(event.currentTarget).get('amount'), 'BON_PENDING');
     if (!Number.isInteger(amount) || amount <= 0) return alert('Masukkan nominal kasbon yang valid.');
     
     try {
@@ -390,7 +391,7 @@ export default function EmployeePortal() {
         tenant_code: employee.tenant_code || tenant.code,
         type: 'BON_PENDING',
         amount: amount,
-        description: `EMP_${employee.id}`
+        description: buildKasbonDescription(employee)
       });
       alert('Kasbon berhasil dicatat!');
       setShowBonModal(false);
@@ -594,11 +595,14 @@ export default function EmployeePortal() {
   // calculations for finances
   const myCommissionRate = tenant?.settings?.employee_commissions?.[employee.id] || 0;
   const mySalary = tenant?.settings?.employee_salaries?.[employee.id] || 0;
-  const myCompletedServices = services.filter(s => (s.status === 'SELESAI' || s.status === 'DI AMBIL') && s.technician_id === employee.id);
-  const totalJasaFee = myCompletedServices.reduce((sum, s) => sum + (s.jasa_fee || 0), 0);
+  const myCompletedServices = services.filter(s => isPaidServiceStatus(s.status) && String(s.technician_id) === String(employee.id));
+  const totalJasaFee = myCompletedServices.reduce((sum, s) => sum + Number(s.jasa_fee || 0), 0);
   const totalKomisi = Math.floor(totalJasaFee * (myCommissionRate / 100));
 
-  const myBonTransactions = transactions.filter(t => t.type === 'BON_KARYAWAN' && t.description === `EMP_${employee.id}`);
+  const myBonTransactions = transactions.filter((t) => {
+    if (t.type !== 'BON_KARYAWAN') return false;
+    return String(parseKasbonDescription(t.description).employeeId) === String(employee.id);
+  });
   const totalBon = myBonTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const sisaBersih = mySalary + totalKomisi - totalBon;
 
@@ -860,77 +864,46 @@ export default function EmployeePortal() {
                                   setSelectedService(s);
                                   setShowSelesaiModal(true);
                                 } else if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {
-                                  if (!s.part_fee && !s.jasa_fee) {
+                                  if (!Number(s.part_fee || 0) && !Number(s.jasa_fee || 0)) {
                                     alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Di Ambil.');
                                     return;
                                   }
-                                  if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {
+                                  if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko. Proses ini aman diulang tanpa membuat omzet dobel.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {
                                     try {
-                                      let updatedIssue = s.issue;
-                                      const warrantyDaysStr = prompt('Berapa HARI garansi untuk servis ini?\n\n(Isi angka saja, misal: 30. Kosongkan jika tidak ada garansi)', '30');
-                                      let warrantyDateStr = '';
-                                      if (warrantyDaysStr && parseInt(warrantyDaysStr) > 0) {
-                                        const d = new Date();
-                                        d.setDate(d.getDate() + parseInt(warrantyDaysStr));
-                                        warrantyDateStr = d.toLocaleDateString('id-ID');
-                                        updatedIssue += `\n[Masa Garansi Servis: s/d ${warrantyDateStr}]`;
-                                      }
-
-                                      // Update the status AND the appended warranty info
-                                      await apiService.post('/services/finish', {
+                                      const discountMatch = String(s.issue || '').match(/\[Diskon: Rp (.*?)\]/);
+                                      const discount = discountMatch ? normalizeMoneyInput(discountMatch[1]) : 0;
+                                      const tenantCode = employee.tenant_code || tenant.code;
+                                      const result = await apiService.settleServicePickup({
+                                        tenant_code: tenantCode,
                                         resi: s.resi,
-                                        status: 'DIAMBIL',
                                         part_fee: s.part_fee,
                                         jasa_fee: s.jasa_fee,
+                                        discount,
                                         technician_id: s.technician_id,
-                                        issue: updatedIssue
+                                        issue: s.issue,
+                                        customer_name: s.customer_name,
                                       });
 
-                                      const discountMatch = (updatedIssue || '').match(/\[Diskon: Rp (.*?)\]/);
-                                      const discountStr = discountMatch ? discountMatch[1].replace(/\./g, '') : '0';
-                                      const discount = parseInt(discountStr) || 0;
+                                      setServices((current) => current.map((item) => item.resi === s.resi ? { ...item, ...result.service, status: 'DIAMBIL' } : item));
+                                      await fetchTransactions();
 
-                                      const jasaFee = s.jasa_fee || 0;
-                                      const partFee = s.part_fee || 0;
-                                      const jasaAfterDiscount = Math.max(0, jasaFee - discount);
-                                      
-                                      const tenantCode = employee.tenant_code || tenant.code;
-                                      const latestTransactions = await apiService.get('/transactions/' + tenantCode).catch(() => transactions);
-                                      const existingServiceIncome = latestTransactions.filter((transaction) => {
-                                        const type = String(transaction.type || '');
-                                        const description = String(transaction.description || '');
-                                        return ['INCOME', 'INCOME_JASA', 'INCOME_SPAREPART'].includes(type) && description.includes('Resi ' + s.resi);
-                                      });
-
-                                      if (existingServiceIncome.length > 0) {
-                                        alert('Pelunasan resi ' + s.resi + ' sudah pernah tercatat di keuangan. Transaksi tidak dibuat ulang agar omzet tidak dobel.');
+                                      if (result.alreadySettled) {
+                                        alert('Servis sudah ditandai lunas sebelumnya. Omzet tidak dibuat ulang.');
                                       } else {
-                                        if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
-                                          await apiService.post('/transactions', {
-                                            tenant_code: tenantCode,
-                                            type: 'INCOME_JASA',
-                                            amount: jasaAfterDiscount,
-                                            description: 'Jasa Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
-                                          });
-                                        }
-                                        if (partFee > 0) {
-                                          await apiService.post('/transactions', {
-                                            tenant_code: tenantCode,
-                                            type: 'INCOME_SPAREPART',
-                                            amount: partFee,
-                                            description: 'Sparepart Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
-                                          });
-                                        }
+                                        alert('Servis berhasil ditandai Diambil (Lunas) dan pembayaran sudah masuk ke Laporan.');
                                       }
-                                      fetchServices();
-                                      fetchTransactions();
-                                      
+
                                       if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pengambilan?', message: 'Servis sudah lunas. Cetak nota pengambilan untuk pelanggan?', confirmText: 'Cetak Nota', tone: 'success' }) : Promise.resolve(window.confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')))) {
-                                        setSelectedService({ ...s, issue: updatedIssue });
+                                        setSelectedService({ ...s, ...result.service, status: 'DIAMBIL' });
                                         setPrintType('pengambilan');
                                         setShowPrintModal(true);
                                       }
-                                    } catch(err) { alert('Gagal update status / transaksi'); }
+                                    } catch (err) {
+                                      console.error('Gagal menyelesaikan pelunasan servis:', err);
+                                      alert(`Gagal menandai Diambil: ${err?.message || 'transaksi atau status tidak dapat disimpan'}. Silakan coba lagi; sistem akan mencegah omzet dobel.`);
+                                      await fetchServices();
+                                      await fetchTransactions();
+                                    }
                                   }
                                 } else {
                                   try {

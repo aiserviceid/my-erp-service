@@ -31,7 +31,26 @@ export default function IssueChips({ issue = '' }) {
   let match;
 
   while ((match = bracketPattern.exec(source)) !== null) {
-    tags.push({ label: match[1].trim(), value: match[2].trim() });
+    const candidate = { label: match[1].trim(), value: match[2].trim() };
+    const normalizedValue = candidate.value.toLowerCase().replace(/\s+/g, ' ').trim();
+    const existingIndex = tags.findIndex((tag) => tag.normalizedValue === normalizedValue);
+
+    if (existingIndex === -1) {
+      tags.push({ ...candidate, normalizedValue });
+      continue;
+    }
+
+    const existing = tags[existingIndex];
+    const existingLabel = existing.label.toLowerCase();
+    const candidateLabel = candidate.label.toLowerCase();
+    const existingIsSparepart = existingLabel.includes('sparepart');
+    const candidateIsService = candidateLabel.includes('jasa') || candidateLabel.includes('servis') || candidateLabel.includes('service');
+
+    // A legacy note can contain the same value twice (e.g. "service mainboard")
+    // as both Sparepart and Jasa. Keep one chip and prefer the more specific Jasa tag.
+    if (existingIsSparepart && candidateIsService) {
+      tags[existingIndex] = { ...candidate, normalizedValue };
+    }
   }
 
   const complaint = source

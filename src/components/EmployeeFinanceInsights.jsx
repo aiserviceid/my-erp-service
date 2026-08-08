@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isPaidServiceStatus } from '../utils/financeUtils';
 import {
   LineChart,
   Line,
@@ -16,7 +17,8 @@ const compactRupiah = (value = 0) => {
     const millions = amount / 1000000;
     return `Rp ${Number.isInteger(millions) ? millions : millions.toFixed(1).replace('.0', '')}jt`;
   }
-  if (amount > 0) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount >= 1000) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount > 0) return `Rp ${Math.round(amount)}`;
   return 'Rp 0';
 };
 
@@ -25,7 +27,7 @@ const fullRupiah = (value = 0) => `Rp ${Number(value || 0).toLocaleString('id-ID
 export default function EmployeeFinanceInsights({ services = [], employee, salary = 0, commissionRate = 0 }) {
   const completedServices = useMemo(() => services
     .filter((service) => String(service.technician_id) === String(employee?.id))
-    .filter((service) => ['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(String(service.status || '').toUpperCase()))
+    .filter((service) => isPaidServiceStatus(service.status))
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)), [services, employee?.id]);
 
   const trendData = useMemo(() => {
@@ -53,7 +55,7 @@ export default function EmployeeFinanceInsights({ services = [], employee, salar
         <div className="employee-finance-heading">
           <div>
             <h4>Tren Gaji & Komisi 6 Bulan</h4>
-            <p>Ringkasan pendapatan berdasarkan servis yang diselesaikan.</p>
+            <p>Ringkasan pendapatan berdasarkan servis yang sudah lunas/diambil.</p>
           </div>
         </div>
 
@@ -75,7 +77,7 @@ export default function EmployeeFinanceInsights({ services = [], employee, salar
           <div className="chart-empty-state chart-empty-state--small">
             <div className="chart-empty-icon" aria-hidden="true">📈</div>
             <strong>Belum ada data komisi</strong>
-            <span>Tren akan muncul setelah servis pertama selesai.</span>
+            <span>Tren akan muncul setelah servis pertama lunas/diambil.</span>
           </div>
         )}
       </div>
@@ -84,7 +86,7 @@ export default function EmployeeFinanceInsights({ services = [], employee, salar
         <div className="employee-finance-heading">
           <div>
             <h4>Riwayat Komisi</h4>
-            <p>10 servis selesai terbaru.</p>
+            <p>10 servis lunas terbaru.</p>
           </div>
         </div>
         <div className="employee-commission-table-wrap">
