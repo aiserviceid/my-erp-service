@@ -26,6 +26,7 @@ import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
 import { parseKasbonDescription } from '../utils/financeUtils';
+import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
 
 const formatRupiahAxis = (value = 0) => {
   const amount = Number(value || 0);
@@ -131,6 +132,15 @@ export default function AdminDashboard() {
       return;
     }
 
+    const normalizedPhone = normalizeWhatsAppNumber(phone);
+    const phoneConflict = findEmployeePhoneConflict(normalizedPhone, users);
+    if (phoneConflict) {
+      const shouldContinue = window.confirm(`${customerPhoneConflictMessage(phoneConflict.name)}
+
+Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+      if (!shouldContinue) return;
+    }
+
     const kelengkapan = fd.get('kelengkapan') || '-';
     const estWaktu = fd.get('estimasi_waktu') || '';
     const estBiaya = fd.get('estimasi_biaya') || '';
@@ -142,7 +152,7 @@ export default function AdminDashboard() {
         tenant_code: tenant.code,
         resi: resiGenerated,
         customer_name: fd.get('name'),
-        customer_phone: phone,
+        customer_phone: normalizedPhone,
         device_name: fd.get('device'),
         issue: issueText,
         technician_id: fd.get('technician_id'),
@@ -652,7 +662,10 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     clearTenant();
-    navigate('/');
+    localStorage.removeItem('TENANT_TOKEN');
+    localStorage.removeItem('EMPLOYEE_TOKEN');
+    localStorage.removeItem('EMP_SESSION');
+    navigate('/login', { replace: true });
   };
 
   const handleAddBranch = async () => {
@@ -747,7 +760,12 @@ export default function AdminDashboard() {
         const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
         const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
         const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(newStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
-        await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });
+        const phoneConflict = findEmployeePhoneConflict(service.customer_phone, users);
+        if (phoneConflict) {
+          alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
+        } else {
+          await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });
+        }
       }
     } catch (error) {
       alert('Gagal update status');

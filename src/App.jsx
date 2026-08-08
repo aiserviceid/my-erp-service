@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useEffect, Component, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useStore } from './store/useStore';
@@ -17,6 +17,11 @@ const isNativeApp = Capacitor.isNativePlatform();
 
 function PageLoader() {
   return <div style={{ minHeight: '100vh', background: '#f7faf9' }} aria-label="Memuat halaman" />;
+}
+
+function TrackResiRedirect() {
+  const { resi } = useParams();
+  return <Navigate to={`/tracking?resi=${encodeURIComponent(resi || '')}`} replace />;
 }
 
 class ErrorBoundary extends Component {
@@ -135,6 +140,7 @@ function App() {
             <Route path="/employee" element={<EmployeePortal />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/tracking" element={<PublicTracking />} />
+            <Route path="/track/:resi" element={<TrackResiRedirect />} />
             <Route path="/katalog/:tenantCode" element={<PublicCatalog />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
