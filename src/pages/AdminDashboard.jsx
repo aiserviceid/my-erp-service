@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import Barcode from 'react-barcode';
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
@@ -20,10 +20,21 @@ import CustomerCRMInsights from '../components/CustomerCRMInsights';
 import PremiumFinanceReport from '../components/PremiumFinanceReport';
 import OnboardingProgressCard from '../components/OnboardingProgressCard';
 import AndroidUpdateModal from '../components/AndroidUpdateModal';
+import IssueChips from '../components/IssueChips';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
+
+const formatRupiahAxis = (value = 0) => {
+  const amount = Number(value || 0);
+  if (amount >= 1000000) {
+    const millions = amount / 1000000;
+    return `Rp ${Number.isInteger(millions) ? millions : millions.toFixed(1).replace('.0', '')}jt`;
+  }
+  if (amount > 0) return `Rp ${Math.round(amount / 1000)}rb`;
+  return 'Rp 0';
+};
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -1124,13 +1135,13 @@ export default function AdminDashboard() {
               <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-                borderLeft: '4px solid #7c3aed'
+                borderLeft: '4px solid #3B82F6'
               }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Teknisi Aktif</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#7c3aed', margin: '4px 0' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#3B82F6', margin: '4px 0' }}>
                   {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').length} Orang
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#6d28d9', fontWeight: '600' }}>Siap Terima Tugas</div>
+                <div style={{ fontSize: '0.72rem', color: '#2563EB', fontWeight: '600' }}>Siap Terima Tugas</div>
               </div>
 
               {/* Card 5: Stok Hampir Habis */}
@@ -1151,43 +1162,66 @@ export default function AdminDashboard() {
             {/* GRAPH & 5 RECENT SERVICES GRID */}
             <div className="dashboard-insights-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
               
-              {/* Grafik Pemasukan */}
-              <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                <h4 style={{ margin: '0 0 1.2rem 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
-                  Grafik Omzet & Arus Kas 7 Hari Terakhir
-                </h4>
-                <div className="dashboard-chart-area" style={{ height: '260px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={
-                      Array.from({length: 7}).map((_, i) => {
-                        const d = new Date(); d.setDate(d.getDate() - (6 - i));
-                        const dStr = d.toDateString();
-                        const txs = transactions.filter(t => new Date(t.created_at).toDateString() === dStr);
-                        const masuk = txs.filter(t => t.type === 'INCOME' || t.type.startsWith('INCOME_') || t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount||0), 0);
-                        const keluar = txs.filter(t => t.type === 'BON_KARYAWAN' || t.type === 'EXPENSE').reduce((sum, t) => sum + (t.amount||0), 0);
-                        return { name: dStr.substring(0,3) + ' ' + d.getDate(), Pendapatan: masuk, Pengeluaran: keluar };
-                      })
-                    }>
-                      <defs>
-                        <linearGradient id="dashMasukGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0284c7" stopOpacity={0.35}/>
-                          <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0}/>
-                        </linearGradient>
-                        <linearGradient id="dashKeluarGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
-                      <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={(v) => `Rp ${v/1000}k`} width={60} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => `Rp ${v.toLocaleString('id-ID')}`} contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} />
-                      <Area type="monotone" dataKey="Pendapatan" stroke="#0284c7" strokeWidth={3} fillOpacity={1} fill="url(#dashMasukGrad)" dot={{ r: 4, fill: '#0284c7', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
-                      <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#dashKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              {/* Grafik Tren Omzet */}
+              {(() => {
+                const chartData = Array.from({ length: 7 }).map((_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (6 - i));
+                  const dStr = d.toDateString();
+                  const txs = transactions.filter((t) => new Date(t.created_at).toDateString() === dStr);
+                  const revenue = txs
+                    .filter((t) => {
+                      const type = String(t.type || '');
+                      return type === 'INCOME' || type.startsWith('INCOME_') || type === 'POS_SALES';
+                    })
+                    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+                  return {
+                    name: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }),
+                    Pendapatan: revenue,
+                  };
+                });
+                const maxRevenue = Math.max(0, ...chartData.map((item) => item.Pendapatan));
+                const hasRevenue = chartData.some((item) => item.Pendapatan > 0);
+
+                return (
+                  <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                    <h4 style={{ margin: '0 0 1.2rem 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
+                      Tren Omzet 7 Hari Terakhir
+                    </h4>
+                    {!hasRevenue ? (
+                      <div className="chart-empty-state">
+                        <div className="chart-empty-icon" aria-hidden="true">📊</div>
+                        <strong>Belum ada transaksi</strong>
+                        <span>Data akan muncul otomatis setelah transaksi pertama</span>
+                        <button type="button" className="btn btn-primary" onClick={() => { setActiveTab('servis'); setShowServiceRegistration(true); }}>
+                          <Plus size={16} /> Terima Servis
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="dashboard-chart-area" style={{ height: '260px', minHeight: '180px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                            <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
+                            <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={12} />
+                            <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={formatRupiahAxis} width={68} axisLine={false} tickLine={false} tickCount={5} />
+                            <Tooltip
+                              cursor={{ fill: 'rgba(15,118,110,0.06)' }}
+                              formatter={(value) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Omzet']}
+                              labelFormatter={(label) => `Omzet ${label}`}
+                              contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                            />
+                            <Bar dataKey="Pendapatan" radius={[8, 8, 2, 2]} minPointSize={3}>
+                              {chartData.map((entry, index) => (
+                                <Cell key={`revenue-bar-${index}`} fill={entry.Pendapatan === maxRevenue && maxRevenue > 0 ? '#0F766E' : '#5EEAD4'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 5 Servis Terbaru */}
               <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
@@ -1208,26 +1242,19 @@ export default function AdminDashboard() {
                     {services.slice(0, 5).map(s => {
                       const st = getStatusInfo(s.status);
                       return (
-                        <div key={s.resi} className="dashboard-service-row" style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '10px 12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #f1f5f9'
-                        }}>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>{s.customer_name} •</span>
-                              <a 
-                                href={`${window.location.origin}/tracking?resi=${s.resi}`} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
-                                title="Klik untuk cek status otomatis"
-                              >
-                                {s.resi} 🔗
-                              </a>
+                        <div key={s.resi} className="dashboard-service-row dashboard-service-row--detailed">
+                          <div className="dashboard-service-main">
+                            <div className="dashboard-service-customer">{s.customer_name}</div>
+                            <a className="tracking-link-button tracking-link-button--compact" href={`${window.location.origin}/tracking?resi=${s.resi}`} target="_blank" rel="noreferrer" title="Cek status otomatis">
+                              🔗 {s.resi}
+                            </a>
+                            <div className="dashboard-service-meta">
+                              <span><strong>Biaya:</strong> Rp {(Number(s.part_fee || 0) + Number(s.jasa_fee || 0)).toLocaleString('id-ID')}</span>
+                              <span><strong>Teknisi:</strong> {users.find((user) => String(user.id) === String(s.technician_id))?.name || 'Belum ditugaskan'}</span>
+                              <span><strong>Tanggal:</strong> {s.created_at ? new Date(s.created_at).toLocaleDateString('id-ID') : '-'}</span>
                             </div>
-                          <span style={{
-                            padding: '4px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800',
-                            background: st.bg, color: st.color
-                          }}>
+                          </div>
+                          <span style={{ padding: '4px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800', background: st.bg, color: st.color }}>
                             {st.label}
                           </span>
                         </div>
@@ -2224,19 +2251,19 @@ export default function AdminDashboard() {
                         return (
                           <tr key={s.resi}>
                             <td>
-                              <a 
-                                href={`${window.location.origin}/tracking?resi=${s.resi}`} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
-                                title="Klik untuk membuka link tracking otomatis"
+                              <a
+                                className="tracking-link-button"
+                                href={`${window.location.origin}/tracking?resi=${s.resi}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Cek status otomatis"
                               >
-                                {s.resi} 🔗
+                                🔗 {s.resi}
                               </a>
                             </td>
                             <td>{s.customer_name} <br/><small style={{color: 'var(--text-muted)'}}>{s.customer_phone}</small></td>
                             <td>{s.device_name}</td>
-                            <td style={{ whiteSpace: 'pre-wrap', maxWidth: '200px' }}>{cleanIssue}</td>
+                            <td style={{ maxWidth: '260px' }}><IssueChips issue={cleanIssue} /></td>
                             <td>{garansiStatus !== '-' ? <span className="badge badge-success" style={{background: '#dcfce7', color: '#16a34a'}}>s/d {garansiStatus}</span> : '-'}</td>
                             <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
                             <td>
@@ -2250,20 +2277,20 @@ export default function AdminDashboard() {
                               </select>
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
-                                <button className="btn btn-primary" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', background: '#0ea5e9' }}>Cetak Nota</button>
-                                <button className="btn btn-warning" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', fontWeight: 'bold' }}>✏️ Edit Nota</button>
-                                <a 
-                                  href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${s.resi}`)}`} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="btn btn-accent" 
-                                  style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}
-                                >
-                                  Kirim WA 📲
-                                </a>
-                              </div>
+                              <details className="service-actions-menu">
+                                <summary aria-label={`Buka menu aksi ${s.resi}`} title="Aksi">⋮</summary>
+                                <div className="service-actions-dropdown">
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }}>Cetak Stiker</button>
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>Cetak Nota</button>
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
+                                  {s.customer_phone && (
+                                    <a href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:
+${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
+                                      Kirim WA 📲
+                                    </a>
+                                  )}
+                                </div>
+                              </details>
                             </td>
                           </tr>
                         );

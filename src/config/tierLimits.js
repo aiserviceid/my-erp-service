@@ -6,12 +6,12 @@
 // ─── SERVICE STATUS FLOW ────────────────────────────────
 export const SERVICE_STATUSES = [
   { id: 'PROSES',         label: 'Diterima',        color: '#64748b', bg: '#f1f5f9', icon: '📥', description: 'Barang sudah diterima di toko' },
-  { id: 'DICEK',          label: 'Sedang Dicek',    color: '#0284c7', bg: '#e0f2fe', icon: '🔍', description: 'Teknisi sedang melakukan pengecekan' },
-  { id: 'DIKERJAKAN',     label: 'Sedang Dikerjakan', color: '#d97706', bg: '#fef3c7', icon: '🔧', description: 'Perbaikan sedang dilakukan' },
-  { id: 'MENUNGGU_PART',  label: 'Menunggu Part',   color: '#9333ea', bg: '#f3e8ff', icon: '📦', description: 'Menunggu sparepart yang dipesan' },
-  { id: 'SELESAI',        label: 'Selesai',         color: '#16a34a', bg: '#dcfce7', icon: '✅', description: 'Perbaikan selesai, siap diambil' },
-  { id: 'DIAMBIL',        label: 'Sudah Diambil',   color: '#059669', bg: '#d1fae5', icon: '🤝', description: 'Perangkat sudah diambil pelanggan' },
-  { id: 'DIBATALKAN',     label: 'Dibatalkan',      color: '#dc2626', bg: '#fee2e2', icon: '❌', description: 'Servis dibatalkan' },
+  { id: 'DICEK',          label: 'Sedang Dicek',    color: '#3B82F6', bg: '#DBEAFE', icon: '🔍', description: 'Teknisi sedang melakukan pengecekan' },
+  { id: 'DIKERJAKAN',     label: 'Sedang Dikerjakan', color: '#F59E0B', bg: '#FEF3C7', icon: '🔧', description: 'Perbaikan sedang dilakukan' },
+  { id: 'MENUNGGU_PART',  label: 'Menunggu Part',   color: '#F59E0B', bg: '#FEF3C7', icon: '📦', description: 'Menunggu sparepart yang dipesan' },
+  { id: 'SELESAI',        label: 'Selesai',         color: '#10B981', bg: '#D1FAE5', icon: '✅', description: 'Perbaikan selesai, siap diambil' },
+  { id: 'DIAMBIL',        label: 'Sudah Diambil',   color: '#10B981', bg: '#D1FAE5', icon: '🤝', description: 'Perangkat sudah diambil pelanggan' },
+  { id: 'DIBATALKAN',     label: 'Dibatalkan',      color: '#EF4444', bg: '#FEE2E2', icon: '❌', description: 'Servis dibatalkan' },
 ];
 
 export const getStatusInfo = (statusId) => {

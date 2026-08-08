@@ -7,6 +7,9 @@ import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
+import UnitProLogo from '../components/UnitProLogo';
+import IssueChips from '../components/IssueChips';
+import EmployeeFinanceInsights from '../components/EmployeeFinanceInsights';
 import { SERVICE_STATUSES } from '../config/tierLimits';
 
 export default function EmployeePortal() {
@@ -530,8 +533,10 @@ export default function EmployeePortal() {
     return (
       <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
         <div className="glass-panel native-employee-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-          <h2>Area Tim</h2>
-          <p>{tenant?.name || 'Masuk ke Area Tim'}</p>
+          <UnitProLogo variant="logo" height={46} style={{ marginBottom: '0.75rem' }} />
+          <h2 style={{ marginBottom: '0.35rem' }}>Portal Tim</h2>
+          <p style={{ margin: 0, color: '#64748b' }}>Masuk dengan PIN yang diberikan admin</p>
+          {tenant?.name && <small style={{ display: 'block', marginTop: '6px', color: '#94a3b8', fontWeight: '700' }}>{tenant.name}</small>}
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
           <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
             {!tenant?.code && (
@@ -823,10 +828,10 @@ export default function EmployeePortal() {
                     {services.filter(s => s.technician_id === employee.id).length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
                     ) : services.filter(s => s.technician_id === employee.id).map(s => (
-                      <div key={s.resi} className="technician-task-card" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={s.resi} className="technician-task-card" style={{ padding: '16px', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div className="technician-task-detail" style={{ flex: 1 }}>
                           <div className="technician-task-title"><strong>{s.device_name}</strong><span className="badge badge-info">{s.status || 'PROSES'}</span></div>
-                          <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>Keluhan: {s.issue}</div>
+                          <IssueChips issue={s.issue} />
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
                         <div className="technician-task-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -982,7 +987,7 @@ export default function EmployeePortal() {
                 </div>
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Komisi ({myCommissionRate}%)</p>
-                  <h2 style={{ margin: 0, color: 'var(--accent)' }}>Rp {totalKomisi.toLocaleString('id-ID')}</h2>
+                  <h2 style={{ margin: 0, color: totalKomisi === 0 ? '#6B7280' : '#10B981' }}>Rp {totalKomisi.toLocaleString('id-ID')}</h2>
                   <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Dari {myCompletedServices.length} Servis</p>
                 </div>
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
@@ -998,6 +1003,12 @@ export default function EmployeePortal() {
                   </button>
                 </div>
               </div>
+              <EmployeeFinanceInsights
+                services={services}
+                employee={employee}
+                salary={mySalary}
+                commissionRate={myCommissionRate}
+              />
             </div>
           )}
         </>
