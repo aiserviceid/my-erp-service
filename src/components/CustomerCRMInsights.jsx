@@ -368,10 +368,10 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
           {/* Rule 3 */}
           <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '14px', padding: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
-              💻 Rule 3: Maintenance Laptop
+              🛠️ Rule 3: Maintenance & Cleaning
             </div>
             <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#fff' }}>{crm.bySegment.laptop?.length || 0} Pelanggan</div>
-            <p style={{ margin: '4px 0 10px 0', fontSize: '0.76rem', color: '#cbd5e1' }}>Promo Thermal Paste & Upgrade RAM/SSD.</p>
+            <p style={{ margin: '4px 0 10px 0', fontSize: '0.76rem', color: '#cbd5e1' }}>Promo Cleaning, Thermal & Maintenance.</p>
             <button
               type="button"
               className="btn"
@@ -390,10 +390,10 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
           {/* Rule 4 */}
           <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '14px', padding: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#4ade80', textTransform: 'uppercase', marginBottom: '4px' }}>
-              📱 Rule 4: Sparepart HP
+              📦 Rule 4: Promo Sparepart & Aksesoris
             </div>
             <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#fff' }}>{crm.bySegment.hp?.length || 0} Pelanggan</div>
-            <p style={{ margin: '4px 0 10px 0', fontSize: '0.76rem', color: '#cbd5e1' }}>Promo Baterai Awet & LCD Original.</p>
+            <p style={{ margin: '4px 0 10px 0', fontSize: '0.76rem', color: '#cbd5e1' }}>Promo Baterai, Sparepart & Perlengkapan.</p>
             <button
               type="button"
               className="btn"
