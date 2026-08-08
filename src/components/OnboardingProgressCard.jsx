@@ -16,7 +16,7 @@ export default function OnboardingProgressCard({ tenant, users = [], products = 
     const steps = [
       { key: 'store', title: 'Setup Toko', desc: 'Nama toko dan nomor WhatsApp aktif.', done: !isDefaultStoreName(storeName) && Boolean(storeWa), tab: 'pengaturan', icon: Store },
       { key: 'team', title: 'Tambah Teknisi', desc: 'Minimal 1 teknisi untuk menerima tugas.', done: technicianCount > 0, tab: 'karyawan', icon: Users },
-      { key: 'catalog', title: 'Barang & Jasa', desc: 'Isi sparepart dan katalog jasa servis.', done: physicalCount > 0 && jasaCount > 0, tab: 'master', icon: Package },
+      { key: 'catalog', title: 'Barang & Jasa', desc: 'Isi sparepart dan katalog jasa servis.', done: products.length > 0, tab: 'master', icon: Package },
       { key: 'firstService', title: 'Servis Pertama', desc: 'Buat resi pertama untuk uji flow.', done: services.length > 0, tab: 'servis', icon: Wrench },
     ];
     const doneCount = steps.filter((step) => step.done).length;

@@ -1354,3 +1354,20 @@ html.native-app .customer-segment-grid { grid-template-columns: repeat(2, minmax
   .premium-finance-grid { grid-template-columns: 1fr !important; }
 }
 
+
+
+/* QA guard: desktop admin sidebar must remain visible while switching Tim sub-tabs. */
+@media (min-width: 769px) {
+  html:not(.native-app) .dashboard-layout > .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  html:not(.native-app) .dashboard-layout > .sidebar .nav-item {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}

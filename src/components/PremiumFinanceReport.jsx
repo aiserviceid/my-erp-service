@@ -44,6 +44,7 @@ import {
 import { apiService } from '../services/api';
 import { hasFeature } from '../config/tierLimits';
 import UpgradePrompt from './UpgradePrompt';
+import { normalizeWhatsAppNumber, findEmployeePhoneConflict } from '../utils/phoneUtils';
 
 
 const formatRupiah = (value = 0) => Number(value || 0).toLocaleString('id-ID');
@@ -112,6 +113,7 @@ export default function PremiumFinanceReport({
   transactions = [],
   services = [],
   products = [],
+  users = [],
   tenant,
   settings,
   onRefreshData
@@ -1249,6 +1251,7 @@ export default function PremiumFinanceReport({
                   const jasa = Number(s.jasa_fee || 0);
                   const disc = Number(s.diskon || 0);
                   const billTotal = part + jasa > 0 ? (part + jasa - disc) : est;
+                  const phoneConflict = findEmployeePhoneConflict(s.customer_phone, users);
 
                   return (
                     <tr key={s.resi}>
@@ -1258,6 +1261,11 @@ export default function PremiumFinanceReport({
                       <td>
                         <strong style={{ color: '#0f172a', display: 'block' }}>{s.customer_name}</strong>
                         <small style={{ color: '#64748b' }}>{s.customer_phone || 'Tanpa No. WA'}</small>
+                        {phoneConflict && (
+                          <small style={{ display: 'block', marginTop: '4px', color: '#dc2626', fontWeight: '800' }}>
+                            ⚠ Sama dengan WA karyawan: {phoneConflict.name}
+                          </small>
+                        )}
                       </td>
                       <td style={{ fontSize: '0.85rem', color: '#334155' }}>
                         {s.device_name}
@@ -1278,7 +1286,11 @@ export default function PremiumFinanceReport({
                               className="btn"
                               style={{ padding: '5px 10px', fontSize: '0.75rem', background: '#25D366', color: '#fff', fontWeight: '700' }}
                               onClick={() => {
-                                const cleanPhone = s.customer_phone.replace(/^0/, '62');
+                                if (phoneConflict) {
+                                  alert('Nomor WA pelanggan ini sama dengan nomor karyawan. Perbaiki nomor pelanggan dulu agar tagihan tidak salah alamat.');
+                                  return;
+                                }
+                                const cleanPhone = normalizeWhatsAppNumber(s.customer_phone);
                                 const msg = `Halo Kak ${s.customer_name}, unit ${s.device_name} di ${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'} (Resi: ${s.resi}) berstatus ${s.status}. Total tagihan: Rp ${formatRupiah(billTotal)}. Terima kasih!`;
                                 window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                               }}

@@ -37,7 +37,10 @@ export const useStore = create((set) => ({
     set({ employee: emp });
   },
   clearEmployee: () => {
-    if (typeof window !== 'undefined') localStorage.removeItem('EMP_SESSION');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('EMP_SESSION');
+      localStorage.removeItem('EMPLOYEE_TOKEN');
+    }
     set({ employee: null });
   },
   cart: [],
@@ -111,6 +114,10 @@ export const useStore = create((set) => ({
       localStorage.removeItem('TENANT_API_URL');
       localStorage.removeItem('TENANT_TOKEN');
       localStorage.removeItem('TENANT_TIER');
+      localStorage.removeItem('TENANT_PHONE');
+      localStorage.removeItem('TENANT_SETTINGS');
+      localStorage.removeItem('EMPLOYEE_TOKEN');
+      localStorage.removeItem('EMP_SESSION');
     }
     set({ 
       tenant: { 

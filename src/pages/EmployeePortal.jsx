@@ -12,6 +12,8 @@ import IssueChips from '../components/IssueChips';
 import EmployeeFinanceInsights from '../components/EmployeeFinanceInsights';
 import { SERVICE_STATUSES } from '../config/tierLimits';
 import { buildKasbonDescription, isPaidServiceStatus, normalizeKasbonAmount, parseKasbonDescription } from '../utils/financeUtils';
+import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
+import { isServiceItem } from '../utils/productCategory';
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -54,13 +56,7 @@ export default function EmployeePortal() {
   const printIframeRef = useRef(null);
 
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
-  const normalizeProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
-  const isJasaProduct = (product) => {
-    const category = normalizeProductCategory(product);
-    const name = String(product?.name || '').toLowerCase();
-    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
-    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
-  };
+  const isJasaProduct = isServiceItem;
   const sparepartCatalog = products.filter(p => !isJasaProduct(p));
   const jasaCatalog = products.filter(p => isJasaProduct(p));
   const settings = tenant?.settings || {};
@@ -193,7 +189,7 @@ export default function EmployeePortal() {
       setServiceWizardError('Lengkapi data pada langkah ini sebelum melanjutkan.');
       return;
     }
-    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\\+?62|0)8\\d{7,12}$/.test(serviceForm.phone.trim())) {
+    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\+?62|0)8\d{7,12}$/.test(serviceForm.phone.trim())) {
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
     }
@@ -321,10 +317,22 @@ export default function EmployeePortal() {
     e.preventDefault();
     const fd = new FormData(e.target);
     const customerPhone = String(fd.get('phone') || '').trim();
-    if (!/^(?:\\+?62|0)8\\d{7,12}$/.test(customerPhone)) {
+    if (!/^(?:\+?62|0)8\d{7,12}$/.test(customerPhone)) {
       setServiceWizardStep(1);
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
+    }
+    const normalizedCustomerPhone = normalizeWhatsAppNumber(customerPhone);
+    const phoneConflict = findEmployeePhoneConflict(normalizedCustomerPhone, users);
+    if (phoneConflict) {
+      const shouldContinue = window.confirm(`${customerPhoneConflictMessage(phoneConflict.name)}
+
+Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+      if (!shouldContinue) {
+        setServiceWizardStep(1);
+        setServiceWizardError('Periksa kembali nomor WhatsApp pelanggan sebelum melanjutkan.');
+        return;
+      }
     }
     const kelengkapan = fd.get('kelengkapan') || '-';
     const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}`;
@@ -334,7 +342,7 @@ export default function EmployeePortal() {
       tenant_code: employee.tenant_code || tenant.code,
       resi: resiGenerated,
       customer_name: fd.get('name'),
-      customer_phone: customerPhone,
+      customer_phone: normalizedCustomerPhone,
       device_name: fd.get('device'),
       issue: issueText,
       technician_id: technician_id,
@@ -923,7 +931,6 @@ export default function EmployeePortal() {
                                 if (st.id === 'DIAMBIL') {
                                   style = { color: 'var(--accent)', fontWeight: 'bold' };
                                   label = 'Di Ambil (Lunas)';
-                                  if (s.status !== 'SELESAI') return null; // Only show DIAMBIL if currently SELESAI
                                 }
                                 return <option key={st.id} value={st.id} style={style}>{label}</option>;
                               })}
@@ -1070,14 +1077,19 @@ export default function EmployeePortal() {
                 const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
                 
-                const notificationResult = await sendWhatsAppNotification({
-                  tenant,
-                  target: selectedService.customer_phone,
-                  message,
-                  openManual: true,
-                });
-                if (notificationResult.status === 'failed') {
-                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
+                const phoneConflict = findEmployeePhoneConflict(selectedService.customer_phone, users);
+                if (phoneConflict) {
+                  alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
+                } else {
+                  const notificationResult = await sendWhatsAppNotification({
+                    tenant,
+                    target: selectedService.customer_phone,
+                    message,
+                    openManual: true,
+                  });
+                  if (notificationResult.status === 'failed') {
+                    console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
+                  }
                 }
                 
                 alert('Berhasil disimpan & Notifikasi WA diproses!');

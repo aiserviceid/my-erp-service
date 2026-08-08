@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import BarcodeScanner from './BarcodeScanner';
 import { PAYMENT_METHODS, isWithinLimit } from '../config/tierLimits';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl, isFreeTier } from '../utils/branding';
+import { normalizeProductCategory, isServiceItem } from '../utils/productCategory';
 
 export default function POSView({ products, transactions = [], onTransactionCreated }) {
   const { tenant, cart, addToCart, removeFromCart, clearCart, updateCartQty } = useStore();
@@ -42,13 +43,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   })();
   const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
 
-  const getProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
-  const isServiceItem = (product) => {
-    const category = getProductCategory(product);
-    const name = String(product?.name || '').toLowerCase();
-    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
-    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
-  };
+  const getProductCategory = normalizeProductCategory;
   const getProductImage = (product) => product?.imageUrl || product?.image_url || product?.image || '';
   const formatMoney = (value) => normalizeMoneyInput(value).toLocaleString('id-ID');
 
