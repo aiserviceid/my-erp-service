@@ -25,8 +25,12 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 import {
+  AreaChart,
+  Area,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -701,7 +705,17 @@ export default function PremiumFinanceReport({
 
             <div style={{ height: '280px', width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <AreaChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="finMasukGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                    </linearGradient>
+                    <linearGradient id="finKeluarGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
                   <YAxis
@@ -716,9 +730,9 @@ export default function PremiumFinanceReport({
                     formatter={(val, name) => [`Rp ${formatRupiah(val)}`, name]}
                     contentStyle={{ background: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
                   />
-                  <Bar dataKey="Pemasukan" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={32} />
-                  <Bar dataKey="Pengeluaran" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={32} />
-                </BarChart>
+                  <Area type="monotone" dataKey="Pemasukan" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#finMasukGrad)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                  <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#finKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>

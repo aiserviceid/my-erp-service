@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import Barcode from 'react-barcode';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
@@ -1158,7 +1158,7 @@ export default function AdminDashboard() {
                 </h4>
                 <div className="dashboard-chart-area" style={{ height: '260px' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={
+                    <AreaChart data={
                       Array.from({length: 7}).map((_, i) => {
                         const d = new Date(); d.setDate(d.getDate() - (6 - i));
                         const dStr = d.toDateString();
@@ -1168,13 +1168,23 @@ export default function AdminDashboard() {
                         return { name: dStr.substring(0,3) + ' ' + d.getDate(), Pendapatan: masuk, Pengeluaran: keluar };
                       })
                     }>
+                      <defs>
+                        <linearGradient id="dashMasukGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#0284c7" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0}/>
+                        </linearGradient>
+                        <linearGradient id="dashKeluarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" />
-                      <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={(v) => `Rp ${v/1000}k`} width={60} />
-                      <Tooltip formatter={(v) => `Rp ${v.toLocaleString('id-ID')}`} />
-                      <Bar dataKey="Pendapatan" fill="#0284c7" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
+                      <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={(v) => `Rp ${v/1000}k`} width={60} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(v) => `Rp ${v.toLocaleString('id-ID')}`} contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} />
+                      <Area type="monotone" dataKey="Pendapatan" stroke="#0284c7" strokeWidth={3} fillOpacity={1} fill="url(#dashMasukGrad)" dot={{ r: 4, fill: '#0284c7', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                      <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#dashKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
