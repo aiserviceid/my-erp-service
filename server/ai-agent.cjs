@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_local_testing_secret_key_
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const ENV_GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const ENV_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const ENV_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || '';
 const AI_CONFIG_KEY = 'unitpro_ai_config';
 const CHAT_KEY_PREFIX = 'unitpro_ai_chat:';
@@ -180,7 +180,7 @@ async function saveGlobalAiConfig(next = {}) {
   const candidateKey = String(next.api_key || '').trim();
   const payload = {
     enabled: next.enabled !== false,
-    model: String(next.model || current.model || ENV_GEMINI_MODEL || 'gemini-3.6-flash').trim(),
+    model: String(next.model || current.model || ENV_GEMINI_MODEL || 'gemini-2.0-flash').trim(),
     api_key_enc: next.clear_api_key ? '' : (candidateKey ? encryptSecret(candidateKey) : (current.api_key_enc || '')),
     custom_instruction: String(next.custom_instruction ?? current.custom_instruction ?? '').slice(0, 8000),
     updated_at: new Date().toISOString(),
@@ -193,7 +193,7 @@ function publicAiConfig(config) {
   const key = String(config.apiKey || '');
   return {
     enabled: Boolean(config.enabled),
-    model: config.model || 'gemini-3.6-flash',
+    model: config.model || 'gemini-2.0-flash',
     has_api_key: Boolean(key),
     masked_key: key ? `••••••••${key.slice(-4)}` : '',
     custom_instruction: config.customInstruction || '',

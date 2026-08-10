@@ -5,6 +5,7 @@ import { allocateServiceDiscount, normalizeKasbonAmount, normalizeMoneyInteger, 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
 const PRODUCT_META_OVERRIDES_KEY = 'UNITPRO_PRODUCT_META_OVERRIDES';
+const idempotencyCache = new Map();
 
 const getProductMetaOverrides = () => {
   if (typeof window === 'undefined') return {};
@@ -867,15 +868,30 @@ export const apiService = {
         if (error) throw error;
         return data;
       }
+
       if (endpoint === '/transactions') {
+        const idempotencyKey = body?.idempotency_key || body?.idempotencyKey;
+        if (idempotencyKey && idempotencyCache.has(idempotencyKey)) {
+          console.warn('⚡ [Idempotency Guard] Request duplikat terdeteksi & diblokir di backend API:', idempotencyKey);
+          return idempotencyCache.get(idempotencyKey);
+        }
+
+        const { idempotency_key, idempotencyKey: ik, ...cleanedBody } = body;
+
         const transactionBody = {
-          ...body,
+          ...cleanedBody,
           amount: String(body?.type || '').toUpperCase().startsWith('BON_')
             ? normalizeKasbonAmount(body?.amount, body?.type)
             : normalizeMoneyInteger(body?.amount),
         };
         const { data, error } = await supabase.from('transactions').insert(transactionBody).select().single();
         if (error) throw error;
+
+        if (idempotencyKey && data) {
+          idempotencyCache.set(idempotencyKey, data);
+          setTimeout(() => idempotencyCache.delete(idempotencyKey), 10 * 60 * 1000);
+        }
+
         return data;
       }
       if (endpoint.startsWith('/transactions/') && endpoint.endsWith('/update')) {
@@ -1859,6 +1875,50 @@ export const apiService = {
       return `🚨 *URGENT H-1 MASA AKTIF UNITPRO*\n\nHalo Admin *${storeName}* (${tenant.code}),\nMasa aktif langganan toko Anda BERAKHIR BESOK (*${dateStr}*)!\n\nLakukan perpanjangan hari ini untuk menghindari penguncian fitur toko (Mode Read-Only).\n\nKonfirmasi perpanjangan sekarang!`;
     } else {
       return `❌ *LANGGANAN UNITPRO EXPIRED*\n\nHalo Admin *${storeName}* (${tenant.code}),\nMasa langganan Paket *${tier}* toko Anda telah berakhir pada *${dateStr}*.\n\nStatus toko saat ini berada pada *Mode Read-Only*. Silakan perpanjang langganan sekarang untuk mengaktifkan kembali seluruh fitur transaksi & nota servis. Terima kasih!`;
+    }
+  },
+
+  /**
+   * QA & Sandbox Testing Suite: Rollback transactions & restore product stocks
+   */
+  rollbackQASandbox: async (tenantCode = 'DEMO-STORE') => {
+    try {
+      // 1. Rollback test POS transactions created during QA testing
+      const { error: txErr } = await supabase.from('transactions').delete().eq('tenant_code', tenantCode).like('description', '%POS:%');
+      if (txErr) console.warn('QA Rollback tx notice:', txErr.message);
+
+      // 2. Restore initial sparepart stocks for QA test products
+      const { data: products } = await supabase.from('products').select('id, name, stock').eq('tenant_code', tenantCode);
+      if (products && products.length > 0) {
+        for (const prod of products) {
+          await supabase.from('products').update({ stock: 50 }).eq('id', prod.id);
+        }
+      }
+
+      return { success: true, message: 'Data QA & Stok Sparepart berhasil di-rollback ke kondisi awal 50 unit!' };
+    } catch (err) {
+      console.error('Rollback QA Error:', err);
+      throw err;
+    }
+  },
+
+  seedQASandbox: async (tenantCode = 'DEMO-STORE') => {
+    try {
+      // Seed initial QA spareparts if none exist
+      const { data: existing } = await supabase.from('products').select('id').eq('tenant_code', tenantCode);
+      if (!existing || existing.length === 0) {
+        const seedItems = [
+          { tenant_code: tenantCode, name: 'LCD iPhone 11 Original QA', price: 650000, cost_price: 450000, stock: 50, category: 'SPAREPART' },
+          { tenant_code: tenantCode, name: 'Baterai Laptop Asus X441 QA', price: 350000, cost_price: 220000, stock: 50, category: 'SPAREPART' },
+          { tenant_code: tenantCode, name: 'RAM DDR4 8GB Sodimm QA', price: 280000, cost_price: 190000, stock: 50, category: 'SPAREPART' },
+          { tenant_code: tenantCode, name: 'SSD NVMe 512GB QA', price: 520000, cost_price: 380000, stock: 50, category: 'SPAREPART' }
+        ];
+        await supabase.from('products').insert(seedItems);
+      }
+      return { success: true, message: 'Produk QA berhasil disiapkan.' };
+    } catch (err) {
+      console.error('Seed QA Error:', err);
+      throw err;
     }
   }
 };

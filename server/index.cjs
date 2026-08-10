@@ -324,13 +324,24 @@ app.post('/api/products', (req, res) => {
   });
 });
 
+const idempotencyStore = new Map();
+
 // API: Transactions (POS Checkout)
 app.post('/api/transactions', (req, res) => {
-  const { tenant_code, type, amount, description } = req.body;
+  const { tenant_code, type, amount, description, idempotency_key } = req.body;
+  if (idempotency_key && idempotencyStore.has(idempotency_key)) {
+    console.log('⚡ [Backend Idempotency] Prevented duplicate transaction:', idempotency_key);
+    return res.json(idempotencyStore.get(idempotency_key));
+  }
   db.run('INSERT INTO transactions (tenant_code, type, amount, description) VALUES (?, ?, ?, ?)', 
   [tenant_code, type, amount, description], function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, success: true });
+    const result = { id: this.lastID, success: true };
+    if (idempotency_key) {
+      idempotencyStore.set(idempotency_key, result);
+      setTimeout(() => idempotencyStore.delete(idempotency_key), 10 * 60 * 1000);
+    }
+    res.json(result);
   });
 });
 

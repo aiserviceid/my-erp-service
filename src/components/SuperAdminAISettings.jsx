@@ -23,7 +23,7 @@ export default function SuperAdminAISettings() {
   const [status, setStatus] = useState('');
   const [config, setConfig] = useState({
     enabled: true,
-    model: 'gemini-3.6-flash',
+    model: 'gemini-2.0-flash',
     has_api_key: false,
     masked_key: '',
     custom_instruction: '',
@@ -162,9 +162,9 @@ export default function SuperAdminAISettings() {
           <div>
             <label style={{ display: 'block', fontWeight: 800, fontSize: '0.78rem', color: '#475569', marginBottom: 5 }}>Model</label>
             <select value={config.model} onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))} style={fieldStyle}>
-              <option value="gemini-3.6-flash">Gemini 3.6 Flash — rekomendasi</option>
-              <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash — rekomendasi</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
             </select>
             <small style={{ color: '#64748b' }}>Model dapat diganti tanpa mengubah aplikasi tenant.</small>
           </div>

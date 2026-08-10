@@ -2,7 +2,11 @@
   "appId": "com.trackingservice.app",
   "appName": "UnitPro",
   "webDir": "dist",
+  "server": {
+    "url": "https://unitproid.vercel.app",
+    "cleartext": true
+  },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": true
   }
 }

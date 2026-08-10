@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound } from 'lucide-react';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
@@ -38,6 +38,44 @@ export default function EmployeePortal() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showEditServiceNota, setShowEditServiceNota] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+
+  // Change PIN modal state
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [empCurrentPin, setEmpCurrentPin] = useState('');
+  const [empNewPin, setEmpNewPin] = useState('');
+  const [empConfirmPin, setEmpConfirmPin] = useState('');
+  const [isChangingPin, setIsChangingPin] = useState(false);
+
+  const handleChangeEmployeePin = async (e) => {
+    e.preventDefault();
+    if (!empNewPin || empNewPin.trim().length < 4) {
+      alert('PIN Baru minimal 4 digit.');
+      return;
+    }
+    if (empNewPin !== empConfirmPin) {
+      alert('Konfirmasi PIN baru tidak cocok.');
+      return;
+    }
+    if (String(empCurrentPin) !== String(employee?.pin)) {
+      alert('PIN Saat Ini tidak sesuai.');
+      return;
+    }
+    setIsChangingPin(true);
+    try {
+      await apiService.updateUser(employee.id, { pin: empNewPin.trim() });
+      setEmployee({ ...employee, pin: empNewPin.trim() });
+      localStorage.setItem('EMPLOYEE_PIN', empNewPin.trim());
+      setShowChangePinModal(false);
+      setEmpCurrentPin('');
+      setEmpNewPin('');
+      setEmpConfirmPin('');
+      alert('🔑 PIN Anda berhasil diperbarui!');
+    } catch (err) {
+      alert('Gagal memperbarui PIN: ' + (err?.message || 'kesalahan jaringan'));
+    } finally {
+      setIsChangingPin(false);
+    }
+  };
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showBonModal, setShowBonModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -662,9 +700,14 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{employee.name} • {employee.role}</div>
           </div>
         </div>
-        <button className="btn btn-ghost" onClick={() => useStore.getState().clearEmployee()} style={{ padding: '6px' }}>
-          <LogOut size={18} color="#ef4444" />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button className="btn btn-ghost" onClick={() => setShowChangePinModal(true)} title="Ubah PIN Saya" style={{ padding: '6px' }}>
+            <KeyRound size={18} color="#7c3aed" />
+          </button>
+          <button className="btn btn-ghost" onClick={() => useStore.getState().clearEmployee()} title="Keluar" style={{ padding: '6px' }}>
+            <LogOut size={18} color="#ef4444" />
+          </button>
+        </div>
       </header>
 
       <MobileTabBar
@@ -840,13 +883,16 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                     {services.filter(s => String(s.technician_id) === String(employee.id)).length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
                     ) : services.filter(s => String(s.technician_id) === String(employee.id)).map(s => (
-                      <div key={s.resi} className="technician-task-card" style={{ padding: '16px', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="technician-task-detail" style={{ flex: 1 }}>
-                          <div className="technician-task-title"><strong>{s.device_name}</strong><span className="badge badge-info">{s.status || 'PROSES'}</span></div>
+                      <div key={s.resi} className="technician-task-card" style={{ padding: '16px', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#ffffff', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="technician-task-detail" style={{ flex: 1, minWidth: '240px' }}>
+                          <div className="technician-task-title" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                            <strong>{s.device_name}</strong>
+                            <span className="badge badge-info">{s.status || 'PROSES'}</span>
+                          </div>
                           <IssueChips issue={s.issue} />
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
-                        <div className="technician-task-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div className="technician-task-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                           {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).length > 0 && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => openTransferModal(s)}>
                               <ArrowRightLeft size={14} style={{ marginRight: '5px', display: 'inline' }} /> Alihkan Tugas
@@ -1340,6 +1386,65 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             {transferError && <p className="service-wizard-error">{transferError}</p>}
             <div className="service-wizard-actions"><button type="button" className="btn btn-ghost" onClick={closeTransferModal}>Batal</button><button type="submit" className="btn btn-primary" disabled={transferLoading}><ArrowRightLeft size={18} /> {transferLoading ? 'Mengalihkan...' : 'Alihkan Tugas'}</button></div>
           </form>
+        </div>
+      )}
+
+      {/* UBAH PIN MODAL */}
+      {showChangePinModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'white', padding: '24px', borderRadius: '16px', position: 'relative' }}>
+            <button onClick={() => setShowChangePinModal(false)} style={{ position: 'absolute', top: '14px', right: '14px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <X size={20} color="var(--text-muted)" />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <KeyRound size={22} color="#7c3aed" />
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a' }}>Ubah PIN Saya</h3>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '16px' }}>Perbarui PIN login tim/karyawan Anda secara aman.</p>
+            
+            <form onSubmit={handleChangeEmployeePin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>PIN Saat Ini</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="PIN lama Anda"
+                  value={empCurrentPin}
+                  onChange={(e) => setEmpCurrentPin(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>PIN Baru</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="PIN baru (min. 4 digit)"
+                  value={empNewPin}
+                  onChange={(e) => setEmpNewPin(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Konfirmasi PIN Baru</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Ketik ulang PIN baru"
+                  value={empConfirmPin}
+                  onChange={(e) => setEmpConfirmPin(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowChangePinModal(false)} style={{ flex: 1 }}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={isChangingPin} style={{ flex: 2, background: '#7c3aed', borderColor: '#7c3aed', color: '#fff' }}>
+                  {isChangingPin ? 'Menyimpan...' : 'Simpan PIN Baru'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

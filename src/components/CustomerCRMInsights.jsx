@@ -97,11 +97,52 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
     setAgentPausedUntil(Number(settings.ai_agent_paused_until || 0));
   }, [settings.ai_agent_enabled, settings.ai_agent_paused_until]);
 
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [broadcastProgress, setBroadcastProgress] = useState(0);
-  const [broadcastLogs, setBroadcastLogs] = useState([]);
-  const [broadcastBatchSize, setBroadcastBatchSize] = useState(20);
-  const [broadcastDelaySec, setBroadcastDelaySec] = useState(3);
+  const [campaignImageUrl, setCampaignImageUrl] = useState('');
+  const [disabledPhones, setDisabledPhones] = useState(new Set());
+  const [savedTemplates, setSavedTemplates] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('UNITPRO_WA_SAVED_TEMPLATES') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const handleSaveCurrentTemplate = () => {
+    if (!campaignMessage.trim()) return alert('Tulis pesan draf terlebih dahulu sebelum menyimpan.');
+    const title = window.prompt('Masukkan Nama/Judul Template Toko Anda:', `Template Promo ${new Date().toLocaleDateString('id-ID')}`);
+    if (!title) return;
+    const newTpl = { id: Date.now(), title, message: campaignMessage, imageUrl: campaignImageUrl };
+    const updated = [newTpl, ...savedTemplates];
+    setSavedTemplates(updated);
+    localStorage.setItem('UNITPRO_WA_SAVED_TEMPLATES', JSON.stringify(updated));
+    alert('✅ Template promo toko berhasil disimpan!');
+  };
+
+  const handleDeleteSavedTemplate = (id) => {
+    if (!window.confirm('Hapus template tersimpan ini?')) return;
+    const updated = savedTemplates.filter((t) => t.id !== id);
+    setSavedTemplates(updated);
+    localStorage.setItem('UNITPRO_WA_SAVED_TEMPLATES', JSON.stringify(updated));
+  };
+
+  const togglePhoneTarget = (phone) => {
+    if (!phone) return;
+    setDisabledPhones((prev) => {
+      const next = new Set(prev);
+      if (next.has(phone)) next.delete(phone);
+      else next.add(phone);
+      return next;
+    });
+  };
+
+  const toggleAllTargets = () => {
+    const allValid = (crm.bySegment[selectedSegment] || []).map((c) => c.phone).filter(Boolean);
+    if (disabledPhones.size === allValid.length) {
+      setDisabledPhones(new Set());
+    } else {
+      setDisabledPhones(new Set(allValid));
+    }
+  };
 
   const crm = useMemo(() => {
     const map = new Map();
@@ -451,7 +492,15 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
     }
 
     const batchTargets = validTargets.slice(0, broadcastBatchSize);
-    if (!window.confirm(`Kirim broadcast ke ${batchTargets.length} pelanggan melalui WhatsApp Gateway?\n\nJeda antar pesan: ${broadcastDelaySec} detik.`)) return;
+    const confirmed = await (window.UnitProConfirm
+      ? window.UnitProConfirm({
+          title: 'Kirim Broadcast WhatsApp?',
+          message: `Kirim pesan ke ${batchTargets.length} pelanggan di segmen "${activeSegment.label}" melalui WhatsApp Gateway.\n\nJeda antar pesan: ${broadcastDelaySec} detik.`,
+          confirmText: 'Mulai Broadcast',
+          tone: 'info',
+        })
+      : Promise.resolve(window.confirm(`Kirim broadcast ke ${batchTargets.length} pelanggan melalui WhatsApp Gateway?\n\nJeda antar pesan: ${broadcastDelaySec} detik.`)));
+    if (!confirmed) return;
 
     setIsBroadcasting(true);
     setBroadcastProgress(0);
@@ -491,202 +540,360 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
 
   return (
     <div className="customer-crm-insights">
-      <div className="customer-crm-hero">
+      <div className="customer-crm-hero" style={{ position: 'relative', overflow: 'hidden' }}>
         <div>
-          <p>CRM PELANGGAN & WHATSAPP MARKETING</p>
-          <h3>AI Agent + Campaign yang memahami data toko</h3>
-          <span>Balas WhatsApp otomatis, buat promo barang/jasa, follow-up CRM, dan personalisasi pesan cukup dengan bahasa sehari-hari.</span>
+          <p style={{ letterSpacing: '0.08em', fontWeight: '900' }}>CRM PELANGGAN & WHATSAPP MARKETING PRO</p>
+          <h3 style={{ fontSize: '1.5rem', margin: '4px 0 8px 0' }}>AI Agent + Campaign Cerdas Toko Anda</h3>
+          <span style={{ fontSize: '0.88rem', opacity: 0.9 }}>Balas WhatsApp otomatis, buat promo barang/jasa, follow-up CRM, dan personalisasi pesan cukup dengan bahasa sehari-hari.</span>
         </div>
-        <div className="customer-crm-pro-badge"><Crown size={15} /> WhatsApp Marketing Pro</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div className="customer-crm-pro-badge"><Crown size={15} /> WhatsApp Marketing Pro</div>
+          {/* GATEWAY STATUS BADGE */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            borderRadius: '999px',
+            fontSize: '0.78rem',
+            fontWeight: '800',
+            background: senderConfig.mode === 'CUSTOM' ? (senderConfig.token ? 'rgba(22, 163, 74, 0.2)' : 'rgba(245, 158, 11, 0.2)') : 'rgba(2, 132, 199, 0.2)',
+            color: '#ffffff',
+            border: '1px solid rgba(255,255,255,0.3)',
+            backdropFilter: 'blur(4px)'
+          }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: gatewayTestStatus === 'success' ? '#4ade80' : senderConfig.mode === 'CUSTOM' && !senderConfig.token ? '#fde047' : '#38bdf8',
+              boxShadow: '0 0 8px currentColor'
+            }} />
+            {gatewayLabel}
+          </div>
+        </div>
       </div>
 
       <div className="customer-crm-metrics">
         <div><span>Total Pelanggan</span><strong>{crm.total}</strong><small>Servis + POS</small></div>
-        <div><span>Nomor WA</span><strong>{crm.withPhone}</strong><small>Siap dihubungi</small></div>
-        <div><span>Repeat</span><strong>{crm.repeat}</strong><small>Lebih dari 1 aktivitas</small></div>
-        <div><span>Perlu Follow-up</span><strong>{crm.readyPickup + crm.dormant60}</strong><small>Siap diambil / lama tidak datang</small></div>
+        <div><span>Nomor WA Valid</span><strong>{crm.withPhone}</strong><small>Siap dihubungi</small></div>
+        <div><span>Repeat Order</span><strong>{crm.repeat}</strong><small>Lebih dari 1 transaksi</small></div>
+        <div><span>Perlu Follow-up</span><strong>{crm.readyPickup + crm.dormant60}</strong><small>Siap diambil / pasif &gt; 60 hari</small></div>
       </div>
 
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap', background: '#f8fafc', padding: '12px 16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ width: 10, height: 10, borderRadius: 999, background: gatewayTestStatus === 'success' ? '#16a34a' : senderConfig.mode === 'CUSTOM' && !senderConfig.token ? '#f59e0b' : '#0284c7' }} />
-          <strong style={{ fontSize: '0.86rem', color: '#334155' }}>{gatewayLabel}</strong>
+          <strong style={{ fontSize: '0.86rem', color: '#334155' }}>Mode WA: {gatewayLabel}</strong>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-ghost" onClick={() => setShowGuide((value) => !value)} style={{ fontWeight: '800' }}>
-            ❓ Tutorial 1 Menit
+          <button type="button" className="btn btn-ghost" onClick={() => setShowGuide((value) => !value)} style={{ fontWeight: '800', fontSize: '0.8rem' }}>
+            ❓ Panduan 1 Menit
           </button>
-          <button type="button" className="btn btn-ghost" disabled={gatewayTestStatus === 'testing'} onClick={handleTestGateway} style={{ fontWeight: '800' }}>
-            <RefreshCw size={15} /> {gatewayTestStatus === 'testing' ? 'Menguji...' : 'Tes Gateway'}
+          <button type="button" className="btn btn-ghost" disabled={gatewayTestStatus === 'testing'} onClick={handleTestGateway} style={{ fontWeight: '800', fontSize: '0.8rem', background: '#ffffff', border: '1px solid #cbd5e1' }}>
+            <RefreshCw size={14} className={gatewayTestStatus === 'testing' ? 'animate-spin' : ''} /> {gatewayTestStatus === 'testing' ? 'Menguji...' : 'Tes Koneksi Gateway'}
           </button>
         </div>
       </div>
 
       {showGuide && (
-        <div style={{ marginTop: '10px', padding: '14px', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
-          <strong style={{ display: 'block', marginBottom: '8px' }}>Tutorial UnitPro AI + WhatsApp</strong>
+        <div style={{ marginTop: '10px', padding: '16px', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', animation: 'fadeIn 0.3s ease-out' }}>
+          <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem' }}>📖 Panduan Lengkap UnitPro AI + WhatsApp Marketing</strong>
           <div style={{ display: 'grid', gap: '6px', fontSize: '0.84rem', lineHeight: 1.5 }}>
-            <span><b>1.</b> Pengaturan → WhatsApp Gateway → CUSTOM → isi Token Fonnte → Simpan → Tes Gateway.</span>
-            <span><b>2.</b> Aktifkan <b>AI Agent</b>. UnitPro otomatis memasang webhook Fonnte dan auto-read chat personal.</span>
-            <span><b>3.</b> AI menjawab status servis, tracking, informasi toko, serta barang/jasa dari data UnitPro. Jika tidak yakin atau ada komplain serius, AI melakukan human handoff.</span>
-            <span><b>4.</b> Untuk campaign, pilih target lalu ketik seperti chat: <i>“Buat promo cleaning laptop untuk pelanggan lama.”</i></span>
-            <span><b>5.</b> Gemini otomatis menulis copywriting dan memilih variabel personalisasi. Cek preview, edit bila perlu, kirim 1 tes, lalu broadcast.</span>
-            <span><b>6.</b> Owner dapat mematikan atau pause AI Agent kapan saja.</span>
+            <span><b>1.</b> Buka <b>Pengaturan → WhatsApp Gateway</b> untuk memasukkan Token Fonnte/Custom Anda jika menggunakan server pribadi.</span>
+            <span><b>2.</b> Aktifkan <b>AI Agent</b> di bawah. AI otomatis menjawab status servis, invoice, harga barang/jasa, dan lokasi toko 24/7.</span>
+            <span><b>3.</b> Pilih salah satu <b>Segmen Pelanggan</b> di bawah. UnitPro memilah pelanggan secara otomatis.</span>
+            <span><b>4.</b> Klik <b>Tombol Preset Cepat</b> atau tulis perintah ke AI Copywriter Gemini untuk memuat draf promosi.</span>
+            <span><b>5.</b> Cek simulasi tampilan gelembung chat WhatsApp di sebelah kanan, lalu jalankan <b>Broadcast Gateway</b> secara aman.</span>
           </div>
         </div>
       )}
 
-      <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5,#eff6ff)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}` }}>
+      {/* AI AGENT CONTROL PANEL */}
+      <div style={{ marginTop: '1rem', padding: '1.2rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <div style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', background: agentEnabled ? '#16a34a' : '#64748b', color: '#fff' }}><Bot size={22} /></div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: agentEnabled ? '#16a34a' : '#64748b', color: '#fff', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)' }}><Bot size={24} /></div>
             <div>
-              <strong style={{ display: 'block', color: '#0f172a' }}>UnitPro AI Agent</strong>
-              <small style={{ color: '#64748b' }}>{agentEnabled ? (agentPausedUntil > Date.now() ? 'Dipause sementara' : 'Membalas WhatsApp otomatis dengan konteks servis & CRM') : 'OFF — pelanggan ditangani manual'}</small>
+              <strong style={{ display: 'block', color: '#0f172a', fontSize: '1rem' }}>UnitPro AI Auto-Reply Agent</strong>
+              <small style={{ color: '#64748b', fontSize: '0.82rem' }}>{agentEnabled ? (agentPausedUntil > Date.now() ? '⏸️ Dipause sementara' : '🟢 Membalas WhatsApp otomatis 24/7 dengan data servis & stok toko') : '⚫ OFF — Pelanggan ditangani manual'}</small>
             </div>
           </div>
-          <button type="button" disabled={agentBusy} onClick={handleToggleAgent} style={{ minWidth: 115, border: 'none', borderRadius: 999, padding: '9px 14px', cursor: agentBusy ? 'wait' : 'pointer', background: agentEnabled ? '#16a34a' : '#334155', color: '#fff', fontWeight: 900 }}>
+          <button type="button" disabled={agentBusy} onClick={handleToggleAgent} style={{ minWidth: 120, border: 'none', borderRadius: 999, padding: '10px 18px', cursor: agentBusy ? 'wait' : 'pointer', background: agentEnabled ? '#16a34a' : '#334155', color: '#fff', fontWeight: 900, boxShadow: agentEnabled ? '0 4px 12px rgba(22, 163, 74, 0.3)' : 'none' }}>
             {agentBusy ? 'Memproses...' : agentEnabled ? '🟢 AI ON' : '⚫ AI OFF'}
           </button>
         </div>
-        {agentEnabled && <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>
+        {agentEnabled && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
           {agentPausedUntil > Date.now()
-            ? <button type="button" className="btn btn-ghost" onClick={handleResumeAgent}><Play size={14} /> Aktifkan Sekarang</button>
-            : <button type="button" className="btn btn-ghost" onClick={handlePauseAgent}><Pause size={14} /> Pause 1 Jam</button>}
-          <button type="button" className="btn btn-ghost" onClick={handleToggleAgentChats}>👤 {showAgentChats ? 'Tutup Percakapan' : 'Ambil Alih Chat'}</button>
+            ? <button type="button" className="btn btn-ghost" onClick={handleResumeAgent} style={{ background: '#fff', border: '1px solid #bbf7d0', fontSize: '0.78rem' }}><Play size={14} /> Aktifkan Sekarang</button>
+            : <button type="button" className="btn btn-ghost" onClick={handlePauseAgent} style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.78rem' }}><Pause size={14} /> Pause 1 Jam</button>}
+          <button type="button" className="btn btn-ghost" onClick={handleToggleAgentChats} style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.78rem' }}>👤 {showAgentChats ? 'Tutup Percakapan' : 'Ambil Alih Chat Human'}</button>
         </div>}
-        {agentStatus && <div style={{ marginTop: 8, fontSize: '0.8rem', fontWeight: 700, color: agentStatus.startsWith('❌') ? '#b91c1c' : '#166534' }}>{agentStatus}</div>}
+        {agentStatus && <div style={{ marginTop: 10, fontSize: '0.82rem', fontWeight: 700, color: agentStatus.startsWith('❌') ? '#b91c1c' : '#166534' }}>{agentStatus}</div>}
       </div>
 
       {showAgentChats && (
-        <div style={{ marginTop: '10px', padding: '12px', borderRadius: '14px', background: '#fff', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={{ marginTop: '10px', padding: '14px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div>
-              <strong style={{ display: 'block', color: '#0f172a' }}>Percakapan AI Agent</strong>
-              <small style={{ color: '#64748b' }}>Ambil alih chat kapan saja. AI berhenti membalas chat yang berstatus ditangani manusia.</small>
+              <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.95rem' }}>Percakapan AI Agent & Human Handoff</strong>
+              <small style={{ color: '#64748b' }}>Ambil alih chat kapan saja. AI berhenti membalas nomor yang ditangani staf manusia.</small>
             </div>
-            <button type="button" className="btn btn-ghost" onClick={loadAgentConversations} disabled={loadingAgentChats}><RefreshCw size={13} /> Refresh</button>
+            <button type="button" className="btn btn-ghost" onClick={loadAgentConversations} disabled={loadingAgentChats} style={{ fontSize: '0.78rem' }}><RefreshCw size={13} /> Refresh</button>
           </div>
-          {loadingAgentChats ? <div style={{ color: '#64748b', fontSize: '0.8rem' }}>Memuat percakapan...</div> : (
-            <div style={{ display: 'grid', gap: '7px' }}>
+          {loadingAgentChats ? <div style={{ color: '#64748b', fontSize: '0.82rem', padding: '10px' }}>Memuat percakapan...</div> : (
+            <div style={{ display: 'grid', gap: '8px' }}>
               {agentConversations.slice(0, 15).map((conversation) => (
-                <div key={conversation.phone} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '11px', background: conversation.human_takeover ? '#fff7ed' : '#f8fafc', border: `1px solid ${conversation.human_takeover ? '#fed7aa' : '#e2e8f0'}` }}>
+                <div key={conversation.phone} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '12px', background: conversation.human_takeover ? '#fff7ed' : '#f8fafc', border: `1px solid ${conversation.human_takeover ? '#fed7aa' : '#e2e8f0'}` }}>
                   <div style={{ minWidth: 0 }}>
-                    <strong style={{ display: 'block', fontSize: '0.83rem', color: '#0f172a' }}>{conversation.name || conversation.phone}</strong>
+                    <strong style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a' }}>{conversation.name || conversation.phone}</strong>
                     <small style={{ color: '#64748b', display: 'block', maxWidth: '520px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conversation.last_message || 'Belum ada preview pesan'}</small>
-                    <small style={{ color: conversation.human_takeover ? '#c2410c' : '#16a34a', fontWeight: 800 }}>{conversation.human_takeover ? '👤 Butuh/Admin Handling' : '🤖 AI Handling'}</small>
+                    <small style={{ color: conversation.human_takeover ? '#c2410c' : '#16a34a', fontWeight: 800 }}>{conversation.human_takeover ? '👤 Handling Staf Manusia' : '🤖 AI Agent Handling'}</small>
                   </div>
-                  <button type="button" className="btn btn-ghost" onClick={() => handleConversationTakeover(conversation, !conversation.human_takeover)} style={{ whiteSpace: 'nowrap', fontSize: '0.74rem' }}>
+                  <button type="button" className="btn btn-ghost" onClick={() => handleConversationTakeover(conversation, !conversation.human_takeover)} style={{ whiteSpace: 'nowrap', fontSize: '0.74rem', background: '#fff', border: '1px solid #cbd5e1' }}>
                     {conversation.human_takeover ? '🤖 Kembalikan ke AI' : '👤 Ambil Alih'}
                   </button>
                 </div>
               ))}
-              {agentConversations.length === 0 && <div style={{ color: '#64748b', fontSize: '0.8rem', padding: '8px' }}>Belum ada percakapan AI Agent yang tersimpan.</div>}
+              {agentConversations.length === 0 && <div style={{ color: '#64748b', fontSize: '0.82rem', padding: '10px' }}>Belum ada percakapan AI Agent yang tersimpan.</div>}
             </div>
           )}
         </div>
       )}
 
-      <div className="customer-segment-grid" style={{ marginTop: '1rem' }}>
+      {/* SEGMENT SELECTOR CARDS WITH LIVE BADGES */}
+      <div className="customer-segment-grid" style={{ marginTop: '1.2rem' }}>
         {segments.map((segment) => {
           const Icon = segment.icon;
           const active = selectedSegment === segment.key;
           return (
-            <button key={segment.key} type="button" className={`customer-segment-card ${active ? 'active' : ''}`} onClick={() => selectSegment(segment.key)}>
-              <span><Icon size={18} /></span>
-              <strong>{segment.label}</strong>
-              <b>{segment.count} pelanggan</b>
-              <small>{segment.hint}</small>
+            <button key={segment.key} type="button" className={`customer-segment-card ${active ? 'active' : ''}`} onClick={() => selectSegment(segment.key)} style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '6px' }}>
+                <span><Icon size={18} /></span>
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: '900',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  background: active ? '#ffffff' : (segment.count > 0 ? (segment.key === 'ready' ? '#fef2f2' : '#f0fdf4') : '#f1f5f9'),
+                  color: active ? 'var(--primary)' : (segment.count > 0 ? (segment.key === 'ready' ? '#ef4444' : '#16a34a') : '#94a3b8'),
+                  border: active ? 'none' : '1px solid rgba(0,0,0,0.06)'
+                }}>
+                  {segment.count}
+                </span>
+              </div>
+              <strong style={{ fontSize: '0.9rem', marginBottom: '2px' }}>{segment.label}</strong>
+              <small style={{ fontSize: '0.75rem', opacity: 0.85 }}>{segment.hint}</small>
             </button>
           );
         })}
       </div>
 
-      <div className="customer-wa-pro-panel" style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 0.8fr) minmax(360px, 1.2fr)', gap: '14px' }}>
-        <div style={{ background: '#ffffff', border: '1px solid #dbeafe', borderRadius: '18px', padding: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#075985', fontWeight: '900' }}>
-            <Zap size={17} /> Target Pelanggan ({selectedCustomers.length})
+      <div className="customer-wa-pro-panel" style={{ marginTop: '1.2rem', display: 'grid', gridTemplateColumns: 'minmax(250px, 0.85fr) minmax(360px, 1.15fr)', gap: '16px' }}>
+        {/* TARGET CUSTOMER LIST WITH CHECKBOX SELECTOR */}
+        <div style={{ background: '#ffffff', border: '1px solid #dbeafe', borderRadius: '18px', padding: '1.2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', color: '#075985', fontWeight: '900', flexWrap: 'wrap', gap: '6px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Zap size={17} /> Target Pelanggan</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button type="button" className="btn btn-ghost" onClick={toggleAllTargets} style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f1f5f9', border: '1px solid #cbd5e1' }}>
+                {disabledPhones.size > 0 ? '☑️ Pilih Semua' : '☐ Batal Semua'}
+              </button>
+              <span style={{ fontSize: '0.75rem', background: '#e0f2fe', padding: '3px 10px', borderRadius: '999px', color: '#0369a1', fontWeight: '800' }}>
+                {selectedCustomers.filter(c => c.phone && !disabledPhones.has(c.phone)).length} / {selectedCustomers.length} Orang
+              </span>
+            </div>
           </div>
-          <p style={{ margin: '0 0 12px 0', color: '#64748b', fontSize: '0.84rem', lineHeight: 1.5 }}>
-            Segment aktif: <strong>{activeSegment.label}</strong>. Target dipilih otomatis dari riwayat servis, POS, tanggal terakhir, dan jenis perangkat.
+          <p style={{ margin: '0 0 12px 0', color: '#64748b', fontSize: '0.82rem', lineHeight: 1.5 }}>
+            Segmen: <strong>{activeSegment.label}</strong>. Centang/hapus centang kontak sesuai kebutuhan promo toko Anda.
           </p>
-          <div style={{ display: 'grid', gap: '8px', maxHeight: '360px', overflowY: 'auto' }}>
-            {selectedCustomers.map((customer) => (
-              <div key={`${customer.phone}-${customer.name}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '10px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                <div>
-                  <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.88rem' }}>{customer.name}</strong>
-                  <small style={{ color: '#64748b' }}>{customer.phone || 'Tanpa WA'} • {customer.daysFromLast} hari lalu</small>
+          <div style={{ display: 'grid', gap: '8px', maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
+            {selectedCustomers.map((customer) => {
+              const isDisabled = Boolean(customer.phone && disabledPhones.has(customer.phone));
+              return (
+                <div key={`${customer.phone}-${customer.name}`} onClick={() => customer.phone && togglePhoneTarget(customer.phone)} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: isDisabled ? '#f1f5f9' : '#f8fafc',
+                  border: `1px solid ${isDisabled ? '#cbd5e1' : '#e2e8f0'}`,
+                  opacity: isDisabled ? 0.6 : 1,
+                  cursor: customer.phone ? 'pointer' : 'default',
+                  transition: 'all 0.15s ease'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={!isDisabled && Boolean(customer.phone)}
+                    disabled={!customer.phone}
+                    onChange={() => togglePhoneTarget(customer.phone)}
+                    style={{ width: '16px', height: '16px', accentColor: '#2563eb', cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ display: 'block', color: isDisabled ? '#64748b' : '#0f172a', fontSize: '0.86rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>{customer.name}</strong>
+                    <small style={{ color: '#64748b', fontSize: '0.75rem' }}>{customer.phone || 'Tanpa WA'} • {customer.daysFromLast} hari lalu</small>
+                  </div>
+                  <small style={{ color: '#0f766e', fontWeight: '800', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>Rp {money(customer.totalSpent)}</small>
                 </div>
-                <small style={{ color: '#0f766e', fontWeight: '800', whiteSpace: 'nowrap' }}>Rp {money(customer.totalSpent)}</small>
-              </div>
-            ))}
-            {selectedCustomers.length === 0 && <div style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', color: '#64748b', fontSize: '0.86rem' }}>Belum ada pelanggan di segment ini.</div>}
+              );
+            })}
+            {selectedCustomers.length === 0 && <div style={{ padding: '16px', textAlign: 'center', borderRadius: '12px', background: '#f8fafc', color: '#64748b', fontSize: '0.84rem' }}>Belum ada pelanggan di segment ini.</div>}
           </div>
         </div>
 
+        {/* AI COPYWRITER & WHATSAPP CHAT BUBBLE PREVIEW */}
         <div style={{ background: 'linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%)', border: '1px solid #bbf7d0', borderRadius: '18px', padding: '1.2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ color: '#5b21b6', fontWeight: '900', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={17} /> AI WhatsApp Copywriter</div>
-              <small style={{ color: '#64748b' }}>Ketik seperti ngobrol dengan AI. Gemini mengurus gaya, CTA, dan variabel UnitPro.</small>
+              <div style={{ color: '#5b21b6', fontWeight: '900', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={18} /> AI WhatsApp Copywriter</div>
+              <small style={{ color: '#64748b', fontSize: '0.8rem' }}>Gemini mengurus gaya bahasa, variabel dinamis & struktur penawaran.</small>
             </div>
-            <span style={{ fontSize: '0.76rem', fontWeight: '800', color: '#0f766e', background: '#ccfbf1', padding: '5px 10px', borderRadius: '999px' }}>
-              {selectedCustomers.filter((c) => c.phone).length} WA Target
+            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#0f766e', background: '#ccfbf1', padding: '5px 12px', borderRadius: '999px', border: '1px solid #99f6e4' }}>
+              {selectedCustomers.filter((c) => c.phone && !disabledPhones.has(c.phone)).length} Target Tercentang
             </span>
           </div>
 
-          <div style={{ marginTop: '12px', background: '#fff', border: '1px solid #ddd6fe', borderRadius: '14px', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 12px', background: '#faf5ff', borderBottom: '1px solid #ede9fe', fontSize: '0.8rem', color: '#5b21b6', lineHeight: 1.45 }}>
-              <b>🤖 UnitPro AI:</b> Ceritakan apa yang ingin disampaikan. Saya akan membuat pesan WhatsApp dan memilih personalisasi yang tepat otomatis.
-            </div>
-            <div style={{ padding: '10px' }}>
-              <textarea className="input-field" value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} rows={4} placeholder="Contoh: Buat promo SSD 512GB untuk pelanggan laptop, ramah dan singkat..." style={{ resize: 'vertical', lineHeight: 1.45 }} />
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal('Buat campaign promo barang yang stoknya tersedia dan relevan untuk target ini. Gunakan harga dan stok dari data UnitPro, jangan mengarang diskon.')} style={{ fontSize: '0.72rem' }}>📦 Promo Barang</button>
-                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal('Buat campaign jasa servis atau maintenance yang paling relevan untuk target ini berdasarkan data UnitPro.')} style={{ fontSize: '0.72rem' }}>🛠️ Promo Jasa</button>
-                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.ready)} style={{ fontSize: '0.72rem' }}>✅ Servis Selesai</button>
-                <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.dormant)} style={{ fontSize: '0.72rem' }}>💤 Pelanggan Lama</button>
+          {/* STORE SAVED TEMPLATE MANAGER */}
+          {savedTemplates.length > 0 && (
+            <div style={{ marginTop: '10px', padding: '10px', borderRadius: '12px', background: '#ffffff', border: '1px solid #c4b5fd' }}>
+              <span style={{ fontSize: '0.76rem', fontWeight: '800', color: '#5b21b6', display: 'block', marginBottom: '6px' }}>⭐ Template Tersimpan Toko Anda:</span>
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                {savedTemplates.map((tpl) => (
+                  <div key={tpl.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '4px 8px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                    <button type="button" onClick={() => { setCampaignMessage(tpl.message); if (tpl.imageUrl) setCampaignImageUrl(tpl.imageUrl); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', color: '#6d28d9' }}>
+                      {tpl.title}
+                    </button>
+                    <button type="button" onClick={() => handleDeleteSavedTemplate(tpl.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold' }}>×</button>
+                  </div>
+                ))}
               </div>
-              <button type="button" className="btn" onClick={() => handleGenerateCopy('')} disabled={isGeneratingCopy} style={{ marginTop: '9px', width: '100%', background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)', color: '#fff', fontWeight: '900' }}>
-                <Sparkles size={16} /> {isGeneratingCopy ? 'AI sedang menulis...' : 'Buat Pesan ✨'}
+            </div>
+          )}
+
+          {/* AI INSTRUCTION BOX */}
+          <div style={{ marginTop: '12px', background: '#fff', border: '1px solid #ddd6fe', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            <div style={{ padding: '10px 14px', background: '#faf5ff', borderBottom: '1px solid #ede9fe', fontSize: '0.8rem', color: '#5b21b6', fontWeight: '700' }}>
+              🤖 Perintah ke AI Gemini Copywriter:
+            </div>
+            <div style={{ padding: '12px' }}>
+              <textarea className="input-field" value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} rows={3} placeholder="Contoh: Buat promo cleaning laptop ramah & singkat..." style={{ resize: 'vertical', lineHeight: 1.45, fontSize: '0.86rem' }} />
+              
+              {/* QUICK PRESETS */}
+              <div style={{ marginTop: '8px' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#64748b', display: 'block', marginBottom: '4px' }}>⚡ Presets Cepat Instant:</span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.ready)} style={{ fontSize: '0.72rem', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>⚡ Pengingat Servis Selesai</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.laptop)} style={{ fontSize: '0.72rem', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>🧹 Maintenance Laptop</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.hp)} style={{ fontSize: '0.72rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>📱 Pengecekan / Servis HP</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setCampaignGoal(DEFAULT_GOALS.pos)} style={{ fontSize: '0.72rem', background: '#fffbeb', border: '1px solid #fef08a', color: '#854d0e' }}>🛍️ Follow-up Kasir POS</button>
+                </div>
+              </div>
+
+              <button type="button" className="btn" onClick={() => handleGenerateCopy('')} disabled={isGeneratingCopy} style={{ marginTop: '10px', width: '100%', background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)', color: '#fff', fontWeight: '900', padding: '10px' }}>
+                <Sparkles size={16} /> {isGeneratingCopy ? 'AI sedang menulis draf...' : 'Buat Pesan dengan AI ✨'}
               </button>
             </div>
           </div>
 
+          {/* DRAFT MESSAGE TEXTAREA & IMAGE URL ATTACHMENT */}
           <div style={{ marginTop: '12px' }}>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '900', color: '#166534', marginBottom: '5px' }}>Pesan WhatsApp — bebas diedit</label>
-            <textarea ref={messageRef} className="input-field" value={campaignMessage} onChange={(e) => setCampaignMessage(e.target.value)} rows={9} placeholder={'Contoh: Halo Kak {nama_pelanggan}, ...'} style={{ resize: 'vertical', lineHeight: 1.5, background: '#fff' }} />
-            {campaignMessage && <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}>
-              <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Buat lebih singkat dan langsung ke inti')} disabled={isGeneratingCopy}>Lebih Singkat</button>
-              <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Buat lebih ramah dan natural seperti CS toko Indonesia')} disabled={isGeneratingCopy}>Lebih Ramah</button>
-              <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Perbaiki copywriting tanpa mengubah fakta atau mengarang klaim baru')} disabled={isGeneratingCopy}>Perbaiki dengan AI</button>
-            </div>}
-            <small style={{ display: 'block', marginTop: '7px', color: '#64748b' }}>Variabel di bawah hanya untuk edit manual lanjutan. Gemini sudah memilih variabel otomatis.</small>
-            <div style={{ marginTop: '7px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '900', color: '#166534' }}>📝 Pesan WhatsApp (Bebas Edit)</label>
+              <button type="button" className="btn btn-ghost" onClick={handleSaveCurrentTemplate} style={{ fontSize: '0.72rem', background: '#fff', border: '1px solid #cbd5e1', padding: '3px 8px' }}>
+                💾 Simpan Jadi Template Toko
+              </button>
+            </div>
+            <textarea ref={messageRef} className="input-field" value={campaignMessage} onChange={(e) => setCampaignMessage(e.target.value)} rows={6} placeholder={'Halo Kak {nama_pelanggan}, ...'} style={{ resize: 'vertical', lineHeight: 1.5, background: '#fff', fontSize: '0.86rem' }} />
+            
+            {/* IMAGE ATTACHMENT URL INPUT */}
+            <div style={{ marginTop: '8px' }}>
+              <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: '800', color: '#0369a1', marginBottom: '3px' }}>🖼️ Link URL Brosur Gambar Promo (Opsional)</label>
+              <input
+                type="url"
+                className="input-field"
+                placeholder="https://contoh.com/brosur-promo.jpg"
+                value={campaignImageUrl}
+                onChange={(e) => setCampaignImageUrl(e.target.value)}
+                style={{ background: '#fff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            {campaignMessage && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Buat lebih singkat dan langsung ke inti')} disabled={isGeneratingCopy} style={{ fontSize: '0.72rem' }}>✂️ Lebih Singkat</button>
+                <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Buat lebih ramah dan natural seperti CS toko Indonesia')} disabled={isGeneratingCopy} style={{ fontSize: '0.72rem' }}>😊 Lebih Ramah</button>
+                <button type="button" className="btn btn-ghost" onClick={() => handleGenerateCopy('Perbaiki copywriting tanpa mengubah fakta')} disabled={isGeneratingCopy} style={{ fontSize: '0.72rem' }}>✨ Polish AI</button>
+              </div>
+            )}
+
+            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
               {CAMPAIGN_VARIABLES.map((variable) => (
-                <button key={variable.token} type="button" className="btn btn-ghost" onClick={() => insertVariable(variable.token)} style={{ padding: '5px 8px', fontSize: '0.72rem', background: '#fff', border: '1px solid #cbd5e1' }} title={`${variable.label} → ${variable.example}`}>
+                <button key={variable.token} type="button" className="btn btn-ghost" onClick={() => insertVariable(variable.token)} style={{ padding: '4px 8px', fontSize: '0.7rem', background: '#fff', border: '1px solid #cbd5e1' }} title={`${variable.label} → ${variable.example}`}>
                   {variable.token}
                 </button>
               ))}
             </div>
             {unknownVariables.length > 0 && (
-              <div style={{ marginTop: '7px', padding: '8px 10px', borderRadius: '10px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.78rem' }}>
+              <div style={{ marginTop: '6px', padding: '8px 10px', borderRadius: '10px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.78rem' }}>
                 <AlertCircle size={14} style={{ display: 'inline', marginRight: 5 }} /> Variabel tidak dikenal: {unknownVariables.join(', ')}
               </div>
             )}
           </div>
 
-          <div style={{ marginTop: '12px', background: '#ffffff', border: '1px solid #dcfce7', borderRadius: '14px', padding: '12px' }}>
-            <small style={{ color: '#16a34a', fontWeight: '900', display: 'block', marginBottom: '5px' }}>Pratinjau — variabel terisi otomatis untuk pelanggan pertama</small>
-            <p style={{ margin: 0, color: '#0f172a', fontSize: '0.88rem', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{activePreview}</p>
+          {/* REALISTIC WHATSAPP CHAT BUBBLE SIMULATION */}
+          <div style={{ marginTop: '14px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #bbf7d0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)' }}>
+            {/* WA Header */}
+            <div style={{ background: '#075e54', padding: '10px 14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#128c7e', display: 'grid', placeItems: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                {storeName.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{storeName}</div>
+                <div style={{ fontSize: '0.68rem', opacity: 0.85 }}>Online • Simulasi Tampilan WhatsApp</div>
+              </div>
+              <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '999px' }}>Preview</span>
+            </div>
+
+            {/* WA Chat Body */}
+            <div style={{ background: '#efeae2', padding: '14px', minHeight: '110px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <div style={{
+                maxWidth: '85%',
+                alignSelf: 'flex-start',
+                background: '#ffffff',
+                padding: '10px 12px 6px 12px',
+                borderRadius: '0px 12px 12px 12px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                position: 'relative',
+                wordBreak: 'break-word'
+              }}>
+                {campaignImageUrl && (
+                  <div style={{ marginBottom: '8px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0', maxHeight: '180px', background: '#f1f5f9' }}>
+                    <img
+                      src={campaignImageUrl}
+                      alt="Brosur Promo"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                      style={{ width: '100%', objectFit: 'cover', display: 'block', maxHeight: '180px' }}
+                    />
+                  </div>
+                )}
+                <div style={{ fontSize: '0.84rem', color: '#111b21', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                  {activePreview}
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '0.65rem', color: '#667781', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                  <span>{new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style={{ color: '#53bdeb', fontWeight: 'bold' }}>✓✓</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div style={{ marginTop: '12px', background: '#ffffff', borderRadius: '14px', padding: '12px', border: '1px solid #cbd5e1' }}>
-            <div style={{ fontSize: '0.82rem', fontWeight: '900', color: '#0f172a', marginBottom: '8px' }}>⚡ Kontrol Pengiriman Bertahap</div>
+          {/* BATCH CONTROL */}
+          <div style={{ marginTop: '14px', background: '#ffffff', borderRadius: '14px', padding: '12px', border: '1px solid #cbd5e1' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: '900', color: '#0f172a', marginBottom: '8px' }}>⚡ Kontrol Jeda Pengiriman Anti-Spam</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Maks Kontak per Batch</label>
-                <select className="input-field" value={broadcastBatchSize} onChange={(e) => setBroadcastBatchSize(Number(e.target.value))}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Kontak per Batch</label>
+                <select className="input-field" value={broadcastBatchSize} onChange={(e) => setBroadcastBatchSize(Number(e.target.value))} style={{ fontSize: '0.82rem' }}>
                   <option value={10}>10 kontak</option>
                   <option value={20}>20 kontak</option>
                   <option value={50}>50 kontak</option>
@@ -694,43 +901,47 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>Jeda antar Pesan</label>
-                <select className="input-field" value={broadcastDelaySec} onChange={(e) => setBroadcastDelaySec(Number(e.target.value))}>
+                <select className="input-field" value={broadcastDelaySec} onChange={(e) => setBroadcastDelaySec(Number(e.target.value))} style={{ fontSize: '0.82rem' }}>
                   <option value={3}>3 detik</option>
                   <option value={5}>5 detik</option>
                   <option value={10}>10 detik</option>
                 </select>
               </div>
             </div>
-            <small style={{ display: 'block', marginTop: '7px', color: '#64748b', lineHeight: 1.4 }}>Gunakan sesuai limit provider dan kebijakan WhatsApp. UnitPro tidak menjanjikan akun bebas pembatasan.</small>
           </div>
 
+          {/* BROADCAST PROGRESS BAR */}
           {isBroadcasting && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '12px', padding: '10px', marginTop: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: '800', color: '#166534', marginBottom: '4px' }}>
-                <span>🚀 Mengirim melalui gateway...</span><span>{broadcastProgress}%</span>
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '14px', padding: '12px', marginTop: '12px', animation: 'fadeIn 0.3s ease-out' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', fontWeight: '800', color: '#166534', marginBottom: '6px' }}>
+                <span>🚀 Mengirim via WhatsApp Gateway...</span><span>{broadcastProgress}%</span>
               </div>
-              <div style={{ height: 8, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: `${broadcastProgress}%`, height: '100%', background: '#22c55e', transition: 'width 0.3s' }} /></div>
+              <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ width: `${broadcastProgress}%`, height: '100%', background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)', transition: 'width 0.3s ease-in-out' }} />
+              </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
-            <button type="button" className="btn" style={{ background: '#e2e8f0', color: '#334155', fontWeight: '800', fontSize: '0.82rem' }} onClick={copySegmentPhones}>
+          {/* ACTION BUTTONS */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '14px' }}>
+            <button type="button" className="btn" style={{ background: '#ffffff', color: '#334155', border: '1px solid #cbd5e1', fontWeight: '800', fontSize: '0.82rem' }} onClick={copySegmentPhones}>
               <Copy size={15} /> Salin Nomor ({selectedCustomers.filter((c) => c.phone).length})
             </button>
-            <button type="button" className="btn" style={{ background: '#22c55e', color: '#fff', fontWeight: '900', fontSize: '0.82rem' }} onClick={sendOneCustomer}>
-              <Send size={15} /> Kirim ke 1 Pelanggan
+            <button type="button" className="btn" style={{ background: '#16a34a', color: '#fff', fontWeight: '900', fontSize: '0.82rem' }} onClick={sendOneCustomer}>
+              <Send size={15} /> Kirim Tes ke 1 Orang
             </button>
-            <button type="button" className="btn" disabled={isBroadcasting} style={{ background: isBroadcasting ? '#cbd5e1' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#fff', fontWeight: '900', fontSize: '0.82rem' }} onClick={handleStartBroadcast}>
+            <button type="button" className="btn" disabled={isBroadcasting} style={{ background: isBroadcasting ? '#cbd5e1' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#fff', fontWeight: '900', fontSize: '0.82rem', boxShadow: isBroadcasting ? 'none' : '0 4px 12px rgba(37, 99, 235, 0.25)' }} onClick={handleStartBroadcast}>
               <Play size={15} /> {isBroadcasting ? 'Pengiriman Berjalan...' : 'Mulai Broadcast Gateway 🚀'}
             </button>
           </div>
 
+          {/* LOGS */}
           {broadcastLogs.length > 0 && (
-            <div style={{ marginTop: '12px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '10px' }}>
-              <strong style={{ fontSize: '0.78rem', color: '#334155', display: 'block', marginBottom: '6px' }}>📋 Log Pengiriman</strong>
-              <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '0.78rem' }}>
+            <div style={{ marginTop: '14px', background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              <strong style={{ fontSize: '0.8rem', color: '#334155', display: 'block', marginBottom: '8px' }}>📋 Log Pengiriman Real-time</strong>
+              <div style={{ maxHeight: '160px', overflowY: 'auto', fontSize: '0.78rem', paddingRight: '4px' }}>
                 {broadcastLogs.map((log) => (
-                  <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
                     <span>{log.customerName} ({log.phone})</span>
                     <span style={{ fontWeight: '800', color: log.status === 'SUCCESS' ? '#16a34a' : log.status === 'FAILED' ? '#dc2626' : '#d97706' }}>
                       {log.status === 'SUCCESS' ? '🟢 Sukses' : log.status === 'FAILED' ? '🔴 Gagal' : '⏳ Pending'}
@@ -743,8 +954,8 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
         </div>
       </div>
 
-      <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '7px', color: '#64748b', fontSize: '0.78rem' }}>
-        <Users size={14} /> Data target berasal dari data toko sendiri. Hindari mengirim pesan ke pelanggan yang tidak relevan atau tidak menginginkan promosi.
+      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '7px', color: '#64748b', fontSize: '0.78rem' }}>
+        <Users size={14} /> Data target berasal dari database toko sendiri. Jaga privasi dan gunakan pesan yang bermanfaat untuk pelanggan.
       </div>
     </div>
   );

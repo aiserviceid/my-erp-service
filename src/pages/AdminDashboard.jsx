@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -10,17 +10,25 @@ import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import { compressImageFile } from '../utils/imageCompressor';
-import ForumCommunity from '../components/ForumCommunity';
-import POSView from '../components/POSView';
-import BarcodeScanner from '../components/BarcodeScanner';
 import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
 import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
-import CustomerCRMInsights from '../components/CustomerCRMInsights';
-import PremiumFinanceReport from '../components/PremiumFinanceReport';
 import OnboardingProgressCard from '../components/OnboardingProgressCard';
 import AndroidUpdateModal from '../components/AndroidUpdateModal';
 import IssueChips from '../components/IssueChips';
+
+const ForumCommunity = lazy(() => import('../components/ForumCommunity'));
+const POSView = lazy(() => import('../components/POSView'));
+const BarcodeScanner = lazy(() => import('../components/BarcodeScanner'));
+const CustomerCRMInsights = lazy(() => import('../components/CustomerCRMInsights'));
+const PremiumFinanceReport = lazy(() => import('../components/PremiumFinanceReport'));
+
+const TabLoadingSkeleton = () => (
+  <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
+    <div style={{ display: 'inline-block', width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    <p style={{ marginTop: '12px', fontSize: '0.88rem', fontWeight: '600' }}>Memuat modul...</p>
+  </div>
+);
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
@@ -53,6 +61,7 @@ export default function AdminDashboard() {
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
+  const [dataLoading, setDataLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
   const [users, setUsers] = useState([]);
@@ -69,7 +78,42 @@ export default function AdminDashboard() {
   const [obEmpName, setObEmpName] = useState('');
   const [obEmpPin, setObEmpPin] = useState('');
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
-  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'rekening' | 'nota' | 'promo'
+  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'rekening' | 'nota' | 'promo' | 'keamanan'
+  const [adminCurrentPin, setAdminCurrentPin] = useState('');
+  const [adminNewPin, setAdminNewPin] = useState('');
+  const [adminConfirmPin, setAdminConfirmPin] = useState('');
+  const [isSavingAdminPin, setIsSavingAdminPin] = useState(false);
+
+  const handleUpdateAdminPin = async (e) => {
+    e.preventDefault();
+    if (!adminNewPin || adminNewPin.trim().length < 4) {
+      alert('PIN / Password Baru minimal 4 karakter.');
+      return;
+    }
+    if (adminNewPin !== adminConfirmPin) {
+      alert('Konfirmasi PIN / Password baru tidak cocok.');
+      return;
+    }
+    const currentPin = settings.admin_pin || '1234';
+    if (adminCurrentPin && adminCurrentPin !== currentPin) {
+      alert('PIN / Password Saat Ini tidak sesuai.');
+      return;
+    }
+    setIsSavingAdminPin(true);
+    try {
+      const newSettings = { ...tenant?.settings, admin_pin: adminNewPin.trim() };
+      await apiService.updateTenantSettings(tenant.code, newSettings);
+      updateTenantSettings(newSettings);
+      setAdminCurrentPin('');
+      setAdminNewPin('');
+      setAdminConfirmPin('');
+      alert('🔐 PIN / Password Akses Toko berhasil diperbarui!');
+    } catch (err) {
+      alert('Gagal memperbarui PIN Admin: ' + err.message);
+    } finally {
+      setIsSavingAdminPin(false);
+    }
+  };
   const [previewTab, setPreviewTab] = useState('servis');
   const [empTab, setEmpTab] = useState('daftar'); // 'daftar' | 'kasbon' | 'absensi'
   const [masterTab, setMasterTab] = useState('stok'); // 'stok' | 'audit'
@@ -607,14 +651,47 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     : null;
 
   useEffect(() => {
+    let backListener;
+    if (Capacitor.isNativePlatform()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('backButton', () => {
+          if (showScanner) { setShowScanner(false); return; }
+          if (showBarcodeModal) { setShowBarcodeModal(false); return; }
+          if (showPrintModal) { setShowPrintModal(false); return; }
+          if (showEditServiceNota) { setShowEditServiceNota(false); return; }
+          if (showServiceRegistration) { setShowServiceRegistration(false); return; }
+          if (showEditProductModal) { setShowEditProductModal(false); return; }
+          if (showUpgradeModal) { setShowUpgradeModal(false); return; }
+          if (showOnboardingModal) { setShowOnboardingModal(false); return; }
+          if (selectedCustomerProfile) { setSelectedCustomerProfile(null); return; }
+          if (selectedService) { setSelectedService(null); return; }
+          if (activeTab !== 'dashboard') { setActiveTab('dashboard'); return; }
+          App.exitApp();
+        }).then(l => { backListener = l; });
+      }).catch(() => {});
+    }
+    return () => {
+      if (backListener && typeof backListener.remove === 'function') {
+        backListener.remove();
+      }
+    };
+  }, [showScanner, showBarcodeModal, showPrintModal, showEditServiceNota, showServiceRegistration, showEditProductModal, showUpgradeModal, showOnboardingModal, selectedCustomerProfile, selectedService, activeTab]);
+
+  useEffect(() => {
     if (tenant?.code === 'DEMO-STORE') {
       loadDemoData();
+      setDataLoading(false);
     } else if (tenant?.code) {
-      apiService.getProducts(tenant.code).then(setProducts);
-      if (apiService.getAuditLogs) apiService.getAuditLogs(tenant.code).then(setAuditLogs).catch(() => {});
-      apiService.getServices(tenant.code).then(setServices);
-      apiService.getUsers(tenant.code).then(setUsers);
-      apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {});
+      setDataLoading(true);
+      Promise.allSettled([
+        apiService.getProducts(tenant.code).then(setProducts),
+        apiService.getServices(tenant.code).then(setServices),
+        apiService.getUsers(tenant.code).then(setUsers),
+        apiService.get(`/transactions/${tenant.code}`).then(setTransactions),
+        apiService.getAuditLogs ? apiService.getAuditLogs(tenant.code).then(setAuditLogs) : Promise.resolve()
+      ]).finally(() => {
+        setDataLoading(false);
+      });
       
       // Auto-sync tier and settings from server
       apiService.getTenantPublic(tenant.code).then(async data => {
@@ -1342,11 +1419,13 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
         /* 1. POS */
         activeTab === 'pos' ? (
-          <POSView 
-            products={products} 
-            transactions={transactions}
-            onTransactionCreated={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {})}
-          />
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <POSView 
+              products={products} 
+              transactions={transactions}
+              onTransactionCreated={() => apiService.get(`/transactions/${tenant.code}`).then(setTransactions).catch(() => {})}
+            />
+          </Suspense>
         ) : 
 
         /* 2. MULTI-CABANG TAB */
@@ -1465,7 +1544,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               </div>
             </div>
 
-            <CustomerCRMInsights services={services} transactions={transactions} tenant={tenant} settings={settings} />
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <CustomerCRMInsights services={services} transactions={transactions} tenant={tenant} settings={settings} />
+            </Suspense>
 
             {/* TABEL DATABASE PELANGGAN */}
             {(() => {
@@ -1615,6 +1696,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
                   <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? '#f59e0b' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>📢 Iklan & Promo</button>
                   <button onClick={() => setSettingTab('aplikasi')} className={`btn ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
+                  <button onClick={() => setSettingTab('keamanan')} className={`btn ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
                   <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
                   <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#ef4444', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>⚠️ Reset Data</button>
                 </div>
@@ -2156,6 +2238,62 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   </div>
                 )}
 
+                {settingTab === 'keamanan' && (
+                  <div style={{ maxWidth: '520px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
+                      <KeyRound size={22} color="#7c3aed" />
+                      <h3 style={{ margin: 0, color: '#0f172a' }}>Ubah PIN / Password Admin Toko</h3>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+                      Perbarui PIN atau password keamanan akses Owner/Admin untuk melindungi data transaksi dan pengaturan toko Anda.
+                    </p>
+
+                    <form onSubmit={handleUpdateAdminPin} style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: '#ffffff', padding: '20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>PIN / Password Saat Ini</label>
+                        <input
+                          type="password"
+                          className="input-field"
+                          placeholder="Masukkan PIN lama (default: 1234)"
+                          value={adminCurrentPin}
+                          onChange={(e) => setAdminCurrentPin(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>PIN / Password Baru</label>
+                        <input
+                          type="password"
+                          className="input-field"
+                          placeholder="Masukkan PIN baru (min. 4 digit)"
+                          value={adminNewPin}
+                          onChange={(e) => setAdminNewPin(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>Konfirmasi PIN / Password Baru</label>
+                        <input
+                          type="password"
+                          className="input-field"
+                          placeholder="Ketik ulang PIN baru"
+                          value={adminConfirmPin}
+                          onChange={(e) => setAdminConfirmPin(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={isSavingAdminPin}
+                        style={{ marginTop: '10px', background: '#7c3aed', borderColor: '#7c3aed', color: '#fff', padding: '12px 16px', justifyContent: 'center', fontWeight: '800' }}
+                      >
+                        {isSavingAdminPin ? 'Menyimpan...' : '🔒 Simpan PIN / Password Baru'}
+                      </button>
+                    </form>
+                  </div>
+                )}
+
                 {settingTab === 'danger' && (
                   <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out' }}>
                     <h3 style={{ color: '#dc2626', margin: '0 0 1rem 0' }}>Zona Bahaya (Danger Zone)</h3>
@@ -2187,7 +2325,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             </div>
           </div>
         ) : activeTab === 'forum' ? (
-          <ForumCommunity />
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <ForumCommunity />
+          </Suspense>
         ) : activeTab === 'harga' ? (
           <div className="glass-panel" style={{ minHeight: '400px' }}>
              <h3>Katalog Harga Pasaran Global (Simulasi)</h3>
@@ -2305,7 +2445,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                     {(() => {
                       const filteredServices = services.filter(s => {
                         const matchQuery = (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
-                        const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !s.technician_id : s.technician_id === serviceTechTab);
+                        const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !s.technician_id : String(s.technician_id) === String(serviceTechTab));
                         const matchStatus = serviceStatusTab === 'ALL' || s.status === serviceStatusTab;
                         return matchQuery && matchTech && matchStatus;
                       });
@@ -2609,18 +2749,20 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
            </div>
         ) : activeTab === 'keuangan' ? (
           <div className="glass-panel finance-report" style={{ minHeight: '400px', animation: 'fadeIn 0.3s ease-in-out', padding: '0', background: 'transparent', border: 'none', boxShadow: 'none' }}>
-            <PremiumFinanceReport
-              transactions={transactions}
-              services={services}
-              products={products}
-              users={users}
-              tenant={tenant}
-              settings={settings}
-              onRefreshData={() => {
-                apiService.getTransactions(tenant?.code).then(setTransactions).catch(() => {});
-                apiService.getServices(tenant?.code).then(setServices).catch(() => {});
-              }}
-            />
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <PremiumFinanceReport
+                transactions={transactions}
+                services={services}
+                products={products}
+                users={users}
+                tenant={tenant}
+                settings={settings}
+                onRefreshData={() => {
+                  apiService.getTransactions(tenant?.code).then(setTransactions).catch(() => {});
+                  apiService.getServices(tenant?.code).then(setServices).catch(() => {});
+                }}
+              />
+            </Suspense>
           </div>
 
         ) : activeTab === 'karyawan' ? (
@@ -2928,12 +3070,14 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
 
       {/* BARCODE SCANNER MODAL */}
       {showScanner && (
-        <BarcodeScanner 
-          onScan={(text) => {
-            setServiceSearchQuery(text);
-          }}
-          onClose={() => setShowScanner(false)}
-        />
+        <Suspense fallback={<TabLoadingSkeleton />}>
+          <BarcodeScanner 
+            onScan={(text) => {
+              setServiceSearchQuery(text);
+            }}
+            onClose={() => setShowScanner(false)}
+          />
+        </Suspense>
       )}
 
       {/* PRINT NOTA MODAL */}

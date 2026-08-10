@@ -256,9 +256,9 @@ export default function PublicTracking() {
                     <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0f172a' }}>
                       Rp {((result.jasa_fee || 0) + (result.part_fee || 0)).toLocaleString('id-ID')}
                     </div>
-                    {result.jasa_fee > 0 && result.part_fee > 0 && (
+                    {Number(result.jasa_fee || 0) > 0 && Number(result.part_fee || 0) > 0 && (
                       <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
-                        Jasa: Rp {result.jasa_fee.toLocaleString('id-ID')} | Part: Rp {result.part_fee.toLocaleString('id-ID')}
+                        Jasa: Rp {Number(result.jasa_fee || 0).toLocaleString('id-ID')} | Part: Rp {Number(result.part_fee || 0).toLocaleString('id-ID')}
                       </div>
                     )}
                   </div>

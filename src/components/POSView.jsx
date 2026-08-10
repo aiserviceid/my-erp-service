@@ -45,6 +45,10 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
   const getProductCategory = normalizeProductCategory;
   const getProductImage = (product) => product?.imageUrl || product?.image_url || product?.image || '';
+  const normalizeMoneyInput = (value) => {
+    const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
   const formatMoney = (value) => normalizeMoneyInput(value).toLocaleString('id-ID');
 
   // Filtered & sorted products
@@ -72,11 +76,6 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   const grandTotal = Math.max(0, subtotal - discountAmount);
   const cashReceivedNum = parseInt(cashReceived) || 0;
   const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashReceivedNum - grandTotal) : 0;
-
-  const normalizeMoneyInput = (value) => {
-    const parsed = parseInt(String(value || '').replace(/[^\d]/g, ''));
-    return Number.isNaN(parsed) ? 0 : parsed;
-  };
 
   const handleReceiptEdit = async (event) => {
     event.preventDefault();
@@ -180,20 +179,31 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     setCheckoutStep(1);
   };
 
+  const isSubmittingRef = useRef(false);
+
   // Handle checkout
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (isSubmittingRef.current || checkoutLoading || cart.length === 0) return;
+    
+    // ATOMIC GUARD: Set synchronous ref immediately before any async gap
+    isSubmittingRef.current = true;
+    setCheckoutLoading(true);
+
     const stockProblem = validateCartStock();
     if (stockProblem) {
       alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);
+      setCheckoutLoading(false);
+      isSubmittingRef.current = false;
       return;
     }
     if (paymentMethod === 'TUNAI' && cashReceivedNum < grandTotal) {
       alert('Uang yang diterima kurang dari total belanja!');
+      setCheckoutLoading(false);
+      isSubmittingRef.current = false;
       return;
     }
 
-    setCheckoutLoading(true);
+    const idempotencyKey = `IDEM-POS-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     const receiptData = {
       items: [...cart],
@@ -205,6 +215,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       change: changeAmount,
       date: new Date().toLocaleString('id-ID'),
       transactionId: 'POS-' + Date.now(),
+      idempotencyKey,
       storeName: settings.storeName || tenant?.name || 'Toko'
     };
 
@@ -213,6 +224,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
     if (posCustPhone && !/^(?:\+?62|0)8\d{7,12}$/.test(posCustPhone)) {
       setCheckoutStep(1);
       setCheckoutLoading(false);
+      isSubmittingRef.current = false;
       alert('Nomor WhatsApp pelanggan belum valid. Gunakan format 08xxxxxxxxxx.');
       return;
     }
@@ -244,6 +256,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
           tenant_code: tenant.code,
           type: 'POS_SALES',
           amount: grandTotal,
+          idempotency_key: idempotencyKey,
           description: `POS: ${cart.length} item (${receiptData.transactionId}) | Bayar: ${paymentMethod}${discountAmount > 0 ? ` | Diskon: Rp${discountAmount.toLocaleString('id-ID')}` : ''}${custString}${phoneString}`
         });
         receiptData.transactionDbId = savedTransaction?.id;
@@ -299,6 +312,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       alert('Gagal memproses checkout: ' + err.message);
     } finally {
       setCheckoutLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -419,6 +433,23 @@ export default function POSView({ products, transactions = [], onTransactionCrea
             <div style={{ fontSize: '1.1rem', fontWeight: '800' }}>{cart.length}</div>
             <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Keranjang</div>
           </div>
+          <button onClick={async () => {
+            if (!window.confirm('⚠️ Rollback Data QA?\nIni akan menghapus transaksi tes POS dan mengembalikan stok sparepart ke 50 unit.')) return;
+            try {
+              const res = await apiService.rollbackQASandbox(tenant.code);
+              alert(res.message);
+              if (onTransactionCreated) onTransactionCreated();
+              fetchProducts();
+            } catch (e) {
+              alert('Gagal rollback QA: ' + e.message);
+            }
+          }} style={{
+            background: 'rgba(239,68,68,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
+            padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+            fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px'
+          }} title="Reset transaksi tes & kembalikan stok sparepart">
+            🧪 Rollback QA
+          </button>
           <button onClick={() => setShowHistory(!showHistory)} style={{
             background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white',
             padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',

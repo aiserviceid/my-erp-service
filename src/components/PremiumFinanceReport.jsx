@@ -123,6 +123,7 @@ export default function PremiumFinanceReport({
   const [customEnd, setCustomEnd] = useState(getTodayString());
   const [activeSubTab, setActiveSubTab] = useState('ringkasan'); // 'ringkasan' | 'arus_kas' | 'pengeluaran' | 'laba_rugi' | 'sumber_omzet' | 'piutang' | 'export'
   const [searchTx, setSearchTx] = useState('');
+  const [chartType, setChartType] = useState('AREA'); // 'AREA' | 'BAR'
   
   // Modal Pengeluaran Baru
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -813,17 +814,56 @@ export default function PremiumFinanceReport({
                   Perbandingan pemasukan (omzet) dan pengeluaran harian
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.78rem', fontWeight: '700' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#059669' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Pemasukan
-                </span>
-                {chartTrendData.some((item) => Number(item.Pengeluaran || 0) > 0) ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc2626' }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> Pengeluaran
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {/* CHART TYPE TOGGLE */}
+                <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                  <button
+                    type="button"
+                    onClick={() => setChartType('AREA')}
+                    style={{
+                      border: 'none',
+                      background: chartType === 'AREA' ? '#ffffff' : 'transparent',
+                      color: chartType === 'AREA' ? '#2563eb' : '#64748b',
+                      fontWeight: '800',
+                      fontSize: '0.74rem',
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      boxShadow: chartType === 'AREA' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    📈 Area Chart
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartType('BAR')}
+                    style={{
+                      border: 'none',
+                      background: chartType === 'BAR' ? '#ffffff' : 'transparent',
+                      color: chartType === 'BAR' ? '#2563eb' : '#64748b',
+                      fontWeight: '800',
+                      fontSize: '0.74rem',
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      boxShadow: chartType === 'BAR' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    📊 Bar Chart
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.78rem', fontWeight: '700' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#059669' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Pemasukan
                   </span>
-                ) : (
-                  <span style={{ color: '#6B7280', fontWeight: '700' }}>Tidak ada pengeluaran</span>
-                )}
+                  {chartTrendData.some((item) => Number(item.Pengeluaran || 0) > 0) && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc2626' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> Pengeluaran
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -835,36 +875,57 @@ export default function PremiumFinanceReport({
                   <span>Data akan muncul otomatis setelah transaksi pertama</span>
                 </div>
               ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="finMasukGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                    </linearGradient>
-                    <linearGradient id="finKeluarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
-                  <YAxis
-                    fontSize={11}
-                    stroke="#94a3b8"
-                    tickFormatter={formatRupiahAxis}
-                    width={65}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    formatter={(val, name) => [`Rp ${formatRupiah(val)}`, name]}
-                    contentStyle={{ background: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
-                  />
-                  <Area type="monotone" dataKey="Pemasukan" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#finMasukGrad)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
-                  <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#finKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
-                </AreaChart>
-              </ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'AREA' ? (
+                    <AreaChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="finMasukGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                        </linearGradient>
+                        <linearGradient id="finKeluarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
+                      <YAxis
+                        fontSize={11}
+                        stroke="#94a3b8"
+                        tickFormatter={formatRupiahAxis}
+                        width={65}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(val, name) => [`Rp ${formatRupiah(val)}`, name]}
+                        contentStyle={{ background: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                      />
+                      <Area type="monotone" dataKey="Pemasukan" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#finMasukGrad)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                      <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#finKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
+                      <YAxis
+                        fontSize={11}
+                        stroke="#94a3b8"
+                        tickFormatter={formatRupiahAxis}
+                        width={65}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(val, name) => [`Rp ${formatRupiah(val)}`, name]}
+                        contentStyle={{ background: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                      />
+                      <Bar dataKey="Pemasukan" fill="#10b981" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="Pengeluaran" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
               )}
             </div>
           </div>
@@ -896,6 +957,50 @@ export default function PremiumFinanceReport({
                 <span>Data bulanan akan muncul otomatis setelah transaksi pertama</span>
               </div>
             )}
+          </div>
+
+          {/* TECHNICIAN PERFORMANCE & COMMISSION LEADERBOARD */}
+          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.5rem', marginTop: '1.25rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
+                  👨‍🔧 Kinerja & Omzet Jasa Teknisi Periode Ini
+                </h4>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Total unit servis diselesaikan & kontribusi omzet per teknisi
+                </p>
+              </div>
+              <span style={{ fontSize: '0.78rem', background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontWeight: '800', border: '1px solid #bbf7d0' }}>
+                {filteredServices.length} Total Servis
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+              {(() => {
+                const map = new Map();
+                filteredServices.forEach((s) => {
+                  const tech = s.technician_name || s.assigned_to || s.technician || 'Belum Ditentukan';
+                  if (!map.has(tech)) map.set(tech, { name: tech, count: 0, revenue: 0 });
+                  const item = map.get(tech);
+                  item.count += 1;
+                  item.revenue += Number(s.jasa_fee || s.total_fee || s.price || 0);
+                });
+                const list = Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
+                return list.slice(0, 6).map((tech, idx) => (
+                  <div key={tech.name} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>#{idx + 1} Teknisi</div>
+                      <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.88rem' }}>{tech.name}</strong>
+                      <small style={{ color: '#0284c7', fontWeight: '800' }}>{tech.count} Unit Servis</small>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#16a34a' }}>Rp {formatRupiah(tech.revenue)}</div>
+                      <small style={{ fontSize: '0.7rem', color: '#64748b' }}>Omzet Jasa</small>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         </div>
       )}

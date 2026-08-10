@@ -31,7 +31,7 @@ const getApiAuthToken = (tenant) => {
   return localStorage.getItem('TENANT_TOKEN') || localStorage.getItem('EMPLOYEE_TOKEN') || '';
 };
 
-const sendThroughBackendGateway = async ({ tenant, target, message, mode, token }) => {
+const sendThroughBackendGateway = async ({ tenant, target, message, mode, token, urlMedia = '' }) => {
   const tenantCode = tenant?.code || tenant?.tenant_code || '';
   const authToken = getApiAuthToken(tenant);
   if (!tenantCode || !authToken) {
@@ -49,6 +49,7 @@ const sendThroughBackendGateway = async ({ tenant, target, message, mode, token 
       target,
       message,
       gateway_mode: mode,
+      ...(urlMedia ? { url: urlMedia } : {}),
       ...(mode === 'CUSTOM' && token ? { gateway_token: token } : {}),
     }),
   });
@@ -64,15 +65,22 @@ const sendThroughBackendGateway = async ({ tenant, target, message, mode, token 
   };
 };
 
-const sendDirectCustomGatewayFallback = async ({ target, message, token }) => {
+const sendDirectCustomGatewayFallback = async ({ target, message, token, urlMedia = '' }) => {
+  const params = new URLSearchParams({ target, message });
+  if (urlMedia) params.append('url', urlMedia);
   const response = await fetch(FONNTE_SEND_URL, {
     method: 'POST',
     headers: { Authorization: token },
-    body: new URLSearchParams({ target, message }),
+    body: params,
+  }).catch(() => {
+    throw new Error('WhatsApp Gateway tidak dapat dihubungi. Periksa koneksi internet lalu coba lagi.');
   });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('Token Fonnte tidak valid atau kadaluarsa. Periksa kembali token di Pengaturan WhatsApp Gateway.');
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload?.status === false) {
-    throw new Error(payload?.reason || payload?.detail || `Fonnte request failed (${response.status}).`);
+    throw new Error(payload?.reason || payload?.detail || payload?.message || `WhatsApp Gateway Fonnte gagal (Status ${response.status}).`);
   }
   return { status: 'sent', provider: 'fonnte', target };
 };
@@ -81,6 +89,7 @@ export const sendWhatsAppNotification = async ({
   tenant,
   target,
   message,
+  urlMedia = '',
   openManual = true,
 } = {}) => {
   const normalizedTarget = normalizeWhatsAppNumber(target);
@@ -103,6 +112,7 @@ export const sendWhatsAppNotification = async ({
       message: cleanMessage,
       mode,
       token,
+      urlMedia,
     });
   } catch (error) {
     gatewayError = error;
@@ -116,6 +126,7 @@ export const sendWhatsAppNotification = async ({
         target: normalizedTarget,
         message: cleanMessage,
         token,
+        urlMedia,
       });
     } catch (error) {
       gatewayError = error;
