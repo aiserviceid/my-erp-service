@@ -36,14 +36,29 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Legend
+  Legend,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell
 } from 'recharts';
 import { apiService } from '../services/api';
 import { hasFeature } from '../config/tierLimits';
 import UpgradePrompt from './UpgradePrompt';
+import { normalizeWhatsAppNumber, findEmployeePhoneConflict } from '../utils/phoneUtils';
 
 
 const formatRupiah = (value = 0) => Number(value || 0).toLocaleString('id-ID');
+
+const formatRupiahAxis = (value = 0) => {
+  const amount = Number(value || 0);
+  if (amount >= 1000000) {
+    const millions = amount / 1000000;
+    return `Rp ${Number.isInteger(millions) ? millions : millions.toFixed(1).replace('.0', '')}jt`;
+  }
+  if (amount >= 1000) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount > 0) return `Rp ${Math.round(amount)}`;
+  return 'Rp 0';
+};
 
 const formatDateID = (dateInput) => {
   if (!dateInput) return '-';
@@ -98,6 +113,7 @@ export default function PremiumFinanceReport({
   transactions = [],
   services = [],
   products = [],
+  users = [],
   tenant,
   settings,
   onRefreshData
@@ -326,6 +342,31 @@ export default function PremiumFinanceReport({
     }
     return result;
   }, [filteredTxs, transactions, period, periodBounds]);
+
+  const monthlyRevenueSourceData = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }).map((_, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthTransactions = transactions.filter((tx) => {
+        const txDate = new Date(tx.created_at || Date.now());
+        return txDate.getFullYear() === monthDate.getFullYear() && txDate.getMonth() === monthDate.getMonth();
+      });
+      const incomeTransactions = monthTransactions.filter((tx) => isIncome(tx.type, tx.description));
+      const pos = incomeTransactions.filter((tx) => String(tx.type || '').toUpperCase() === 'POS_SALES').reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      const service = incomeTransactions.filter((tx) => {
+        const type = String(tx.type || '').toUpperCase();
+        const desc = String(tx.description || '').toLowerCase();
+        return type.startsWith('INCOME') || desc.includes('servis') || desc.includes('resi');
+      }).reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      const total = incomeTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      return {
+        name: monthDate.toLocaleDateString('id-ID', { month: 'short' }),
+        Servis: service,
+        POS: pos,
+        Lainnya: Math.max(0, total - service - pos),
+      };
+    });
+  }, [transactions]);
 
   // Arus Kas Combined Timeline (Sorted newest first)
 
@@ -776,13 +817,24 @@ export default function PremiumFinanceReport({
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#059669' }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Pemasukan
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc2626' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> Pengeluaran
-                </span>
+                {chartTrendData.some((item) => Number(item.Pengeluaran || 0) > 0) ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc2626' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> Pengeluaran
+                  </span>
+                ) : (
+                  <span style={{ color: '#6B7280', fontWeight: '700' }}>Tidak ada pengeluaran</span>
+                )}
               </div>
             </div>
 
             <div style={{ height: '280px', width: '100%' }}>
+              {!chartTrendData.some((item) => Number(item.Pemasukan || 0) > 0 || Number(item.Pengeluaran || 0) > 0) ? (
+                <div className="chart-empty-state">
+                  <div className="chart-empty-icon" aria-hidden="true">📈</div>
+                  <strong>Belum ada transaksi</strong>
+                  <span>Data akan muncul otomatis setelah transaksi pertama</span>
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <defs>
@@ -800,7 +852,7 @@ export default function PremiumFinanceReport({
                   <YAxis
                     fontSize={11}
                     stroke="#94a3b8"
-                    tickFormatter={(v) => `Rp ${v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
+                    tickFormatter={formatRupiahAxis}
                     width={65}
                     axisLine={false}
                     tickLine={false}
@@ -813,7 +865,37 @@ export default function PremiumFinanceReport({
                   <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#finKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
                 </AreaChart>
               </ResponsiveContainer>
+              )}
             </div>
+          </div>
+
+          <div className="finance-source-monthly-card">
+            <div>
+              <h4>Sumber Omzet 6 Bulan Terakhir</h4>
+              <p>Perbandingan kontribusi servis, POS, dan pemasukan lainnya.</p>
+            </div>
+            {monthlyRevenueSourceData.some((row) => Number(row.Servis || 0) > 0 || Number(row.POS || 0) > 0 || Number(row.Lainnya || 0) > 0) ? (
+              <div style={{ height: '260px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyRevenueSourceData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} />
+                    <YAxis tickFormatter={formatRupiahAxis} axisLine={false} tickLine={false} width={68} fontSize={11} tickCount={5} />
+                    <Tooltip formatter={(value, name) => [`Rp ${formatRupiah(value)}`, name]} />
+                    <Legend />
+                    <Bar dataKey="Servis" fill="#0EA5E9" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="POS" fill="#3B82F6" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="Lainnya" fill="#10B981" radius={[5, 5, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="chart-empty-state chart-empty-state--small">
+                <div className="chart-empty-icon" aria-hidden="true">📊</div>
+                <strong>Belum ada transaksi</strong>
+                <span>Data bulanan akan muncul otomatis setelah transaksi pertama</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1066,58 +1148,73 @@ export default function PremiumFinanceReport({
             🍕 Breakdown Sumber Omzet & Pendapatan
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1.25rem', borderRadius: '16px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b' }}>Servis & Perbaikan</span>
-              <h4 style={{ margin: '6px 0 10px 0', fontSize: '1.3rem', color: '#0284c7' }}>Rp {formatRupiah(summaryMetrics.serviceIncome)}</h4>
-              <div style={{ height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    width: `${summaryMetrics.totalIncome > 0 ? Math.round((summaryMetrics.serviceIncome / summaryMetrics.totalIncome) * 100) : 0}%`,
-                    height: '100%',
-                    background: '#0284c7'
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '6px', display: 'block' }}>
-                {summaryMetrics.totalIncome > 0 ? Math.round((summaryMetrics.serviceIncome / summaryMetrics.totalIncome) * 100) : 0}% dari total omzet
-              </span>
-            </div>
+          {(() => {
+            const sourceData = [
+              { name: 'Servis', value: summaryMetrics.serviceIncome, color: '#0EA5E9' },
+              { name: 'POS', value: summaryMetrics.posIncome, color: '#3B82F6' },
+              { name: 'Lainnya', value: summaryMetrics.otherIncome, color: '#10B981' },
+            ];
+            const total = Number(summaryMetrics.totalIncome || 0);
 
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1.25rem', borderRadius: '16px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b' }}>Penjualan Kasir (POS)</span>
-              <h4 style={{ margin: '6px 0 10px 0', fontSize: '1.3rem', color: '#7c3aed' }}>Rp {formatRupiah(summaryMetrics.posIncome)}</h4>
-              <div style={{ height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    width: `${summaryMetrics.totalIncome > 0 ? Math.round((summaryMetrics.posIncome / summaryMetrics.totalIncome) * 100) : 0}%`,
-                    height: '100%',
-                    background: '#7c3aed'
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '6px', display: 'block' }}>
-                {summaryMetrics.totalIncome > 0 ? Math.round((summaryMetrics.posIncome / summaryMetrics.totalIncome) * 100) : 0}% dari total omzet
-              </span>
-            </div>
+            if (total <= 0) {
+              return (
+                <div className="chart-empty-state">
+                  <div className="chart-empty-icon" aria-hidden="true">🍩</div>
+                  <strong>Belum ada transaksi</strong>
+                  <span>Breakdown omzet akan muncul otomatis setelah transaksi pertama</span>
+                </div>
+              );
+            }
 
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1.25rem', borderRadius: '16px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b' }}>Pemasukan Lainnya</span>
-              <h4 style={{ margin: '6px 0 10px 0', fontSize: '1.3rem', color: '#059669' }}>Rp {formatRupiah(summaryMetrics.otherIncome)}</h4>
-              <div style={{ height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    width: `${summaryMetrics.totalIncome > 0 ? Math.round((summaryMetrics.otherIncome / summaryMetrics.totalIncome) * 100) : 0}%`,
-                    height: '100%',
-                    background: '#059669'
-                  }}
-                />
+            return (
+              <div className="revenue-source-layout">
+                <div className="revenue-source-chart">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <RechartsPieChart>
+                      <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={98} paddingAngle={3}>
+                        {sourceData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(value, name) => [`Rp ${formatRupiah(value)}`, name]} />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                  <div className="revenue-source-center">
+                    <span>Total Omzet</span>
+                    <strong>Rp {formatRupiah(total)}</strong>
+                  </div>
+                </div>
+
+                <div className="revenue-source-table-wrap">
+                  <table className="table revenue-source-table">
+                    <thead>
+                      <tr>
+                        <th>Kategori</th>
+                        <th style={{ textAlign: 'right' }}>Nominal</th>
+                        <th style={{ textAlign: 'right' }}>Persentase</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sourceData.map((entry) => {
+                        const percent = total > 0 ? Math.round((Number(entry.value || 0) / total) * 100) : 0;
+                        return (
+                          <tr key={entry.name}>
+                            <td>
+                              <div className="revenue-category-cell">
+                                <span className="revenue-category-dot" style={{ background: entry.color }} />
+                                <strong>{entry.name}</strong>
+                              </div>
+                              <div className="revenue-progress"><span style={{ width: `${percent}%`, background: entry.color }} /></div>
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: '800' }}>Rp {formatRupiah(entry.value)}</td>
+                            <td style={{ textAlign: 'right', color: '#64748b', fontWeight: '800' }}>{percent}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '6px', display: 'block' }}>
-                {summaryMetrics.totalIncome > 0 ? Math.round((summaryMetrics.otherIncome / summaryMetrics.totalIncome) * 100) : 0}% dari total omzet
-              </span>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1154,6 +1251,7 @@ export default function PremiumFinanceReport({
                   const jasa = Number(s.jasa_fee || 0);
                   const disc = Number(s.diskon || 0);
                   const billTotal = part + jasa > 0 ? (part + jasa - disc) : est;
+                  const phoneConflict = findEmployeePhoneConflict(s.customer_phone, users);
 
                   return (
                     <tr key={s.resi}>
@@ -1163,6 +1261,11 @@ export default function PremiumFinanceReport({
                       <td>
                         <strong style={{ color: '#0f172a', display: 'block' }}>{s.customer_name}</strong>
                         <small style={{ color: '#64748b' }}>{s.customer_phone || 'Tanpa No. WA'}</small>
+                        {phoneConflict && (
+                          <small style={{ display: 'block', marginTop: '4px', color: '#dc2626', fontWeight: '800' }}>
+                            ⚠ Sama dengan WA karyawan: {phoneConflict.name}
+                          </small>
+                        )}
                       </td>
                       <td style={{ fontSize: '0.85rem', color: '#334155' }}>
                         {s.device_name}
@@ -1183,7 +1286,11 @@ export default function PremiumFinanceReport({
                               className="btn"
                               style={{ padding: '5px 10px', fontSize: '0.75rem', background: '#25D366', color: '#fff', fontWeight: '700' }}
                               onClick={() => {
-                                const cleanPhone = s.customer_phone.replace(/^0/, '62');
+                                if (phoneConflict) {
+                                  alert('Nomor WA pelanggan ini sama dengan nomor karyawan. Perbaiki nomor pelanggan dulu agar tagihan tidak salah alamat.');
+                                  return;
+                                }
+                                const cleanPhone = normalizeWhatsAppNumber(s.customer_phone);
                                 const msg = `Halo Kak ${s.customer_name}, unit ${s.device_name} di ${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'} (Resi: ${s.resi}) berstatus ${s.status}. Total tagihan: Rp ${formatRupiah(billTotal)}. Terima kasih!`;
                                 window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                               }}

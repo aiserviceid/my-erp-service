@@ -49,6 +49,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_local_testing_secret_key_
 const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const FONNTE_SYSTEM_TOKEN = process.env.FONNTE_TOKEN || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 
 // Serve uploads folder statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -125,6 +128,97 @@ const enforceTenantAccess = (req, res, next) => {
 };
 
 const secureRoute = [authenticateToken, enforceTenantAccess];
+
+const normalizeGatewayPhone = (value = '') => {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('62')) return digits;
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  if (digits.startsWith('8')) return `62${digits}`;
+  return digits;
+};
+
+const parseTenantSettings = (rawSettings) => {
+  if (!rawSettings) return {};
+  if (typeof rawSettings === 'object') return rawSettings;
+  try { return JSON.parse(rawSettings); } catch { return {}; }
+};
+
+const getTenantGatewayConfig = async (tenantCode) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (supabaseAdmin) {
+    try {
+      const { data } = await supabaseAdmin
+        .from('tenants')
+        .select('settings')
+        .eq('code', tenantCode)
+        .maybeSingle();
+      const settings = parseTenantSettings(data?.settings);
+      if (settings.wa_sender_mode || settings.fonnte_token) {
+        return {
+          mode: String(settings.wa_sender_mode || 'SYSTEM').toUpperCase(),
+          token: settings.fonnte_token || '',
+        };
+      }
+    } catch (error) {
+      console.warn('Gateway settings Supabase lookup warning:', error.message);
+    }
+  }
+
+  return new Promise((resolve) => {
+    db.get('SELECT settings FROM tenants WHERE code = ?', [tenantCode], (err, row) => {
+      if (err || !row) return resolve({ mode: 'SYSTEM', token: '' });
+      const settings = parseTenantSettings(row.settings);
+      resolve({
+        mode: String(settings.wa_sender_mode || 'SYSTEM').toUpperCase(),
+        token: settings.fonnte_token || '',
+      });
+    });
+  });
+};
+
+app.post('/api/whatsapp/send', secureRoute, async (req, res) => {
+  const tenantCode = String(req.body?.tenant_code || req.user?.tenant || req.user?.code || '').trim().toUpperCase();
+  const target = normalizeGatewayPhone(req.body?.target);
+  const message = String(req.body?.message || '').trim();
+  if (!tenantCode) return res.status(400).json({ error: 'Kode toko wajib diisi.' });
+  if (!/^[0-9]{9,15}$/.test(target)) return res.status(400).json({ error: 'Nomor WhatsApp tujuan tidak valid.' });
+  if (!message || message.length > 5000) return res.status(400).json({ error: 'Pesan WhatsApp wajib diisi dan maksimal 5000 karakter.' });
+
+  const savedConfig = await getTenantGatewayConfig(tenantCode);
+  const requestedMode = String(req.body?.gateway_mode || savedConfig.mode || 'SYSTEM').toUpperCase();
+  const customToken = String(req.body?.gateway_token || savedConfig.token || '').trim();
+  const gatewayToken = requestedMode === 'CUSTOM' ? customToken : (FONNTE_SYSTEM_TOKEN || customToken);
+
+  if (!gatewayToken) {
+    return res.status(503).json({
+      error: requestedMode === 'CUSTOM'
+        ? 'Token WhatsApp Gateway belum diisi. Simpan token Fonnte di Pengaturan WhatsApp.'
+        : 'Gateway sistem belum dikonfigurasi di server.',
+      code: 'WA_GATEWAY_NOT_CONFIGURED',
+    });
+  }
+
+  try {
+    const providerResponse = await fetch('https://api.fonnte.com/send', {
+      method: 'POST',
+      headers: { Authorization: gatewayToken },
+      body: new URLSearchParams({ target, message }),
+    });
+    const providerPayload = await providerResponse.json().catch(() => ({}));
+    if (!providerResponse.ok || providerPayload?.status === false) {
+      const reason = providerPayload?.reason || providerPayload?.detail || providerPayload?.message || `HTTP ${providerResponse.status}`;
+      return res.status(502).json({ error: `WhatsApp Gateway menolak pengiriman: ${reason}` });
+    }
+    return res.json({ status: 'sent', provider: 'fonnte', target });
+  } catch (error) {
+    console.error('WhatsApp gateway proxy error:', error.message);
+    return res.status(502).json({ error: 'Tidak dapat terhubung ke WhatsApp Gateway.' });
+  }
+});
+
+const { registerAiAgentRoutes } = require('./ai-agent.cjs');
+registerAiAgentRoutes(app, { db });
 
 // Middleware to enforce premium feature limits & tiers on the backend server-side
 const requirePremiumFeature = (req, res, next) => {

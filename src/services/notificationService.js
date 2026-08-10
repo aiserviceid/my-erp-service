@@ -1,4 +1,5 @@
 const FONNTE_SEND_URL = 'https://api.fonnte.com/send';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
 export const normalizeWhatsAppNumber = (phone = '') => {
   const cleaned = String(phone || '').replace(/\D/g, '');
@@ -15,91 +16,129 @@ export const buildManualWhatsAppUrl = (phone, message = '') => {
   return `https://wa.me/${target}?text=${encodeURIComponent(message)}`;
 };
 
-export const findMatchingEmployee = (phone, employees = []) => {
-  const normPhone = normalizeWhatsAppNumber(phone);
-  if (!normPhone || !employees || !Array.isArray(employees) || employees.length === 0) return null;
-  return employees.find((emp) => {
-    const empNorm = normalizeWhatsAppNumber(emp.phone);
-    return Boolean(empNorm && empNorm === normPhone);
-  }) || null;
-};
-
 export const getWhatsAppSenderConfig = (tenant) => {
   const settings = tenant?.settings || {};
   return {
-    mode: settings.wa_sender_mode || 'SYSTEM',
+    mode: String(settings.wa_sender_mode || 'SYSTEM').toUpperCase(),
     token: settings.fonnte_token || '',
+    tenantCode: tenant?.code || tenant?.tenant_code || '',
   };
+};
+
+const getApiAuthToken = (tenant) => {
+  if (tenant?.token) return tenant.token;
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('TENANT_TOKEN') || localStorage.getItem('EMPLOYEE_TOKEN') || '';
+};
+
+const sendThroughBackendGateway = async ({ tenant, target, message, mode, token }) => {
+  const tenantCode = tenant?.code || tenant?.tenant_code || '';
+  const authToken = getApiAuthToken(tenant);
+  if (!tenantCode || !authToken) {
+    throw new Error('Sesi toko tidak tersedia untuk mengakses WhatsApp Gateway.');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/whatsapp/send`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify({
+      tenant_code: tenantCode,
+      target,
+      message,
+      gateway_mode: mode,
+      ...(mode === 'CUSTOM' && token ? { gateway_token: token } : {}),
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `WhatsApp Gateway gagal (${response.status}).`);
+  }
+  return {
+    status: payload.status || 'sent',
+    provider: payload.provider || 'fonnte',
+    target: payload.target || target,
+  };
+};
+
+const sendDirectCustomGatewayFallback = async ({ target, message, token }) => {
+  const response = await fetch(FONNTE_SEND_URL, {
+    method: 'POST',
+    headers: { Authorization: token },
+    body: new URLSearchParams({ target, message }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.status === false) {
+    throw new Error(payload?.reason || payload?.detail || `Fonnte request failed (${response.status}).`);
+  }
+  return { status: 'sent', provider: 'fonnte', target };
 };
 
 export const sendWhatsAppNotification = async ({
   tenant,
-  employees = [],
   target,
   message,
   openManual = true,
-  skipConflictCheck = false,
 } = {}) => {
   const normalizedTarget = normalizeWhatsAppNumber(target);
   if (!normalizedTarget) {
     return { status: 'skipped', reason: 'missing_target' };
   }
 
-  if (!message) {
+  const cleanMessage = String(message || '').trim();
+  if (!cleanMessage) {
     return { status: 'skipped', reason: 'missing_message' };
   }
 
-  if (!skipConflictCheck) {
-    const matchedEmp = findMatchingEmployee(normalizedTarget, employees);
-    if (matchedEmp) {
-      if (typeof window !== 'undefined') {
-        alert(`⚠ Notifikasi WA tidak terkirim: Nomor WA (${normalizedTarget}) sama dengan nomor karyawan (${matchedEmp.name}). Perbaiki nomor pelanggan terlebih dahulu agar notifikasi tidak salah alamat.`);
-      }
-      return { status: 'blocked_conflict', reason: 'employee_phone_conflict', matchedEmployee: matchedEmp };
-    }
+  const { mode, token } = getWhatsAppSenderConfig(tenant);
+  let gatewayError = null;
+
+  try {
+    return await sendThroughBackendGateway({
+      tenant,
+      target: normalizedTarget,
+      message: cleanMessage,
+      mode,
+      token,
+    });
+  } catch (error) {
+    gatewayError = error;
   }
 
-  const { mode, token } = getWhatsAppSenderConfig(tenant);
-
+  // Compatibility fallback for existing CUSTOM-token installations. The
+  // backend proxy is preferred because it avoids provider CORS differences.
   if (mode === 'CUSTOM' && token) {
     try {
-      const response = await fetch(FONNTE_SEND_URL, {
-        method: 'POST',
-        headers: { Authorization: token },
-        body: new URLSearchParams({ target: normalizedTarget, message }),
+      return await sendDirectCustomGatewayFallback({
+        target: normalizedTarget,
+        message: cleanMessage,
+        token,
       });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          throw new Error("Token Fonnte tidak valid atau kadaluarsa.");
-        }
-        throw new Error(`Gagal menghubungi WhatsApp API (Status: ${response.status}). Periksa kembali token Anda.`);
-      }
-
-      const responseData = await response.json().catch(() => ({}));
-      if (responseData.status === false) {
-        throw new Error(responseData.reason || "Token Fonnte bermasalah atau kuota habis.");
-      }
-
-      return { status: 'sent', provider: 'fonnte', target: normalizedTarget };
     } catch (error) {
-      if (typeof window !== 'undefined') {
-        alert(`Gagal mengirim WhatsApp otomatis: ${error.message}${openManual ? '\\nMengalihkan ke pengiriman manual...' : ''}`);
-      }
-      if (!openManual) {
-        return { status: 'failed', provider: 'fonnte', target: normalizedTarget, error };
-      }
+      gatewayError = error;
     }
   }
 
   if (openManual && typeof window !== 'undefined') {
-    const url = buildManualWhatsAppUrl(normalizedTarget, message);
+    const url = buildManualWhatsAppUrl(normalizedTarget, cleanMessage);
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
-      return { status: 'manual', provider: 'wa.me', target: normalizedTarget };
+      return {
+        status: 'manual',
+        provider: 'wa.me',
+        target: normalizedTarget,
+        gatewayError,
+      };
     }
   }
 
-  return { status: 'skipped', reason: 'manual_disabled', target: normalizedTarget };
+  return {
+    status: 'failed',
+    reason: 'gateway_unavailable',
+    target: normalizedTarget,
+    error: gatewayError || new Error('WhatsApp Gateway belum dikonfigurasi.'),
+  };
 };
-

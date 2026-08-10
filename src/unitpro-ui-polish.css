@@ -1,0 +1,467 @@
+:root {
+  --unitpro-success: #10B981;
+  --unitpro-danger: #EF4444;
+  --unitpro-warning: #F59E0B;
+  --unitpro-info: #3B82F6;
+}
+
+.main-content,
+.employee-portal-content {
+  padding-bottom: max(48px, env(safe-area-inset-bottom));
+}
+
+.table {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dashboard-metric-card > div:first-child,
+.dashboard-insight-card h4,
+.finance-report h4 {
+  font-weight: 600;
+}
+
+.chart-empty-state {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+  color: #64748b;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.chart-empty-state--small {
+  min-height: 170px;
+}
+
+.chart-empty-state strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.chart-empty-state span {
+  max-width: 340px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chart-empty-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.dashboard-service-row--detailed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.dashboard-service-main {
+  min-width: 0;
+}
+
+.dashboard-service-customer {
+  color: #0f172a;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.dashboard-service-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.dashboard-service-meta strong {
+  color: #475569;
+}
+
+.tracking-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb !important;
+  border: 1px solid #dbeafe;
+  text-decoration: none !important;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.tracking-link-button:hover,
+.tracking-link-button:focus-visible {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  outline: none;
+}
+
+.tracking-link-button--compact {
+  min-height: 28px;
+  padding: 4px 8px;
+}
+
+.service-desktop-table .table th,
+.service-desktop-table .table td {
+  padding: 12px 10px;
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.service-actions-menu {
+  position: relative;
+  width: max-content;
+  margin-left: auto;
+}
+
+.service-actions-menu > summary {
+  list-style: none;
+  width: 36px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+.service-actions-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.service-actions-menu[open] > summary,
+.service-actions-menu > summary:hover,
+.service-actions-menu > summary:focus-visible {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #2563eb;
+  outline: none;
+}
+
+.service-actions-dropdown {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 175px;
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.16);
+}
+
+.service-actions-dropdown .btn,
+.service-actions-dropdown a {
+  width: 100%;
+  min-height: 34px;
+  justify-content: flex-start;
+  padding: 7px 10px !important;
+  font-size: 12px !important;
+  text-decoration: none;
+}
+
+.issue-chips {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.issue-complaint {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.issue-complaint strong {
+  color: #0f172a;
+}
+
+.issue-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.issue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.issue-chip--part {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+.issue-chip--service {
+  color: #047857;
+  background: #d1fae5;
+  border-color: #a7f3d0;
+}
+
+.issue-chip--warranty {
+  color: #b45309;
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.issue-chip--discount {
+  color: #9f1239;
+  background: #ffe4e6;
+  border-color: #fecdd3;
+}
+
+.issue-chip--info {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+
+.technician-task-card {
+  border-radius: 12px !important;
+  padding: 16px !important;
+  margin: 0 !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.035);
+}
+
+.technician-task-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.report-subtabs-nav {
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.report-subtabs-nav > button {
+  scroll-snap-align: start;
+}
+
+.report-subtabs-nav::-webkit-scrollbar {
+  height: 5px;
+}
+
+.report-subtabs-nav::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.revenue-source-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.revenue-source-chart {
+  position: relative;
+  min-height: 280px;
+}
+
+.revenue-source-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.revenue-source-center span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.revenue-source-center strong {
+  color: #0f172a;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+.revenue-source-table-wrap,
+.employee-commission-table-wrap {
+  overflow-x: auto;
+}
+
+.revenue-source-table {
+  width: 100%;
+  min-width: 390px;
+}
+
+.revenue-category-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.revenue-category-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.revenue-progress {
+  height: 5px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.revenue-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.finance-source-monthly-card,
+.employee-finance-chart-card,
+.employee-commission-history {
+  margin-top: 20px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.035);
+}
+
+.finance-source-monthly-card h4,
+.employee-finance-heading h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.finance-source-monthly-card p,
+.employee-finance-heading p {
+  margin: 3px 0 16px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.employee-finance-insights {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+}
+
+.employee-commission-table {
+  width: 100%;
+  min-width: 460px;
+}
+
+[class*="sidebar"] .badge,
+.sidebar .badge {
+  margin-left: auto;
+  min-width: 20px;
+  flex: 0 0 auto;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-service-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .revenue-source-layout,
+  .employee-finance-insights {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content,
+  .employee-portal-content {
+    padding-bottom: max(72px, calc(48px + env(safe-area-inset-bottom)));
+  }
+
+  .technician-task-card {
+    align-items: stretch !important;
+  }
+
+  .technician-task-detail,
+  .technician-task-actions {
+    width: 100%;
+  }
+
+  .service-active-mobile-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: #ffffff;
+  }
+
+  .report-subtabs-nav {
+    margin-left: -4px;
+    margin-right: -4px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-empty-state {
+    min-height: 190px;
+    padding: 18px 14px;
+  }
+
+  .finance-source-monthly-card,
+  .employee-finance-chart-card,
+  .employee-commission-history {
+    padding: 14px;
+  }
+
+  .dashboard-service-row--detailed {
+    grid-template-columns: 1fr;
+  }
+}

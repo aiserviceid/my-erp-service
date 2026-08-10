@@ -7,7 +7,13 @@ import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
+import UnitProLogo from '../components/UnitProLogo';
+import IssueChips from '../components/IssueChips';
+import EmployeeFinanceInsights from '../components/EmployeeFinanceInsights';
 import { SERVICE_STATUSES } from '../config/tierLimits';
+import { buildKasbonDescription, isPaidServiceStatus, normalizeKasbonAmount, parseKasbonDescription } from '../utils/financeUtils';
+import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
+import { isServiceItem } from '../utils/productCategory';
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -50,13 +56,7 @@ export default function EmployeePortal() {
   const printIframeRef = useRef(null);
 
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
-  const normalizeProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
-  const isJasaProduct = (product) => {
-    const category = normalizeProductCategory(product);
-    const name = String(product?.name || '').toLowerCase();
-    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
-    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
-  };
+  const isJasaProduct = isServiceItem;
   const sparepartCatalog = products.filter(p => !isJasaProduct(p));
   const jasaCatalog = products.filter(p => isJasaProduct(p));
   const settings = tenant?.settings || {};
@@ -189,7 +189,7 @@ export default function EmployeePortal() {
       setServiceWizardError('Lengkapi data pada langkah ini sebelum melanjutkan.');
       return;
     }
-    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\\+?62|0)8\\d{7,12}$/.test(serviceForm.phone.trim())) {
+    if (direction > 0 && serviceWizardStep === 1 && !/^(?:\+?62|0)8\d{7,12}$/.test(serviceForm.phone.trim())) {
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
     }
@@ -230,7 +230,7 @@ export default function EmployeePortal() {
       const transferNote = `[Tugas dialihkan dari ${previousTechnician} ke ${replacement.name}${reason ? `: ${reason}` : ''}]`;
       const updatedIssue = `${transferService.issue || ''}\n${transferNote}`.trim();
 
-      await apiService.post('/services/update', { resi: transferService.resi, technician_id: replacement.id, issue: updatedIssue });
+      await apiService.post('/services/update', { resi: transferService.resi, tenant_code: employee.tenant_code || tenant.code, technician_id: replacement.id, issue: updatedIssue });
 
       if (replacement.phone) {
         const message = `Halo ${replacement.name}, tugas servis dialihkan ke Anda.\n\n*Resi:* ${transferService.resi}\n*Pelanggan:* ${transferService.customer_name}\n*Perangkat:* ${transferService.device_name}\n*Keluhan:* ${transferService.issue}${reason ? `\n*Catatan:* ${reason}` : ''}\n\nSilakan cek di portal karyawan.`;
@@ -317,10 +317,22 @@ export default function EmployeePortal() {
     e.preventDefault();
     const fd = new FormData(e.target);
     const customerPhone = String(fd.get('phone') || '').trim();
-    if (!/^(?:\\+?62|0)8\\d{7,12}$/.test(customerPhone)) {
+    if (!/^(?:\+?62|0)8\d{7,12}$/.test(customerPhone)) {
       setServiceWizardStep(1);
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
       return;
+    }
+    const normalizedCustomerPhone = normalizeWhatsAppNumber(customerPhone);
+    const phoneConflict = findEmployeePhoneConflict(normalizedCustomerPhone, users);
+    if (phoneConflict) {
+      const shouldContinue = window.confirm(`${customerPhoneConflictMessage(phoneConflict.name)}
+
+Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+      if (!shouldContinue) {
+        setServiceWizardStep(1);
+        setServiceWizardError('Periksa kembali nomor WhatsApp pelanggan sebelum melanjutkan.');
+        return;
+      }
     }
     const kelengkapan = fd.get('kelengkapan') || '-';
     const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}`;
@@ -330,7 +342,7 @@ export default function EmployeePortal() {
       tenant_code: employee.tenant_code || tenant.code,
       resi: resiGenerated,
       customer_name: fd.get('name'),
-      customer_phone: customerPhone,
+      customer_phone: normalizedCustomerPhone,
       device_name: fd.get('device'),
       issue: issueText,
       technician_id: technician_id,
@@ -379,7 +391,7 @@ export default function EmployeePortal() {
 
   const handleBon = async (event) => {
     event.preventDefault();
-    const amount = Number(new FormData(event.currentTarget).get('amount'));
+    const amount = normalizeKasbonAmount(new FormData(event.currentTarget).get('amount'), 'BON_PENDING');
     if (!Number.isInteger(amount) || amount <= 0) return alert('Masukkan nominal kasbon yang valid.');
     
     try {
@@ -387,7 +399,7 @@ export default function EmployeePortal() {
         tenant_code: employee.tenant_code || tenant.code,
         type: 'BON_PENDING',
         amount: amount,
-        description: `EMP_${employee.id}`
+        description: buildKasbonDescription(employee)
       });
       alert('Kasbon berhasil dicatat!');
       setShowBonModal(false);
@@ -530,8 +542,10 @@ export default function EmployeePortal() {
     return (
       <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
         <div className="glass-panel native-employee-card" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-          <h2>Area Tim</h2>
-          <p>{tenant?.name || 'Masuk ke Area Tim'}</p>
+          <UnitProLogo variant="logo" height={46} style={{ marginBottom: '0.75rem' }} />
+          <h2 style={{ marginBottom: '0.35rem' }}>Portal Tim</h2>
+          <p style={{ margin: 0, color: '#64748b' }}>Masuk dengan PIN yang diberikan admin</p>
+          {tenant?.name && <small style={{ display: 'block', marginTop: '6px', color: '#94a3b8', fontWeight: '700' }}>{tenant.name}</small>}
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
           <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
             {!tenant?.code && (
@@ -589,11 +603,14 @@ export default function EmployeePortal() {
   // calculations for finances
   const myCommissionRate = tenant?.settings?.employee_commissions?.[employee.id] || 0;
   const mySalary = tenant?.settings?.employee_salaries?.[employee.id] || 0;
-  const myCompletedServices = services.filter(s => (s.status === 'SELESAI' || s.status === 'DI AMBIL') && s.technician_id === employee.id);
-  const totalJasaFee = myCompletedServices.reduce((sum, s) => sum + (s.jasa_fee || 0), 0);
+  const myCompletedServices = services.filter(s => isPaidServiceStatus(s.status) && String(s.technician_id) === String(employee.id));
+  const totalJasaFee = myCompletedServices.reduce((sum, s) => sum + Number(s.jasa_fee || 0), 0);
   const totalKomisi = Math.floor(totalJasaFee * (myCommissionRate / 100));
 
-  const myBonTransactions = transactions.filter(t => t.type === 'BON_KARYAWAN' && t.description === `EMP_${employee.id}`);
+  const myBonTransactions = transactions.filter((t) => {
+    if (t.type !== 'BON_KARYAWAN') return false;
+    return String(parseKasbonDescription(t.description).employeeId) === String(employee.id);
+  });
   const totalBon = myBonTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const sisaBersih = mySalary + totalKomisi - totalBon;
 
@@ -814,25 +831,22 @@ export default function EmployeePortal() {
               <div className="glass-panel technician-task-list">
                 <div className="technician-task-list-header">
                   <div><h3>Daftar Tugas Servis</h3><p>Unit yang ditugaskan kepada Anda.</p></div>
-                  <span>{services.filter(s => String(s.technician_id) === String(employee.id) && s.status !== 'DIAMBIL').length} aktif</span>
+                  <span>{services.filter(s => String(s.technician_id) === String(employee.id) && !isPaidServiceStatus(s.status)).length} aktif</span>
                 </div>
                 {services.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada antrian servis.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {services.filter(s => s.technician_id === employee.id).length === 0 ? (
+                    {services.filter(s => String(s.technician_id) === String(employee.id)).length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
-                    ) : services.filter(s => s.technician_id === employee.id).map(s => (
-                      <div key={s.resi} className="technician-task-card" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="technician-task-detail" style={{ flex: 1, minWidth: '240px' }}>
-                          <div className="technician-task-title" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                            <strong>{s.device_name}</strong>
-                            <span className="badge badge-info">{s.status || 'PROSES'}</span>
-                          </div>
-                          <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>Keluhan: {s.issue}</div>
+                    ) : services.filter(s => String(s.technician_id) === String(employee.id)).map(s => (
+                      <div key={s.resi} className="technician-task-card" style={{ padding: '16px', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="technician-task-detail" style={{ flex: 1 }}>
+                          <div className="technician-task-title"><strong>{s.device_name}</strong><span className="badge badge-info">{s.status || 'PROSES'}</span></div>
+                          <IssueChips issue={s.issue} />
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
-                        <div className="technician-task-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                        <div className="technician-task-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                           {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).length > 0 && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => openTransferModal(s)}>
                               <ArrowRightLeft size={14} style={{ marginRight: '5px', display: 'inline' }} /> Alihkan Tugas
@@ -847,7 +861,7 @@ export default function EmployeePortal() {
                             </button>
                           )}
                           
-                          {s.status !== 'DIAMBIL' ? (
+                          {!isPaidServiceStatus(s.status) ? (
                             <select 
                               className="input-field" 
                               style={{ padding: '4px 8px', fontSize: '0.8rem', width: '140px', background: 'white' }}
@@ -858,81 +872,50 @@ export default function EmployeePortal() {
                                   setSelectedService(s);
                                   setShowSelesaiModal(true);
                                 } else if (newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') {
-                                  if (!s.part_fee && !s.jasa_fee) {
+                                  if (!Number(s.part_fee || 0) && !Number(s.jasa_fee || 0)) {
                                     alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Di Ambil.');
                                     return;
                                   }
-                                  if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {
+                                  if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tandai barang diambil?', message: 'Pembayaran akan masuk otomatis ke Laporan toko. Proses ini aman diulang tanpa membuat omzet dobel.', confirmText: 'Tandai Diambil', tone: 'info' }) : Promise.resolve(window.confirm('Ubah status menjadi Di Ambil?\n\n(Pembayaran akan masuk otomatis ke Laporan Keuangan Toko)')))) {
                                     try {
-                                      let updatedIssue = s.issue;
-                                      const warrantyDaysStr = prompt('Berapa HARI garansi untuk servis ini?\n\n(Isi angka saja, misal: 30. Kosongkan jika tidak ada garansi)', '30');
-                                      let warrantyDateStr = '';
-                                      if (warrantyDaysStr && parseInt(warrantyDaysStr) > 0) {
-                                        const d = new Date();
-                                        d.setDate(d.getDate() + parseInt(warrantyDaysStr));
-                                        warrantyDateStr = d.toLocaleDateString('id-ID');
-                                        updatedIssue += `\n[Masa Garansi Servis: s/d ${warrantyDateStr}]`;
-                                      }
-
-                                      // Update the status AND the appended warranty info
-                                      await apiService.post('/services/finish', {
+                                      const discountMatch = String(s.issue || '').match(/\[Diskon: Rp (.*?)\]/);
+                                      const discount = discountMatch ? normalizeMoneyInput(discountMatch[1]) : 0;
+                                      const tenantCode = employee.tenant_code || tenant.code;
+                                      const result = await apiService.settleServicePickup({
+                                        tenant_code: tenantCode,
                                         resi: s.resi,
-                                        status: 'DIAMBIL',
                                         part_fee: s.part_fee,
                                         jasa_fee: s.jasa_fee,
+                                        discount,
                                         technician_id: s.technician_id,
-                                        issue: updatedIssue
+                                        issue: s.issue,
+                                        customer_name: s.customer_name,
                                       });
 
-                                      const discountMatch = (updatedIssue || '').match(/\[Diskon: Rp (.*?)\]/);
-                                      const discountStr = discountMatch ? discountMatch[1].replace(/\./g, '') : '0';
-                                      const discount = parseInt(discountStr) || 0;
+                                      setServices((current) => current.map((item) => item.resi === s.resi ? { ...item, ...result.service, status: 'DIAMBIL' } : item));
+                                      await fetchTransactions();
 
-                                      const jasaFee = s.jasa_fee || 0;
-                                      const partFee = s.part_fee || 0;
-                                      const jasaAfterDiscount = Math.max(0, jasaFee - discount);
-                                      
-                                      const tenantCode = employee.tenant_code || tenant.code;
-                                      const latestTransactions = await apiService.get('/transactions/' + tenantCode).catch(() => transactions);
-                                      const existingServiceIncome = latestTransactions.filter((transaction) => {
-                                        const type = String(transaction.type || '');
-                                        const description = String(transaction.description || '');
-                                        return ['INCOME', 'INCOME_JASA', 'INCOME_SPAREPART'].includes(type) && description.includes('Resi ' + s.resi);
-                                      });
-
-                                      if (existingServiceIncome.length > 0) {
-                                        alert('Pelunasan resi ' + s.resi + ' sudah pernah tercatat di keuangan. Transaksi tidak dibuat ulang agar omzet tidak dobel.');
+                                      if (result.alreadySettled) {
+                                        alert('Servis sudah ditandai lunas sebelumnya. Omzet tidak dibuat ulang.');
                                       } else {
-                                        if (jasaAfterDiscount > 0 || (jasaFee === 0 && partFee === 0)) {
-                                          await apiService.post('/transactions', {
-                                            tenant_code: tenantCode,
-                                            type: 'INCOME_JASA',
-                                            amount: jasaAfterDiscount,
-                                            description: 'Jasa Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
-                                          });
-                                        }
-                                        if (partFee > 0) {
-                                          await apiService.post('/transactions', {
-                                            tenant_code: tenantCode,
-                                            type: 'INCOME_SPAREPART',
-                                            amount: partFee,
-                                            description: 'Sparepart Servis Resi ' + s.resi + ' (' + s.customer_name + ')'
-                                          });
-                                        }
+                                        alert('Servis berhasil ditandai Diambil (Lunas) dan pembayaran sudah masuk ke Laporan.');
                                       }
-                                      fetchServices();
-                                      fetchTransactions();
-                                      
+
                                       if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pengambilan?', message: 'Servis sudah lunas. Cetak nota pengambilan untuk pelanggan?', confirmText: 'Cetak Nota', tone: 'success' }) : Promise.resolve(window.confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')))) {
-                                        setSelectedService({ ...s, issue: updatedIssue });
+                                        setSelectedService({ ...s, ...result.service, status: 'DIAMBIL' });
                                         setPrintType('pengambilan');
                                         setShowPrintModal(true);
                                       }
-                                    } catch(err) { alert('Gagal update status / transaksi'); }
+                                    } catch (err) {
+                                      console.error('Gagal menyelesaikan pelunasan servis:', err);
+                                      alert(`Gagal menandai Diambil: ${err?.message || 'transaksi atau status tidak dapat disimpan'}. Silakan coba lagi; sistem akan mencegah omzet dobel.`);
+                                      await fetchServices();
+                                      await fetchTransactions();
+                                    }
                                   }
                                 } else {
                                   try {
-                                    await apiService.post(`/services/${s.resi}/status`, { status: newStatus });
+                                    await apiService.post(`/services/${s.resi}/status`, { status: newStatus, tenant_code: employee.tenant_code || tenant.code });
                                     fetchServices();
                                   } catch(err) { alert('Gagal update status'); }
                                 }
@@ -948,7 +931,6 @@ export default function EmployeePortal() {
                                 if (st.id === 'DIAMBIL') {
                                   style = { color: 'var(--accent)', fontWeight: 'bold' };
                                   label = 'Di Ambil (Lunas)';
-                                  if (s.status !== 'SELESAI') return null; // Only show DIAMBIL if currently SELESAI
                                 }
                                 return <option key={st.id} value={st.id} style={style}>{label}</option>;
                               })}
@@ -985,7 +967,7 @@ export default function EmployeePortal() {
                 </div>
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Komisi ({myCommissionRate}%)</p>
-                  <h2 style={{ margin: 0, color: 'var(--accent)' }}>Rp {totalKomisi.toLocaleString('id-ID')}</h2>
+                  <h2 style={{ margin: 0, color: totalKomisi === 0 ? '#6B7280' : '#10B981' }}>Rp {totalKomisi.toLocaleString('id-ID')}</h2>
                   <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Dari {myCompletedServices.length} Servis</p>
                 </div>
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
@@ -1001,6 +983,12 @@ export default function EmployeePortal() {
                   </button>
                 </div>
               </div>
+              <EmployeeFinanceInsights
+                services={services}
+                employee={employee}
+                salary={mySalary}
+                commissionRate={myCommissionRate}
+              />
             </div>
           )}
         </>
@@ -1066,10 +1054,11 @@ export default function EmployeePortal() {
 
                 await apiService.post('/services/finish', {
                   resi: selectedService.resi,
+                  tenant_code: employee.tenant_code || tenant.code,
                   status: 'SELESAI',
                   part_fee: partFee,
                   jasa_fee: jasaFee,
-                  technician_id: employee.id,
+                  technician_id: selectedService.technician_id || employee.id,
                   issue: updatedIssue
                 });
 
@@ -1089,14 +1078,19 @@ export default function EmployeePortal() {
                 const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
                 const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
                 
-                const notificationResult = await sendWhatsAppNotification({
-                  tenant,
-                  target: selectedService.customer_phone,
-                  message,
-                  openManual: true,
-                });
-                if (notificationResult.status === 'failed') {
-                  console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
+                const phoneConflict = findEmployeePhoneConflict(selectedService.customer_phone, users);
+                if (phoneConflict) {
+                  alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
+                } else {
+                  const notificationResult = await sendWhatsAppNotification({
+                    tenant,
+                    target: selectedService.customer_phone,
+                    message,
+                    openManual: true,
+                  });
+                  if (notificationResult.status === 'failed') {
+                    console.error('Gagal mengirim WA pelanggan:', notificationResult.error);
+                  }
                 }
                 
                 alert('Berhasil disimpan & Notifikasi WA diproses!');

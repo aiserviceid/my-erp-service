@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import BarcodeScanner from './BarcodeScanner';
 import { PAYMENT_METHODS, isWithinLimit } from '../config/tierLimits';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl, isFreeTier } from '../utils/branding';
+import { normalizeProductCategory, isServiceItem } from '../utils/productCategory';
 
 export default function POSView({ products, transactions = [], onTransactionCreated }) {
   const { tenant, cart, addToCart, removeFromCart, clearCart, updateCartQty } = useStore();
@@ -42,11 +43,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   })();
   const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
 
-  const getProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
-  const isServiceItem = (product) => {
-    const category = getProductCategory(product);
-    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN');
-  };
+  const getProductCategory = normalizeProductCategory;
   const getProductImage = (product) => product?.imageUrl || product?.image_url || product?.image || '';
   const formatMoney = (value) => normalizeMoneyInput(value).toLocaleString('id-ID');
 
@@ -185,7 +182,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
   // Handle checkout
   const handleCheckout = async () => {
-    if (checkoutLoading || cart.length === 0) return;
+    if (cart.length === 0) return;
     const stockProblem = validateCartStock();
     if (stockProblem) {
       alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);

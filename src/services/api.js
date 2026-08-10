@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { compressImageFile } from '../utils/imageCompressor';
+import { allocateServiceDiscount, normalizeKasbonAmount, normalizeMoneyInteger, normalizeTransactionAmounts, transactionMatchesServiceResi } from '../utils/financeUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
@@ -503,7 +504,7 @@ export const apiService = {
         .limit(1000);
       
       if (error) throw error;
-      return data || [];
+      return normalizeTransactionAmounts(data || []);
     } catch (e) {
       console.error('getTransactions error:', e);
       return [];
@@ -726,6 +727,109 @@ export const apiService = {
     }
   },
 
+
+  settleServicePickup: async ({
+    tenant_code,
+    resi,
+    part_fee = 0,
+    jasa_fee = 0,
+    discount = 0,
+    technician_id = null,
+    issue = '',
+    customer_name = '',
+  }) => {
+    const tenantCode = String(tenant_code || '').trim();
+    const serviceResi = String(resi || '').trim();
+    if (!tenantCode || !serviceResi) throw new Error('Kode toko dan resi wajib diisi.');
+
+    const {
+      partFee,
+      jasaFee,
+      discount: discountValue,
+      subtotal,
+      partAfterDiscount,
+      jasaAfterDiscount,
+    } = allocateServiceDiscount(part_fee, jasa_fee, discount);
+
+    if (subtotal <= 0) {
+      throw new Error('Rincian pembayaran servis belum diisi. Tandai Selesai dan isi biaya terlebih dahulu.');
+    }
+    if (discountValue > subtotal) {
+      throw new Error('Diskon tidak boleh lebih besar dari total biaya servis.');
+    }
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from('transactions')
+      .select('id,type,amount,description')
+      .eq('tenant_code', tenantCode)
+      .ilike('description', `%${serviceResi}%`);
+    if (existingError) throw existingError;
+
+    // The DB search is intentionally broad, then narrowed to an exact resi token.
+    // This prevents TRX-123 from being treated as already paid because TRX-1234 exists.
+    const existing = (existingRows || []).filter((row) => transactionMatchesServiceResi(row.description, serviceResi));
+    const hasCombinedIncome = existing.some((row) => String(row.type || '').toUpperCase() === 'INCOME');
+    const hasJasaIncome = hasCombinedIncome || existing.some((row) => String(row.type || '').toUpperCase() === 'INCOME_JASA');
+    const hasPartIncome = hasCombinedIncome || existing.some((row) => String(row.type || '').toUpperCase() === 'INCOME_SPAREPART');
+    const alreadySettledBefore =
+      (jasaAfterDiscount <= 0 || hasJasaIncome) &&
+      (partAfterDiscount <= 0 || hasPartIncome) &&
+      (jasaAfterDiscount > 0 || partAfterDiscount > 0);
+    const rowsToInsert = [];
+    const customerLabel = String(customer_name || '').trim();
+    const customerSuffix = customerLabel ? ` (${customerLabel})` : '';
+
+    if (jasaAfterDiscount > 0 && !hasJasaIncome) {
+      rowsToInsert.push({
+        tenant_code: tenantCode,
+        type: 'INCOME_JASA',
+        amount: jasaAfterDiscount,
+        description: `Jasa Servis Resi ${serviceResi}${customerSuffix}`,
+      });
+    }
+    if (partAfterDiscount > 0 && !hasPartIncome) {
+      rowsToInsert.push({
+        tenant_code: tenantCode,
+        type: 'INCOME_SPAREPART',
+        amount: partAfterDiscount,
+        description: `Sparepart Servis Resi ${serviceResi}${customerSuffix}`,
+      });
+    }
+
+    let createdTransactions = [];
+    if (rowsToInsert.length > 0) {
+      const { data: created, error: createError } = await supabase
+        .from('transactions')
+        .insert(rowsToInsert)
+        .select();
+      if (createError) throw createError;
+      createdTransactions = created || [];
+    }
+
+    const serviceUpdates = {
+      status: 'DIAMBIL',
+      part_fee: partFee,
+      jasa_fee: jasaFee,
+      technician_id,
+      ...(issue ? { issue } : {}),
+    };
+    const { data: service, error: serviceError } = await supabase
+      .from('services')
+      .update(serviceUpdates)
+      .eq('tenant_code', tenantCode)
+      .eq('resi', serviceResi)
+      .select()
+      .maybeSingle();
+    if (serviceError) throw serviceError;
+    if (!service) throw new Error('Servis tidak ditemukan atau bukan milik toko ini.');
+
+    return {
+      service,
+      createdTransactions,
+      alreadySettled: alreadySettledBefore,
+    };
+  },
+
   // 6. Generic Dispatcher (for existing components)
   post: async (endpoint, body) => {
     try {
@@ -735,13 +839,15 @@ export const apiService = {
         return data;
       }
       if (endpoint === '/services/finish') {
-        const { data, error } = await supabase.from('services').update({ 
-          status: body.status, 
-          part_fee: body.part_fee, 
+        let query = supabase.from('services').update({
+          status: body.status,
+          part_fee: body.part_fee,
           jasa_fee: body.jasa_fee,
           technician_id: body.technician_id,
           ...(body.issue ? { issue: body.issue } : {})
-        }).eq('resi', body.resi).select().single();
+        }).eq('resi', body.resi);
+        if (body.tenant_code) query = query.eq('tenant_code', body.tenant_code);
+        const { data, error } = await query.select().single();
         if (error) throw error;
         return data;
       }
@@ -755,12 +861,20 @@ export const apiService = {
       }
       if (endpoint.startsWith('/services/') && endpoint.endsWith('/status')) {
         const resi = endpoint.split('/')[2];
-        const { data, error } = await supabase.from('services').update({ status: body.status }).eq('resi', resi).select().single();
+        let query = supabase.from('services').update({ status: body.status }).eq('resi', resi);
+        if (body.tenant_code) query = query.eq('tenant_code', body.tenant_code);
+        const { data, error } = await query.select().single();
         if (error) throw error;
         return data;
       }
       if (endpoint === '/transactions') {
-        const { data, error } = await supabase.from('transactions').insert(body).select().single();
+        const transactionBody = {
+          ...body,
+          amount: String(body?.type || '').toUpperCase().startsWith('BON_')
+            ? normalizeKasbonAmount(body?.amount, body?.type)
+            : normalizeMoneyInteger(body?.amount),
+        };
+        const { data, error } = await supabase.from('transactions').insert(transactionBody).select().single();
         if (error) throw error;
         return data;
       }
@@ -806,7 +920,7 @@ export const apiService = {
         const tenantCode = endpoint.split('/')[2];
         const { data, error } = await supabase.from('transactions').select('*').eq('tenant_code', tenantCode).order('created_at', { ascending: false });
         if (error) throw error;
-        return data || [];
+        return normalizeTransactionAmounts(data || []);
       }
       if (endpoint.startsWith('/services/')) {
         const tenantCode = endpoint.split('/')[2];

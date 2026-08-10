@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import Barcode from 'react-barcode';
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
@@ -20,10 +20,24 @@ import CustomerCRMInsights from '../components/CustomerCRMInsights';
 import PremiumFinanceReport from '../components/PremiumFinanceReport';
 import OnboardingProgressCard from '../components/OnboardingProgressCard';
 import AndroidUpdateModal from '../components/AndroidUpdateModal';
+import IssueChips from '../components/IssueChips';
 import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
+import { parseKasbonDescription } from '../utils/financeUtils';
+import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
+
+const formatRupiahAxis = (value = 0) => {
+  const amount = Number(value || 0);
+  if (amount >= 1000000) {
+    const millions = amount / 1000000;
+    return `Rp ${Number.isInteger(millions) ? millions : millions.toFixed(1).replace('.0', '')}jt`;
+  }
+  if (amount >= 1000) return `Rp ${Math.round(amount / 1000)}rb`;
+  if (amount > 0) return `Rp ${Math.round(amount)}`;
+  return 'Rp 0';
+};
 
 export default function AdminDashboard() {
   const { tenant, setTenant, clearTenant, updateTenantSettings, cart, addToCart, removeFromCart, clearCart } = useStore();
@@ -75,7 +89,6 @@ export default function AdminDashboard() {
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState(null);
   const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const appVersion = APP_VERSION;
   const latestApkUrl = APK_PUBLIC_URL;
 
@@ -119,10 +132,19 @@ export default function AdminDashboard() {
       return;
     }
 
+    const normalizedPhone = normalizeWhatsAppNumber(phone);
+    const phoneConflict = findEmployeePhoneConflict(normalizedPhone, users);
+    if (phoneConflict) {
+      const shouldContinue = window.confirm(`${customerPhoneConflictMessage(phoneConflict.name)}
+
+Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+      if (!shouldContinue) return;
+    }
+
     const kelengkapan = fd.get('kelengkapan') || '-';
     const estWaktu = fd.get('estimasi_waktu') || '';
     const estBiaya = fd.get('estimasi_biaya') || '';
-    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${Number(normalizeMoneyInput(estBiaya) || 0).toLocaleString('id-ID')}` : ''}`;
+    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${normalizeMoneyInput(estBiaya).toLocaleString('id-ID')}` : ''}`;
     const resiGenerated = `TRX-${Date.now()}`;
 
     try {
@@ -130,7 +152,7 @@ export default function AdminDashboard() {
         tenant_code: tenant.code,
         resi: resiGenerated,
         customer_name: fd.get('name'),
-        customer_phone: phone,
+        customer_phone: normalizedPhone,
         device_name: fd.get('device'),
         issue: issueText,
         technician_id: fd.get('technician_id'),
@@ -464,13 +486,13 @@ export default function AdminDashboard() {
               <tr><th>Keterangan</th><th class="text-right">Biaya (Rp)</th></tr>
             </thead>
             <tbody>
-              <tr><td>Biaya Sparepart</td><td class="text-right">${Number((selectedService.part_fee || 0) || 0).toLocaleString('id-ID')}</td></tr>
-              <tr><td>Biaya Jasa Servis</td><td class="text-right">${Number((selectedService.jasa_fee || 0) || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td>Biaya Sparepart</td><td class="text-right">${(selectedService.part_fee || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td>Biaya Jasa Servis</td><td class="text-right">${(selectedService.jasa_fee || 0).toLocaleString('id-ID')}</td></tr>
               ${discount > 0 ? `
-              <tr><td>Subtotal</td><td class="text-right">${Number(subtotal || 0).toLocaleString('id-ID')}</td></tr>
-              <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${Number(discount || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td>Subtotal</td><td class="text-right">${subtotal.toLocaleString('id-ID')}</td></tr>
+              <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${discount.toLocaleString('id-ID')}</td></tr>
               ` : ''}
-              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${Number(total || 0).toLocaleString('id-ID')}</td></tr>
+              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
             </tbody>
           </table>
           
@@ -640,7 +662,10 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     clearTenant();
-    navigate('/');
+    localStorage.removeItem('TENANT_TOKEN');
+    localStorage.removeItem('EMPLOYEE_TOKEN');
+    localStorage.removeItem('EMP_SESSION');
+    navigate('/login', { replace: true });
   };
 
   const handleAddBranch = async () => {
@@ -678,6 +703,17 @@ export default function AdminDashboard() {
   const newServiceCount = services.filter(s => new Date(s.created_at || Date.now()).toDateString() === todayStr && s.status === 'PROSES').length;
   const newAttendanceCount = transactions.filter(t => t.type === 'ATTENDANCE_IN' && new Date(t.created_at).toDateString() === todayStr).length;
   const pendingKasbonCount = transactions.filter(t => t.type === 'BON_PENDING').length;
+  const kasbonTransactions = transactions
+    .filter((transaction) => ['BON_PENDING', 'BON_KARYAWAN', 'BON_REJECTED'].includes(transaction.type))
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const resolveKasbonEmployee = (transaction) => {
+    const meta = parseKasbonDescription(transaction?.description);
+    const employeeMatch = users.find((user) => String(user.id) === String(meta.employeeId));
+    return {
+      id: meta.employeeId,
+      name: employeeMatch?.name || meta.employeeName || `Karyawan (${meta.employeeId || '-'})`,
+    };
+  };
 
   // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
   const tabs = ADMIN_TABS.map(tabItem => {
@@ -708,35 +744,71 @@ export default function AdminDashboard() {
   const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
   const updateServiceStatusFromAction = async (service, newStatus) => {
-    if (isUpdatingStatus) return;
-    if (newStatus === 'SELESAI') {
+    const normalizedStatus = newStatus === 'DI AMBIL' ? 'DIAMBIL' : newStatus;
+    if (normalizedStatus === 'SELESAI') {
       setSelectedService({ ...service, __markSelesaiFromAdmin: true });
       setShowEditServiceNota(true);
       return;
     }
-    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL')) {
-      if (!service.part_fee && !service.jasa_fee) {
-        alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
-        return;
-      }
-      if (!window.confirm(`Yakin ingin menandai servis untuk ${service.customer_name} sebagai DIAMBIL?\nPastikan pelanggan sudah melunasi pembayaran.`)) {
-        return;
-      }
+    if (normalizedStatus === 'DIAMBIL' && !service.part_fee && !service.jasa_fee) {
+      alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
+      return;
     }
+    if (normalizedStatus === 'DIAMBIL') {
+      const confirmed = await (window.UnitProConfirm
+        ? window.UnitProConfirm({
+            title: 'Tandai barang diambil?',
+            message: 'Pembayaran akan masuk otomatis ke laporan toko dan aman diulang tanpa membuat omzet dobel.',
+            confirmText: 'Tandai Diambil',
+            tone: 'info',
+          })
+        : Promise.resolve(window.confirm('Ubah status menjadi Diambil (Lunas)?')));
+      if (!confirmed) return;
+    }
+
     try {
-      setIsUpdatingStatus(true);
-      await apiService.post('/services/update', { resi: service.resi, status: newStatus });
-      setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));
+      if (normalizedStatus === 'DIAMBIL') {
+        const discountMatch = String(service.issue || '').match(/\[Diskon: Rp (.*?)\]/);
+        const discount = discountMatch ? normalizeMoneyInput(discountMatch[1]) : 0;
+        const result = await apiService.settleServicePickup({
+          tenant_code: tenant.code,
+          resi: service.resi,
+          part_fee: service.part_fee,
+          jasa_fee: service.jasa_fee,
+          discount,
+          technician_id: service.technician_id,
+          issue: service.issue,
+          customer_name: service.customer_name,
+        });
+        setServices((current) => current.map((item) => item.resi === service.resi ? { ...item, ...result.service, status: 'DIAMBIL' } : item));
+        const latestTransactions = await apiService.getTransactions(tenant.code);
+        setTransactions(latestTransactions);
+        if (result.alreadySettled) {
+          alert('Servis sudah lunas sebelumnya. Omzet tidak dibuat ulang.');
+        }
+      } else {
+        const updated = await apiService.post('/services/update', {
+          resi: service.resi,
+          tenant_code: tenant.code,
+          status: normalizedStatus,
+        });
+        setServices((current) => current.map((item) => item.resi === service.resi ? { ...item, ...updated, status: normalizedStatus } : item));
+      }
+
       if (hasFeature(tenant?.tier, 'whatsappNotif') && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WhatsApp pelanggan?', message: 'Status berhasil disimpan. Kirim update status ke WhatsApp pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'info' }) : Promise.resolve(window.confirm('Kirim update status ke WhatsApp pelanggan?')))) {
         const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
         const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
-        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(newStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
-        await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });
+        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(normalizedStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
+        const phoneConflict = findEmployeePhoneConflict(service.customer_phone, users);
+        if (phoneConflict) {
+          alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
+        } else {
+          await sendWhatsAppNotification({ tenant, target: service.customer_phone, message, openManual: true });
+        }
       }
     } catch (error) {
-      alert('Gagal update status');
-    } finally {
-      setIsUpdatingStatus(false);
+      console.error('Gagal update status servis:', error);
+      alert(`Gagal update status: ${error?.message || 'data tidak dapat disimpan'}`);
     }
   };
 
@@ -1134,13 +1206,13 @@ export default function AdminDashboard() {
               <div className="dashboard-metric-card" style={{
                 background: '#ffffff', padding: '1.4rem', borderRadius: '16px',
                 border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-                borderLeft: '4px solid #7c3aed'
+                borderLeft: '4px solid #3B82F6'
               }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Teknisi Aktif</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#7c3aed', margin: '4px 0' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#3B82F6', margin: '4px 0' }}>
                   {users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi').length} Orang
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#6d28d9', fontWeight: '600' }}>Siap Terima Tugas</div>
+                <div style={{ fontSize: '0.72rem', color: '#2563EB', fontWeight: '600' }}>Siap Terima Tugas</div>
               </div>
 
               {/* Card 5: Stok Hampir Habis */}
@@ -1161,43 +1233,66 @@ export default function AdminDashboard() {
             {/* GRAPH & 5 RECENT SERVICES GRID */}
             <div className="dashboard-insights-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
               
-              {/* Grafik Pemasukan */}
-              <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                <h4 style={{ margin: '0 0 1.2rem 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
-                  Grafik Omzet & Arus Kas 7 Hari Terakhir
-                </h4>
-                <div className="dashboard-chart-area" style={{ height: '260px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={
-                      Array.from({length: 7}).map((_, i) => {
-                        const d = new Date(); d.setDate(d.getDate() - (6 - i));
-                        const dStr = d.toDateString();
-                        const txs = transactions.filter(t => new Date(t.created_at).toDateString() === dStr);
-                        const masuk = txs.filter(t => t.type === 'INCOME' || t.type.startsWith('INCOME_') || t.type === 'POS_SALES').reduce((sum, t) => sum + (t.amount||0), 0);
-                        const keluar = txs.filter(t => t.type === 'BON_KARYAWAN' || t.type === 'EXPENSE').reduce((sum, t) => sum + (t.amount||0), 0);
-                        return { name: dStr.substring(0,3) + ' ' + d.getDate(), Pendapatan: masuk, Pengeluaran: keluar };
-                      })
-                    }>
-                      <defs>
-                        <linearGradient id="dashMasukGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0284c7" stopOpacity={0.35}/>
-                          <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0}/>
-                        </linearGradient>
-                        <linearGradient id="dashKeluarGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
-                      <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={(v) => `Rp ${v/1000}k`} width={60} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => `Rp ${Number(v || 0).toLocaleString('id-ID')}`} contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} />
-                      <Area type="monotone" dataKey="Pendapatan" stroke="#0284c7" strokeWidth={3} fillOpacity={1} fill="url(#dashMasukGrad)" dot={{ r: 4, fill: '#0284c7', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
-                      <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#dashKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              {/* Grafik Tren Omzet */}
+              {(() => {
+                const chartData = Array.from({ length: 7 }).map((_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (6 - i));
+                  const dStr = d.toDateString();
+                  const txs = transactions.filter((t) => new Date(t.created_at).toDateString() === dStr);
+                  const revenue = txs
+                    .filter((t) => {
+                      const type = String(t.type || '');
+                      return type === 'INCOME' || type.startsWith('INCOME_') || type === 'POS_SALES';
+                    })
+                    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+                  return {
+                    name: d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }),
+                    Pendapatan: revenue,
+                  };
+                });
+                const maxRevenue = Math.max(0, ...chartData.map((item) => item.Pendapatan));
+                const hasRevenue = chartData.some((item) => item.Pendapatan > 0);
+
+                return (
+                  <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                    <h4 style={{ margin: '0 0 1.2rem 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
+                      Tren Omzet 7 Hari Terakhir
+                    </h4>
+                    {!hasRevenue ? (
+                      <div className="chart-empty-state">
+                        <div className="chart-empty-icon" aria-hidden="true">📊</div>
+                        <strong>Belum ada transaksi</strong>
+                        <span>Data akan muncul otomatis setelah transaksi pertama</span>
+                        <button type="button" className="btn btn-primary" onClick={() => { setActiveTab('servis'); setShowServiceRegistration(true); }}>
+                          <Plus size={16} /> Terima Servis
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="dashboard-chart-area" style={{ height: '260px', minHeight: '180px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                            <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
+                            <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={12} />
+                            <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={formatRupiahAxis} width={68} axisLine={false} tickLine={false} tickCount={5} />
+                            <Tooltip
+                              cursor={{ fill: 'rgba(15,118,110,0.06)' }}
+                              formatter={(value) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Omzet']}
+                              labelFormatter={(label) => `Omzet ${label}`}
+                              contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                            />
+                            <Bar dataKey="Pendapatan" radius={[8, 8, 2, 2]} minPointSize={3}>
+                              {chartData.map((entry, index) => (
+                                <Cell key={`revenue-bar-${index}`} fill={entry.Pendapatan === maxRevenue && maxRevenue > 0 ? '#0F766E' : '#5EEAD4'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 5 Servis Terbaru */}
               <div className="dashboard-insight-card" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
@@ -1218,26 +1313,19 @@ export default function AdminDashboard() {
                     {services.slice(0, 5).map(s => {
                       const st = getStatusInfo(s.status);
                       return (
-                        <div key={s.resi} className="dashboard-service-row" style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '10px 12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #f1f5f9'
-                        }}>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>{s.customer_name} •</span>
-                              <a 
-                                href={`${window.location.origin}/tracking?resi=${s.resi}`} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
-                                title="Klik untuk cek status otomatis"
-                              >
-                                {s.resi} 🔗
-                              </a>
+                        <div key={s.resi} className="dashboard-service-row dashboard-service-row--detailed">
+                          <div className="dashboard-service-main">
+                            <div className="dashboard-service-customer">{s.customer_name}</div>
+                            <a className="tracking-link-button tracking-link-button--compact" href={`${window.location.origin}/tracking?resi=${s.resi}`} target="_blank" rel="noreferrer" title="Cek status otomatis">
+                              🔗 {s.resi}
+                            </a>
+                            <div className="dashboard-service-meta">
+                              <span><strong>Biaya:</strong> Rp {(Number(s.part_fee || 0) + Number(s.jasa_fee || 0)).toLocaleString('id-ID')}</span>
+                              <span><strong>Teknisi:</strong> {users.find((user) => String(user.id) === String(s.technician_id))?.name || 'Belum ditugaskan'}</span>
+                              <span><strong>Tanggal:</strong> {s.created_at ? new Date(s.created_at).toLocaleDateString('id-ID') : '-'}</span>
                             </div>
-                          <span style={{
-                            padding: '4px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800',
-                            background: st.bg, color: st.color
-                          }}>
+                          </div>
+                          <span style={{ padding: '4px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800', background: st.bg, color: st.color }}>
                             {st.label}
                           </span>
                         </div>
@@ -1441,7 +1529,7 @@ export default function AdminDashboard() {
                             setTimeout(() => {
                               const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
                               let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
-                              window.open(buildManualWhatsAppUrl(cleanPhone, personalizedMsg), '_blank');
+                              sendWhatsAppNotification({ tenant, target: cleanPhone, message: personalizedMsg, openManual: true });
                             }, idx * 800);
                           });
                         }}
@@ -1493,7 +1581,7 @@ export default function AdminDashboard() {
                                         onClick={() => {
                                           const msgInput = document.getElementById('waBlastMessage');
                                           const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
-                                          window.open(buildManualWhatsAppUrl(cleanPhone, msgText), '_blank');
+                                          sendWhatsAppNotification({ tenant, target: cleanPhone, message: msgText, openManual: true });
                                         }}
                                       >
                                         Kirim WA 📲
@@ -1641,7 +1729,7 @@ export default function AdminDashboard() {
 
                       {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
                         <div style={{ marginBottom: '1.5rem' }}>
-                          <label className="label">Token API Fonnte / Wablas Toko Anda:</label>
+                          <label className="label">Token WhatsApp Gateway (Fonnte):</label>
                           <input 
                             type="password" 
                             className="input-field" 
@@ -1651,7 +1739,7 @@ export default function AdminDashboard() {
                             disabled={isFree}
                           />
                           <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '8px' }}>
-                            🔑 Pesan notifikasi akan dikirimkan langsung menggunakan nomor server WhatsApp Anda sendiri.
+                            🔑 Token ini dipakai untuk notifikasi servis, pesan teknisi, kirim satu pelanggan, dan broadcast WhatsApp Marketing.
                           </span>
                         </div>
                       ) : (
@@ -2234,19 +2322,19 @@ export default function AdminDashboard() {
                         return (
                           <tr key={s.resi}>
                             <td>
-                              <a 
-                                href={`${window.location.origin}/tracking?resi=${s.resi}`} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                style={{ color: '#0284c7', fontWeight: '800', textDecoration: 'underline' }}
-                                title="Klik untuk membuka link tracking otomatis"
+                              <a
+                                className="tracking-link-button"
+                                href={`${window.location.origin}/tracking?resi=${s.resi}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Cek status otomatis"
                               >
-                                {s.resi} 🔗
+                                🔗 {s.resi}
                               </a>
                             </td>
                             <td>{s.customer_name} <br/><small style={{color: 'var(--text-muted)'}}>{s.customer_phone}</small></td>
                             <td>{s.device_name}</td>
-                            <td style={{ whiteSpace: 'pre-wrap', maxWidth: '200px' }}>{cleanIssue}</td>
+                            <td style={{ maxWidth: '260px' }}><IssueChips issue={cleanIssue} /></td>
                             <td>{garansiStatus !== '-' ? <span className="badge badge-success" style={{background: '#dcfce7', color: '#16a34a'}}>s/d {garansiStatus}</span> : '-'}</td>
                             <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
                             <td>
@@ -2260,20 +2348,20 @@ export default function AdminDashboard() {
                               </select>
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                <button className="btn btn-primary" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px' }}>Cetak Stiker</button>
-                                <button className="btn btn-primary" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', background: '#0ea5e9' }}>Cetak Nota</button>
-                                <button className="btn btn-warning" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }} style={{ fontSize: '0.8rem', padding: '5px 10px', fontWeight: 'bold' }}>✏️ Edit Nota</button>
-                                <a 
-                                  href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${s.resi}`)}`} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="btn btn-accent" 
-                                  style={{ fontSize: '0.8rem', padding: '5px 10px', textDecoration: 'none' }}
-                                >
-                                  Kirim WA 📲
-                                </a>
-                              </div>
+                              <details className="service-actions-menu">
+                                <summary aria-label={`Buka menu aksi ${s.resi}`} title="Aksi">⋮</summary>
+                                <div className="service-actions-dropdown">
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }}>Cetak Stiker</button>
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>Cetak Nota</button>
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
+                                  {s.customer_phone && (
+                                    <a href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:
+${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
+                                      Kirim WA 📲
+                                    </a>
+                                  )}
+                                </div>
+                              </details>
                             </td>
                           </tr>
                         );
@@ -2444,13 +2532,7 @@ export default function AdminDashboard() {
              <div className="inventory-table-wrap"><table className="table inventory-table">
                <thead><tr><th>Foto</th><th>ID</th><th>Nama Barang</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr></thead>
                <tbody>
-                 {products.length === 0 ? (
-                   <tr>
-                     <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                       Belum ada produk atau jasa. Silakan tambah produk baru.
-                     </td>
-                   </tr>
-                 ) : products.map(p => (
+                 {products.map(p => (
                    <tr key={p.id}>
                      <td>
                        {(p.imageUrl || p.image_url || p.image) ? (
@@ -2464,7 +2546,7 @@ export default function AdminDashboard() {
                      <td><small style={{ fontFamily: 'monospace' }}>{p.id}</small></td>
                      <td style={{ fontWeight: '800' }}>{p.name}</td>
                      <td><span className="badge" style={{ background: '#f1f5f9', color: '#475569', fontSize: '0.72rem' }}>{p.category || 'SPAREPART'}</span></td>
-                     <td style={{ fontWeight: '800', color: '#0284c7' }}>Rp {Number(p.price || 0).toLocaleString('id-ID')}</td>
+                     <td style={{ fontWeight: '800', color: '#0284c7' }}>Rp {p.price.toLocaleString('id-ID')}</td>
                      <td>
                        <span className={`badge ${p.stock <= 3 ? 'badge-danger' : 'badge-success'}`}>
                          {String(p.category || '').toUpperCase() === 'JASA' ? 'Jasa' : `${p.stock} pcs`}
@@ -2622,7 +2704,7 @@ export default function AdminDashboard() {
                          <td>{u.phone || '-'}</td>
                          <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
                          <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
-                         <td>Rp {Number((tenant.settings?.employee_salaries?.[u.id] || 0) || 0).toLocaleString('id-ID')}</td>
+                         <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
                          <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
                          <td>
                             <div style={{ display: 'flex', gap: '5px' }}>
@@ -2675,43 +2757,51 @@ export default function AdminDashboard() {
              {empTab === 'kasbon' && (
                <div className="animate-fade-in">
                  <table className="table">
-                   <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+                   <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
                    <tbody>
-                     {transactions.filter(t => t.type === 'BON_PENDING').map(t => {
-                       const empId = t.description.replace('EMP_', '');
-                       const emp = users.find(u => u.id === empId);
+                     {kasbonTransactions.map((transaction) => {
+                       const kasbonEmployee = resolveKasbonEmployee(transaction);
+                       const statusLabel = transaction.type === 'BON_PENDING' ? 'Menunggu' : transaction.type === 'BON_KARYAWAN' ? 'Disetujui' : 'Ditolak';
+                       const statusClass = transaction.type === 'BON_PENDING' ? 'badge-warning' : transaction.type === 'BON_KARYAWAN' ? 'badge-success' : 'badge-danger';
                        return (
-                         <tr key={t.id}>
-                           <td>{emp ? emp.name : 'Unknown'}</td>
-                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {Number(t.amount || 0).toLocaleString('id-ID')}</td>
-                           <td>{new Date(t.created_at).toLocaleString('id-ID')}</td>
+                         <tr key={transaction.id}>
+                           <td><strong>{kasbonEmployee.name}</strong></td>
+                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {Number(transaction.amount || 0).toLocaleString('id-ID')}</td>
+                           <td>{new Date(transaction.created_at).toLocaleString('id-ID')}</td>
+                           <td><span className={`badge ${statusClass}`}>{statusLabel}</span></td>
                            <td>
-                             <div style={{ display: 'flex', gap: '5px' }}>
-                               <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
-                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Setujui kasbon?', message: 'Nominal ini akan memotong THP anggota tim.', confirmText: 'Setujui', tone: 'warning' }) : Promise.resolve(window.confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')))) {
-                                   try {
-                                     await apiService.post('/transactions/update-type', { id: t.id, type: 'BON_KARYAWAN' });
-                                     await apiService.delete(`/transactions/${t.id}`);
-                                     await apiService.post('/transactions', { tenant_code: tenant.code, type: 'BON_KARYAWAN', amount: t.amount, description: t.description });
-                                     apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
-                                     alert('Kasbon disetujui!');
-                                   } catch(e) { alert('Gagal update kasbon'); }
-                                 }
-                               }}>Setujui</button>
-                               <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tolak kasbon?', message: 'Pengajuan kasbon ini akan ditolak dan dihapus dari daftar.', confirmText: 'Tolak', tone: 'warning' }) : Promise.resolve(window.confirm('Tolak kasbon ini?')))) {
-                                   try {
-                                     await apiService.delete(`/transactions/${t.id}`);
-                                     apiService.get(`/transactions/${tenant.code}`).then(setTransactions);
-                                   } catch(e) { alert('Gagal tolak kasbon'); }
-                                 }
-                               }}>Tolak</button>
-                             </div>
+                             {transaction.type === 'BON_PENDING' ? (
+                               <div style={{ display: 'flex', gap: '5px' }}>
+                                 <button className="btn btn-success" style={{ padding: '2px 8px', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none' }} onClick={async () => {
+                                   if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Setujui kasbon?', message: 'Nominal ini akan memotong THP anggota tim dan tetap tersimpan di riwayat.', confirmText: 'Setujui', tone: 'warning' }) : Promise.resolve(window.confirm('Setujui kasbon ini? Nominal akan memotong THP karyawan.')))) {
+                                     try {
+                                       await apiService.post(`/transactions/${transaction.id}/update`, { type: 'BON_KARYAWAN' });
+                                       setTransactions((current) => current.map((item) => item.id === transaction.id ? { ...item, type: 'BON_KARYAWAN' } : item));
+                                       alert('Kasbon disetujui dan tersimpan di riwayat.');
+                                     } catch (error) {
+                                       console.error('Gagal menyetujui kasbon:', error);
+                                       alert('Gagal update kasbon');
+                                     }
+                                   }
+                                 }}>Setujui</button>
+                                 <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
+                                   if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Tolak kasbon?', message: 'Pengajuan akan ditandai Ditolak dan tetap tersimpan di riwayat.', confirmText: 'Tolak', tone: 'warning' }) : Promise.resolve(window.confirm('Tolak kasbon ini?')))) {
+                                     try {
+                                       await apiService.post(`/transactions/${transaction.id}/update`, { type: 'BON_REJECTED' });
+                                       setTransactions((current) => current.map((item) => item.id === transaction.id ? { ...item, type: 'BON_REJECTED' } : item));
+                                     } catch (error) {
+                                       console.error('Gagal menolak kasbon:', error);
+                                       alert('Gagal tolak kasbon');
+                                     }
+                                   }
+                                 }}>Tolak</button>
+                               </div>
+                             ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Tersimpan</span>}
                            </td>
                          </tr>
-                       )
+                       );
                      })}
-                     {transactions.filter(t => t.type === 'BON_PENDING').length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada permintaan kasbon.</td></tr>}
+                     {kasbonTransactions.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada riwayat kasbon.</td></tr>}
                    </tbody>
                  </table>
                </div>
@@ -2777,25 +2867,24 @@ export default function AdminDashboard() {
       {transactions.filter(t => t.type === 'BON_PENDING').length > 0 && (
         <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {transactions.filter(t => t.type === 'BON_PENDING').map(bon => {
-            const empId = bon.description.replace('EMP_', '');
-            const emp = users.find(u => u.id === empId);
+            const kasbonEmployee = resolveKasbonEmployee(bon);
             return (
               <div key={bon.id} className="glass-panel animate-fade-in" style={{ padding: '15px', background: 'var(--bg-light)', borderLeft: '4px solid var(--warning)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', width: '300px' }}>
                 <h4 style={{ margin: '0 0 5px 0' }}>Ajuan Kasbon Baru</h4>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>
-                  <strong>{emp ? emp.name : `Karyawan (${empId})`}</strong> mengajukan Kasbon sebesar <strong>Rp {Number(bon.amount || 0).toLocaleString('id-ID')}</strong>.
+                  <strong>{kasbonEmployee.name}</strong> mengajukan Kasbon sebesar <strong>Rp {Number(bon.amount || 0).toLocaleString('id-ID')}</strong>.
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
                     try {
                       await apiService.post(`/transactions/${bon.id}/update`, { type: 'BON_KARYAWAN' });
-                      setTransactions(transactions.map(t => t.id === bon.id ? { ...t, type: 'BON_KARYAWAN' } : t));
+                      setTransactions((current) => current.map(t => t.id === bon.id ? { ...t, type: 'BON_KARYAWAN' } : t));
                     } catch(e) { alert('Gagal menyetujui'); }
                   }}>Setujui</button>
                   <button className="btn btn-danger" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
                     try {
                       await apiService.post(`/transactions/${bon.id}/update`, { type: 'BON_REJECTED' });
-                      setTransactions(transactions.map(t => t.id === bon.id ? { ...t, type: 'BON_REJECTED' } : t));
+                      setTransactions((current) => current.map(t => t.id === bon.id ? { ...t, type: 'BON_REJECTED' } : t));
                     } catch(e) { alert('Gagal menolak'); }
                   }}>Tolak</button>
                 </div>
@@ -3231,7 +3320,7 @@ export default function AdminDashboard() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.2rem' }}>
                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                       <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Total Akumulasi Transaksi</span>
-                      <strong style={{ fontSize: '1.2rem', color: '#059669' }}>Rp {Number(grandTotalSpent || 0).toLocaleString('id-ID')}</strong>
+                      <strong style={{ fontSize: '1.2rem', color: '#059669' }}>Rp {grandTotalSpent.toLocaleString('id-ID')}</strong>
                     </div>
                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                       <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Total Kunjungan Toko</span>
@@ -3287,7 +3376,7 @@ export default function AdminDashboard() {
                               <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{item.details} • Resi: {item.resi}</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>Rp {Number(item.amount || 0).toLocaleString('id-ID')}</strong>
+                              <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>Rp {item.amount.toLocaleString('id-ID')}</strong>
                               <small style={{ fontSize: '0.72rem', color: '#64748b' }}>{item.date.toLocaleDateString('id-ID')}</small>
                             </div>
                           </div>
