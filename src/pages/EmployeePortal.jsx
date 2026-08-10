@@ -823,13 +823,16 @@ export default function EmployeePortal() {
                     {services.filter(s => s.technician_id === employee.id).length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
                     ) : services.filter(s => s.technician_id === employee.id).map(s => (
-                      <div key={s.resi} className="technician-task-card" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="technician-task-detail" style={{ flex: 1 }}>
-                          <div className="technician-task-title"><strong>{s.device_name}</strong><span className="badge badge-info">{s.status || 'PROSES'}</span></div>
+                      <div key={s.resi} className="technician-task-card" style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255,255,255,0.5)', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="technician-task-detail" style={{ flex: 1, minWidth: '240px' }}>
+                          <div className="technician-task-title" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                            <strong>{s.device_name}</strong>
+                            <span className="badge badge-info">{s.status || 'PROSES'}</span>
+                          </div>
                           <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>Keluhan: {s.issue}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                         </div>
-                        <div className="technician-task-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div className="technician-task-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                           {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).length > 0 && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => openTransferModal(s)}>
                               <ArrowRightLeft size={14} style={{ marginRight: '5px', display: 'inline' }} /> Alihkan Tugas

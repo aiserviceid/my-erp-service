@@ -75,6 +75,7 @@ export default function AdminDashboard() {
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState(null);
   const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const appVersion = APP_VERSION;
   const latestApkUrl = APK_PUBLIC_URL;
 
@@ -121,7 +122,7 @@ export default function AdminDashboard() {
     const kelengkapan = fd.get('kelengkapan') || '-';
     const estWaktu = fd.get('estimasi_waktu') || '';
     const estBiaya = fd.get('estimasi_biaya') || '';
-    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${normalizeMoneyInput(estBiaya).toLocaleString('id-ID')}` : ''}`;
+    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${Number(normalizeMoneyInput(estBiaya) || 0).toLocaleString('id-ID')}` : ''}`;
     const resiGenerated = `TRX-${Date.now()}`;
 
     try {
@@ -463,13 +464,13 @@ export default function AdminDashboard() {
               <tr><th>Keterangan</th><th class="text-right">Biaya (Rp)</th></tr>
             </thead>
             <tbody>
-              <tr><td>Biaya Sparepart</td><td class="text-right">${(selectedService.part_fee || 0).toLocaleString('id-ID')}</td></tr>
-              <tr><td>Biaya Jasa Servis</td><td class="text-right">${(selectedService.jasa_fee || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td>Biaya Sparepart</td><td class="text-right">${Number((selectedService.part_fee || 0) || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td>Biaya Jasa Servis</td><td class="text-right">${Number((selectedService.jasa_fee || 0) || 0).toLocaleString('id-ID')}</td></tr>
               ${discount > 0 ? `
-              <tr><td>Subtotal</td><td class="text-right">${subtotal.toLocaleString('id-ID')}</td></tr>
-              <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${discount.toLocaleString('id-ID')}</td></tr>
+              <tr><td>Subtotal</td><td class="text-right">${Number(subtotal || 0).toLocaleString('id-ID')}</td></tr>
+              <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${Number(discount || 0).toLocaleString('id-ID')}</td></tr>
               ` : ''}
-              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
+              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${Number(total || 0).toLocaleString('id-ID')}</td></tr>
             </tbody>
           </table>
           
@@ -707,16 +708,23 @@ export default function AdminDashboard() {
   const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
   const updateServiceStatusFromAction = async (service, newStatus) => {
+    if (isUpdatingStatus) return;
     if (newStatus === 'SELESAI') {
       setSelectedService({ ...service, __markSelesaiFromAdmin: true });
       setShowEditServiceNota(true);
       return;
     }
-    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL') && !service.part_fee && !service.jasa_fee) {
-      alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
-      return;
+    if ((newStatus === 'DIAMBIL' || newStatus === 'DI AMBIL')) {
+      if (!service.part_fee && !service.jasa_fee) {
+        alert('Isi rincian biaya servis lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
+        return;
+      }
+      if (!window.confirm(`Yakin ingin menandai servis untuk ${service.customer_name} sebagai DIAMBIL?\nPastikan pelanggan sudah melunasi pembayaran.`)) {
+        return;
+      }
     }
     try {
+      setIsUpdatingStatus(true);
       await apiService.post('/services/update', { resi: service.resi, status: newStatus });
       setServices(services.map((item) => item.resi === service.resi ? { ...item, status: newStatus } : item));
       if (hasFeature(tenant?.tier, 'whatsappNotif') && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WhatsApp pelanggan?', message: 'Status berhasil disimpan. Kirim update status ke WhatsApp pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'info' }) : Promise.resolve(window.confirm('Kirim update status ke WhatsApp pelanggan?')))) {
@@ -727,6 +735,8 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       alert('Gagal update status');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -1181,7 +1191,7 @@ export default function AdminDashboard() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
                       <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={(v) => `Rp ${v/1000}k`} width={60} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => `Rp ${v.toLocaleString('id-ID')}`} contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} />
+                      <Tooltip formatter={(v) => `Rp ${Number(v || 0).toLocaleString('id-ID')}`} contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} />
                       <Area type="monotone" dataKey="Pendapatan" stroke="#0284c7" strokeWidth={3} fillOpacity={1} fill="url(#dashMasukGrad)" dot={{ r: 4, fill: '#0284c7', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
                       <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#dashKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
                     </AreaChart>
@@ -2434,7 +2444,13 @@ export default function AdminDashboard() {
              <div className="inventory-table-wrap"><table className="table inventory-table">
                <thead><tr><th>Foto</th><th>ID</th><th>Nama Barang</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr></thead>
                <tbody>
-                 {products.map(p => (
+                 {products.length === 0 ? (
+                   <tr>
+                     <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                       Belum ada produk atau jasa. Silakan tambah produk baru.
+                     </td>
+                   </tr>
+                 ) : products.map(p => (
                    <tr key={p.id}>
                      <td>
                        {(p.imageUrl || p.image_url || p.image) ? (
@@ -2448,7 +2464,7 @@ export default function AdminDashboard() {
                      <td><small style={{ fontFamily: 'monospace' }}>{p.id}</small></td>
                      <td style={{ fontWeight: '800' }}>{p.name}</td>
                      <td><span className="badge" style={{ background: '#f1f5f9', color: '#475569', fontSize: '0.72rem' }}>{p.category || 'SPAREPART'}</span></td>
-                     <td style={{ fontWeight: '800', color: '#0284c7' }}>Rp {p.price.toLocaleString('id-ID')}</td>
+                     <td style={{ fontWeight: '800', color: '#0284c7' }}>Rp {Number(p.price || 0).toLocaleString('id-ID')}</td>
                      <td>
                        <span className={`badge ${p.stock <= 3 ? 'badge-danger' : 'badge-success'}`}>
                          {String(p.category || '').toUpperCase() === 'JASA' ? 'Jasa' : `${p.stock} pcs`}
@@ -2606,7 +2622,7 @@ export default function AdminDashboard() {
                          <td>{u.phone || '-'}</td>
                          <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
                          <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
-                         <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
+                         <td>Rp {Number((tenant.settings?.employee_salaries?.[u.id] || 0) || 0).toLocaleString('id-ID')}</td>
                          <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
                          <td>
                             <div style={{ display: 'flex', gap: '5px' }}>
@@ -2667,7 +2683,7 @@ export default function AdminDashboard() {
                        return (
                          <tr key={t.id}>
                            <td>{emp ? emp.name : 'Unknown'}</td>
-                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {t.amount?.toLocaleString('id-ID')}</td>
+                           <td style={{ color: '#ef4444', fontWeight: 'bold' }}>Rp {Number(t.amount || 0).toLocaleString('id-ID')}</td>
                            <td>{new Date(t.created_at).toLocaleString('id-ID')}</td>
                            <td>
                              <div style={{ display: 'flex', gap: '5px' }}>
@@ -2767,7 +2783,7 @@ export default function AdminDashboard() {
               <div key={bon.id} className="glass-panel animate-fade-in" style={{ padding: '15px', background: 'var(--bg-light)', borderLeft: '4px solid var(--warning)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', width: '300px' }}>
                 <h4 style={{ margin: '0 0 5px 0' }}>Ajuan Kasbon Baru</h4>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>
-                  <strong>{emp ? emp.name : `Karyawan (${empId})`}</strong> mengajukan Kasbon sebesar <strong>Rp {bon.amount.toLocaleString('id-ID')}</strong>.
+                  <strong>{emp ? emp.name : `Karyawan (${empId})`}</strong> mengajukan Kasbon sebesar <strong>Rp {Number(bon.amount || 0).toLocaleString('id-ID')}</strong>.
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
@@ -3215,7 +3231,7 @@ export default function AdminDashboard() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.2rem' }}>
                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                       <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Total Akumulasi Transaksi</span>
-                      <strong style={{ fontSize: '1.2rem', color: '#059669' }}>Rp {grandTotalSpent.toLocaleString('id-ID')}</strong>
+                      <strong style={{ fontSize: '1.2rem', color: '#059669' }}>Rp {Number(grandTotalSpent || 0).toLocaleString('id-ID')}</strong>
                     </div>
                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                       <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Total Kunjungan Toko</span>
@@ -3271,7 +3287,7 @@ export default function AdminDashboard() {
                               <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{item.details} • Resi: {item.resi}</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>Rp {item.amount.toLocaleString('id-ID')}</strong>
+                              <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>Rp {Number(item.amount || 0).toLocaleString('id-ID')}</strong>
                               <small style={{ fontSize: '0.72rem', color: '#64748b' }}>{item.date.toLocaleDateString('id-ID')}</small>
                             </div>
                           </div>

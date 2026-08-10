@@ -45,9 +45,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   const getProductCategory = (product) => String(product?.category || product?.type || product?.jenis || '').trim().toUpperCase().replace(/\s+/g, '_');
   const isServiceItem = (product) => {
     const category = getProductCategory(product);
-    const name = String(product?.name || '').toLowerCase();
-    const serviceKeywords = /(jasa|servis|service|layanan|install|instal|reball|reballing|flash|flashing|cleaning|thermal|software|setting|backup|upgrade|cek|diagnosa)/i;
-    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN') || serviceKeywords.test(name) || (Number(product?.stock || 0) >= 900 && serviceKeywords.test(name));
+    return category === 'JASA' || category === 'SERVIS' || category === 'SERVICE' || category === 'LAYANAN' || category.includes('JASA') || category.includes('SERVIS') || category.includes('SERVICE') || category.includes('LAYANAN');
   };
   const getProductImage = (product) => product?.imageUrl || product?.image_url || product?.image || '';
   const formatMoney = (value) => normalizeMoneyInput(value).toLocaleString('id-ID');
@@ -187,7 +185,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
 
   // Handle checkout
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (checkoutLoading || cart.length === 0) return;
     const stockProblem = validateCartStock();
     if (stockProblem) {
       alert(`Stok ${stockProblem.name} tidak cukup. Stok tersedia: ${stockProblem.stock}, diminta: ${stockProblem.qty}.`);

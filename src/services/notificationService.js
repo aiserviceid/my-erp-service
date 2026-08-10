@@ -15,6 +15,15 @@ export const buildManualWhatsAppUrl = (phone, message = '') => {
   return `https://wa.me/${target}?text=${encodeURIComponent(message)}`;
 };
 
+export const findMatchingEmployee = (phone, employees = []) => {
+  const normPhone = normalizeWhatsAppNumber(phone);
+  if (!normPhone || !employees || !Array.isArray(employees) || employees.length === 0) return null;
+  return employees.find((emp) => {
+    const empNorm = normalizeWhatsAppNumber(emp.phone);
+    return Boolean(empNorm && empNorm === normPhone);
+  }) || null;
+};
+
 export const getWhatsAppSenderConfig = (tenant) => {
   const settings = tenant?.settings || {};
   return {
@@ -25,9 +34,11 @@ export const getWhatsAppSenderConfig = (tenant) => {
 
 export const sendWhatsAppNotification = async ({
   tenant,
+  employees = [],
   target,
   message,
   openManual = true,
+  skipConflictCheck = false,
 } = {}) => {
   const normalizedTarget = normalizeWhatsAppNumber(target);
   if (!normalizedTarget) {
@@ -36,6 +47,16 @@ export const sendWhatsAppNotification = async ({
 
   if (!message) {
     return { status: 'skipped', reason: 'missing_message' };
+  }
+
+  if (!skipConflictCheck) {
+    const matchedEmp = findMatchingEmployee(normalizedTarget, employees);
+    if (matchedEmp) {
+      if (typeof window !== 'undefined') {
+        alert(`⚠ Notifikasi WA tidak terkirim: Nomor WA (${normalizedTarget}) sama dengan nomor karyawan (${matchedEmp.name}). Perbaiki nomor pelanggan terlebih dahulu agar notifikasi tidak salah alamat.`);
+      }
+      return { status: 'blocked_conflict', reason: 'employee_phone_conflict', matchedEmployee: matchedEmp };
+    }
   }
 
   const { mode, token } = getWhatsAppSenderConfig(tenant);
@@ -49,11 +70,22 @@ export const sendWhatsAppNotification = async ({
       });
 
       if (!response.ok) {
-        throw new Error(`Fonnte request failed with status ${response.status}`);
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Token Fonnte tidak valid atau kadaluarsa.");
+        }
+        throw new Error(`Gagal menghubungi WhatsApp API (Status: ${response.status}). Periksa kembali token Anda.`);
+      }
+
+      const responseData = await response.json().catch(() => ({}));
+      if (responseData.status === false) {
+        throw new Error(responseData.reason || "Token Fonnte bermasalah atau kuota habis.");
       }
 
       return { status: 'sent', provider: 'fonnte', target: normalizedTarget };
     } catch (error) {
+      if (typeof window !== 'undefined') {
+        alert(`Gagal mengirim WhatsApp otomatis: ${error.message}${openManual ? '\\nMengalihkan ke pengiriman manual...' : ''}`);
+      }
       if (!openManual) {
         return { status: 'failed', provider: 'fonnte', target: normalizedTarget, error };
       }
@@ -70,3 +102,4 @@ export const sendWhatsAppNotification = async ({
 
   return { status: 'skipped', reason: 'manual_disabled', target: normalizedTarget };
 };
+
