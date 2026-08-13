@@ -908,6 +908,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
                 </select>
               </div>
             </div>
+            <small style={{ display: 'block', marginTop: '7px', color: '#64748b', lineHeight: 1.4 }}>Gunakan sesuai limit provider dan kebijakan WhatsApp. UnitPro tidak menjanjikan akun bebas pembatasan.</small>
           </div>
 
           {/* BROADCAST PROGRESS BAR */}
@@ -919,6 +920,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
               <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}>
                 <div style={{ width: `${broadcastProgress}%`, height: '100%', background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)', transition: 'width 0.3s ease-in-out' }} />
               </div>
+              <div style={{ height: 8, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: `${broadcastProgress}%`, height: '100%', background: '#22c55e', transition: 'width 0.3s' }} /></div>
             </div>
           )}
 

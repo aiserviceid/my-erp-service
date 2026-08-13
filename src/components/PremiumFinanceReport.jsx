@@ -1002,6 +1002,35 @@ export default function PremiumFinanceReport({
               })()}
             </div>
           </div>
+
+          <div className="finance-source-monthly-card">
+            <div>
+              <h4>Sumber Omzet 6 Bulan Terakhir</h4>
+              <p>Perbandingan kontribusi servis, POS, dan pemasukan lainnya.</p>
+            </div>
+            {monthlyRevenueSourceData.some((row) => Number(row.Servis || 0) > 0 || Number(row.POS || 0) > 0 || Number(row.Lainnya || 0) > 0) ? (
+              <div style={{ height: '260px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyRevenueSourceData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} />
+                    <YAxis tickFormatter={formatRupiahAxis} axisLine={false} tickLine={false} width={68} fontSize={11} tickCount={5} />
+                    <Tooltip formatter={(value, name) => [`Rp ${formatRupiah(value)}`, name]} />
+                    <Legend />
+                    <Bar dataKey="Servis" fill="#0EA5E9" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="POS" fill="#3B82F6" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="Lainnya" fill="#10B981" radius={[5, 5, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="chart-empty-state chart-empty-state--small">
+                <div className="chart-empty-icon" aria-hidden="true">📊</div>
+                <strong>Belum ada transaksi</strong>
+                <span>Data bulanan akan muncul otomatis setelah transaksi pertama</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
