@@ -358,9 +358,8 @@ export default function PublicTracking() {
                   { label: 'No. Resi', value: result.resi, bold: true, color: '#0284c7' },
                   { label: 'Pelanggan', value: maskCustomerName(result.customer_name) },
                   { label: 'Perangkat', value: result.device_name },
-                  { label: 'Teknisi', value: result.technician_name || result.technician || (result.technician_id ? `Teknisi #${result.technician_id}` : null) },
                   { label: 'Keluhan', value: cleanPublicIssue(result.issue) },
-                ].filter(item => item.value !== null && item.value !== undefined).map((item, i) => (
+                ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
                     <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600', flexShrink: 0, minWidth: '90px' }}>
                       {item.label}

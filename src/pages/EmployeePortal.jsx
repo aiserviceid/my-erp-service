@@ -545,7 +545,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
             <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
-            <div class="info-item"><strong>Teknisi</strong> <span>${techName}</span></div>
           </div>
           <div><strong style="color: #64748b; font-size: 0.9rem;">Keluhan & Kelengkapan:</strong></div>
           <div class="issue-box">${selectedService.issue}</div>
