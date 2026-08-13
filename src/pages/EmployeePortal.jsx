@@ -927,11 +927,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <strong>{isKasir ? services.filter(s => !isPaidServiceStatus(s.status)).length : finishedToday.length}</strong>
             <small>{isKasir ? 'Masih berjalan' : 'Sudah lunas/diambil'}</small>
           </article>
-          <article>
-            <span>Update APK</span>
-            <strong>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? 'Baru' : 'OK'}</strong>
-            <small>v{APP_VERSION}</small>
-          </article>
         </section>
 
       {isKasir ? (
@@ -1096,7 +1091,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   <strong>Update Aplikasi</strong>
                   <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru v${latestVersionInfo.version} tersedia` : `Versi saat ini v${APP_VERSION}`}</span>
                   <small style={{ display: 'block', color: '#64748b', fontSize: '0.76rem', marginTop: '2px', fontWeight: '600' }}>
-                    📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                    Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
                   </small>
                   <button className="btn btn-primary" onClick={openEmployeeUpdate} style={{ marginTop: '8px' }}>Update APK</button>
                 </div>
@@ -1121,7 +1116,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               Scan
             </button>
             <button className={`btn ${activeTab === 'keuangan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('keuangan')}>
-              Keuangan Saya
+              Gaji & Komisi
             </button>
             <button className={`btn ${activeTab === 'pengaturan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('pengaturan')}>
               Pengaturan
@@ -1349,7 +1344,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   <strong>Update Aplikasi</strong>
                   <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru v${latestVersionInfo.version} tersedia` : `Versi saat ini v${APP_VERSION}`}</span>
                   <small style={{ display: 'block', color: '#64748b', fontSize: '0.76rem', marginTop: '2px', fontWeight: '600' }}>
-                    📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                    Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
                   </small>
                   <button className="btn btn-primary" onClick={openEmployeeUpdate} style={{ marginTop: '8px' }}>Update APK</button>
                 </div>

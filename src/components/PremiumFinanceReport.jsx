@@ -525,7 +525,7 @@ export default function PremiumFinanceReport({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              📊 Pusat Laporan Keuangan
+              PUSAT LAPORAN
             </span>
             <h2 style={{ margin: '4px 0 0 0', fontSize: '1.4rem', fontWeight: '900', color: '#ffffff' }}>
               Laporan Keuangan & Arus Kas Toko
@@ -572,7 +572,7 @@ export default function PremiumFinanceReport({
               onClick={() => setPeriod('custom')}
               style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: '700', borderRadius: '10px', background: period === 'custom' ? '#0ea5e9' : 'transparent', color: period === 'custom' ? '#fff' : '#cbd5e1', border: 'none' }}
             >
-              Custom 📅
+              Pilih Tanggal
             </button>
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'ringkasan' ? '#ffffff' : '#475569'
           }}
         >
-          📊 Ringkasan
+          Ringkasan
         </button>
 
         <button
@@ -645,7 +645,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'arus_kas' ? '#ffffff' : '#475569'
           }}
         >
-          🔄 Arus Kas
+          Arus Kas
         </button>
 
         <button
@@ -663,7 +663,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'pengeluaran' ? '#ffffff' : '#475569'
           }}
         >
-          💸 Pengeluaran ({expenseList.length})
+          Pengeluaran ({expenseList.length})
         </button>
 
         <button
@@ -681,7 +681,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'laba_rugi' ? '#ffffff' : '#475569'
           }}
         >
-          📈 Laba Rugi
+          Laba Rugi
         </button>
 
         <button
@@ -699,7 +699,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'sumber_omzet' ? '#ffffff' : '#475569'
           }}
         >
-          🍕 Sumber Omzet
+          Sumber Omzet
         </button>
 
         <button
@@ -717,7 +717,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'piutang' ? '#ffffff' : '#475569'
           }}
         >
-          ⏳ Piutang ({summaryMetrics.unpaidCount})
+          Piutang ({summaryMetrics.unpaidCount})
         </button>
 
         <button
@@ -735,7 +735,7 @@ export default function PremiumFinanceReport({
             color: activeSubTab === 'export' ? '#ffffff' : '#0369a1'
           }}
         >
-          📥 Export Excel
+          Export Excel
         </button>
       </div>
 
@@ -808,7 +808,7 @@ export default function PremiumFinanceReport({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '10px' }}>
               <div>
                 <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
-                  📈 Grafik Tren Pemasukan vs Pengeluaran Periode Ini
+                  Tren Pemasukan dan Pengeluaran
                 </h4>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
                   Perbandingan pemasukan (omzet) dan pengeluaran harian
@@ -833,7 +833,7 @@ export default function PremiumFinanceReport({
                       boxShadow: chartType === 'AREA' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
                     }}
                   >
-                    📈 Gradient Area
+                    Area
                   </button>
                   <button
                     type="button"
@@ -850,7 +850,7 @@ export default function PremiumFinanceReport({
                       boxShadow: chartType === 'BAR' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
                     }}
                   >
-                    📉 Garis Curve
+                    Garis
                   </button>
                 </div>
 
@@ -870,7 +870,7 @@ export default function PremiumFinanceReport({
             <div style={{ height: '280px', width: '100%' }}>
               {!chartTrendData.some((item) => Number(item.Pemasukan || 0) > 0 || Number(item.Pengeluaran || 0) > 0) ? (
                 <div className="chart-empty-state">
-                  <div className="chart-empty-icon" aria-hidden="true">📈</div>
+                  <div className="chart-empty-icon" aria-hidden="true">—</div>
                   <strong>Belum ada transaksi</strong>
                   <span>Data akan muncul otomatis setelah transaksi pertama</span>
                 </div>
@@ -970,7 +970,7 @@ export default function PremiumFinanceReport({
               </div>
             ) : (
               <div className="chart-empty-state chart-empty-state--small">
-                <div className="chart-empty-icon" aria-hidden="true">📊</div>
+                <div className="chart-empty-icon" aria-hidden="true">—</div>
                 <strong>Belum ada transaksi</strong>
                 <span>Data bulanan akan muncul otomatis setelah transaksi pertama</span>
               </div>
@@ -982,7 +982,7 @@ export default function PremiumFinanceReport({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
               <div>
                 <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
-                  👨‍🔧 Kinerja & Omzet Jasa Teknisi Periode Ini
+                  Kinerja Teknisi
                 </h4>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
                   Total unit servis diselesaikan & kontribusi omzet per teknisi
@@ -1109,7 +1109,7 @@ export default function PremiumFinanceReport({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                💸 Catatan Pengeluaran Toko
+                Catatan Pengeluaran
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
                 Total Pengeluaran Periode Ini: <strong style={{ color: '#dc2626' }}>Rp {formatRupiah(summaryMetrics.totalExpense)}</strong>
@@ -1268,7 +1268,7 @@ export default function PremiumFinanceReport({
       {activeSubTab === 'sumber_omzet' && (
         <div className="glass-panel" style={{ padding: '1.5rem', animation: 'fadeIn 0.2s ease-in-out' }}>
           <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-            🍕 Breakdown Sumber Omzet & Pendapatan
+            Rincian Sumber Omzet
           </h3>
 
           {(() => {
@@ -1347,7 +1347,7 @@ export default function PremiumFinanceReport({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                ⏳ Daftar Piutang & Servis Belum Lunas
+                Piutang & Servis Belum Lunas
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
                 Total Tagihan Belum Terbayar: <strong style={{ color: '#d97706' }}>Rp {formatRupiah(summaryMetrics.unpaidTotal)}</strong> ({summaryMetrics.unpaidCount} unit)
@@ -1574,7 +1574,7 @@ export default function PremiumFinanceReport({
                   disabled={isSubmittingExpense}
                   style={{ fontWeight: '800' }}
                 >
-                  {isSubmittingExpense ? 'Simpan...' : '💾 Simpan Pengeluaran'}
+                  {isSubmittingExpense ? 'Menyimpan...' : 'Simpan Pengeluaran'}
                 </button>
               </div>
             </form>

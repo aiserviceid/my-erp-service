@@ -585,6 +585,178 @@
   .technician-task-actions > .btn { flex: 1 1 150px; justify-content: center; }
 }
 
+/* UnitPro professional design layer */
+:root {
+  --primary: #0f766e;
+  --primary-hover: #0b5f59;
+  --accent: #0f766e;
+  --text: #172033;
+  --text-muted: #65758b;
+  --border-light: #e2e8f0;
+  --glass-bg: #ffffff;
+}
+
+body {
+  color: var(--text);
+  background: #f6f8fb;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e6ebf1;
+  box-shadow: 8px 0 30px rgba(15, 23, 42, 0.035);
+}
+
+.sidebar .btn {
+  min-height: 42px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.main-content {
+  background: #f6f8fb;
+}
+
+.glass-panel,
+.employee-pro-panel,
+.employee-setting-card,
+.attendance-card {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.045);
+}
+
+.glass-panel:hover {
+  transform: none;
+}
+
+.btn {
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: #0f766e !important;
+  border-color: #0f766e !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover {
+  background: #0b5f59 !important;
+}
+
+.btn-ghost {
+  color: #475569;
+  background: transparent;
+}
+
+.input-field,
+input,
+select,
+textarea {
+  border-radius: 10px;
+  border-color: #cfd8e3;
+  box-shadow: none;
+}
+
+.input-field:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  outline: none;
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table th {
+  background: #f8fafc;
+  color: #526174;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.table td {
+  color: #273449;
+  border-bottom-color: #edf1f5;
+}
+
+.table tbody tr:hover {
+  background: #f8fbfb;
+}
+
+.module-heading {
+  margin-bottom: 18px;
+}
+
+.module-heading > span {
+  color: #0f766e;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+}
+
+.module-heading h3 {
+  margin: 4px 0 3px;
+  color: #172033;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.module-heading p {
+  margin: 0;
+  color: #65758b;
+  font-size: 0.84rem;
+}
+
+.employee-metric-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.employee-work-hero {
+  background: #123d3a;
+  box-shadow: none;
+}
+
+.employee-quick-grid button {
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.employee-quick-grid button:hover {
+  color: #0f766e;
+  border-color: #7fc3bd;
+  background: #f2fbfa;
+}
+
+.store-settings-nav {
+  background: #f8fafc !important;
+}
+
+.store-settings-nav-list .btn {
+  color: #445267;
+}
+
+.attendance-status,
+.badge {
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .main-content { padding-left: 14px; padding-right: 14px; }
+  .glass-panel { border-radius: 14px; }
+  .employee-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .module-heading h3 { font-size: 1.12rem; }
+}
+
 @keyframes mobileSheetIn {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }

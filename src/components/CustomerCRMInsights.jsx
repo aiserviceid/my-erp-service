@@ -547,9 +547,9 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
     <div className="customer-crm-insights">
       <div className="customer-crm-hero" style={{ position: 'relative', overflow: 'hidden' }}>
         <div>
-          <p style={{ letterSpacing: '0.08em', fontWeight: '900' }}>CRM PELANGGAN & WHATSAPP MARKETING PRO</p>
-          <h3 style={{ fontSize: '1.5rem', margin: '4px 0 8px 0' }}>AI Agent + Campaign Cerdas Toko Anda</h3>
-          <span style={{ fontSize: '0.88rem', opacity: 0.9 }}>Balas WhatsApp otomatis, buat promo barang/jasa, follow-up CRM, dan personalisasi pesan cukup dengan bahasa sehari-hari.</span>
+          <p style={{ letterSpacing: '0.08em', fontWeight: '900' }}>PELANGGAN & WHATSAPP</p>
+          <h3 style={{ fontSize: '1.5rem', margin: '4px 0 8px 0' }}>Hubungan Pelanggan</h3>
+          <span style={{ fontSize: '0.88rem', opacity: 0.9 }}>Kelola segmen pelanggan, tindak lanjut servis, dan kampanye WhatsApp dari satu tempat.</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div className="customer-crm-pro-badge"><Crown size={15} /> WhatsApp Marketing Pro</div>
@@ -593,7 +593,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-ghost" onClick={() => setShowGuide((value) => !value)} style={{ fontWeight: '800', fontSize: '0.8rem' }}>
-            ❓ Panduan 1 Menit
+            Panduan Singkat
           </button>
           <button type="button" className="btn btn-ghost" disabled={gatewayTestStatus === 'testing'} onClick={handleTestGateway} style={{ fontWeight: '800', fontSize: '0.8rem', background: '#ffffff', border: '1px solid #cbd5e1' }}>
             <RefreshCw size={14} className={gatewayTestStatus === 'testing' ? 'animate-spin' : ''} /> {gatewayTestStatus === 'testing' ? 'Menguji...' : 'Tes Koneksi Gateway'}
@@ -603,19 +603,19 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
 
       {showGuide && (
         <div style={{ marginTop: '10px', padding: '16px', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', animation: 'fadeIn 0.3s ease-out' }}>
-          <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem' }}>📖 Panduan Lengkap UnitPro AI + WhatsApp Marketing</strong>
+          <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem' }}>Panduan Pelanggan & WhatsApp</strong>
           <div style={{ display: 'grid', gap: '6px', fontSize: '0.84rem', lineHeight: 1.5 }}>
             <span><b>1.</b> Buka <b>Pengaturan → WhatsApp Gateway</b> untuk memasukkan Token Fonnte/Custom Anda jika menggunakan server pribadi.</span>
-            <span><b>2.</b> Aktifkan <b>AI Agent</b> di bawah. AI otomatis menjawab status servis, invoice, harga barang/jasa, dan lokasi toko 24/7.</span>
-            <span><b>3.</b> Pilih salah satu <b>Segmen Pelanggan</b> di bawah. UnitPro memilah pelanggan secara otomatis.</span>
-            <span><b>4.</b> Klik <b>Tombol Preset Cepat</b> atau tulis perintah ke AI Copywriter Gemini untuk memuat draf promosi.</span>
-            <span><b>5.</b> Cek simulasi tampilan gelembung chat WhatsApp di sebelah kanan, lalu jalankan <b>Broadcast Gateway</b> secara aman.</span>
+            <span><b>2.</b> Pilih <b>segmen pelanggan</b> yang ingin dihubungi.</span>
+            <span><b>3.</b> Pilih template atau susun pesan yang singkat dan relevan.</span>
+            <span><b>4.</b> Periksa pratinjau pesan, jumlah penerima, dan jeda pengiriman.</span>
+            <span><b>5.</b> Jalankan broadcast dan pantau status pengiriman.</span>
           </div>
         </div>
       )}
 
       {/* AI AGENT CONTROL PANEL */}
-      <div style={{ marginTop: '1rem', padding: '1.2rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+      {false && <div style={{ marginTop: '1rem', padding: '1.2rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <div style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: agentEnabled ? '#16a34a' : '#64748b', color: '#fff', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)' }}><Bot size={24} /></div>
@@ -635,9 +635,9 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
           <button type="button" className="btn btn-ghost" onClick={handleToggleAgentChats} style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.78rem' }}>👤 {showAgentChats ? 'Tutup Percakapan' : 'Ambil Alih Chat Human'}</button>
         </div>}
         {agentStatus && <div style={{ marginTop: 10, fontSize: '0.82rem', fontWeight: 700, color: agentStatus.startsWith('❌') ? '#b91c1c' : '#166534' }}>{agentStatus}</div>}
-      </div>
+      </div>}
 
-      {showAgentChats && (
+      {false && showAgentChats && (
         <div style={{ marginTop: '10px', padding: '14px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div>
@@ -805,7 +805,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: '900', color: '#166534' }}>📝 Pesan WhatsApp (Bebas Edit)</label>
               <button type="button" className="btn btn-ghost" onClick={handleSaveCurrentTemplate} style={{ fontSize: '0.72rem', background: '#fff', border: '1px solid #cbd5e1', padding: '3px 8px' }}>
-                💾 Simpan Jadi Template Toko
+                Simpan sebagai Template
               </button>
             </div>
             <textarea ref={messageRef} className="input-field" value={campaignMessage} onChange={(e) => setCampaignMessage(e.target.value)} rows={6} placeholder={'Halo Kak {nama_pelanggan}, ...'} style={{ resize: 'vertical', lineHeight: 1.5, background: '#fff', fontSize: '0.86rem' }} />

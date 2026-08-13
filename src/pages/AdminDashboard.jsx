@@ -980,7 +980,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <Building2 size={12} /> {tenant?.name || tenant?.code}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px' }}>
-            Tier: <strong style={{ color: isEnterprise ? '#7c3aed' : isFree ? '#64748b' : '#0284c7', textTransform: 'uppercase' }}>{tenant?.tier || 'free'}</strong>
+            Paket <strong style={{ color: isEnterprise ? '#7c3aed' : isFree ? '#64748b' : '#0284c7', textTransform: 'capitalize' }}>{tenant?.tier || 'Free'}</strong>
           </div>
           {trialDaysLeft !== null && (
             <div style={{ fontSize: '0.72rem', color: '#d97706', marginTop: '2px', fontWeight: 'bold' }}>
@@ -1754,15 +1754,15 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <div className="store-settings-nav" style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
                 <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Pengaturan Toko</h3>
                 <div className="store-settings-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>🎨 Tema & Branding</button>
-                  <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? '#059669' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>💬 WhatsApp Gateway</button>
+                  <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>Tampilan & Branding</button>
+                  <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? 'var(--primary)' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>Koneksi WhatsApp</button>
                   <button onClick={() => setSettingTab('rekening')} className={`btn ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
                   <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
-                  <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? '#f59e0b' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>📢 Iklan & Promo</button>
+                  <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? 'var(--primary)' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>Iklan & Promo</button>
                   <button onClick={() => setSettingTab('aplikasi')} className={`btn ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
                   <button onClick={() => setSettingTab('keamanan')} className={`btn ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
                   <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
-                  <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#ef4444', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>⚠️ Reset Data</button>
+                  <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#dc2626', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>Zona Berbahaya</button>
                 </div>
               </div>
 
@@ -1840,7 +1840,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         } catch(e) {
                           alert('Gagal menyimpan');
                         }
-                      }}>💾 Simpan Perubahan</button>
+                      }}>Simpan Perubahan</button>
                     </div>
                   </div>
                 )}
@@ -1908,7 +1908,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                           } catch(e) { alert('Gagal menyimpan pengaturan'); }
                         }}
                       >
-                        💾 Simpan Pengaturan WA
+                        Simpan Pengaturan WA
                       </button>
                     </div>
                   </div>
@@ -1983,7 +1983,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             updateTenantSettings(newSettings);
                             alert('Informasi kontak, rekening, dan QRIS berhasil disimpan!');
                           } catch(e) { alert('Gagal menyimpan'); }
-                        }}>💾 Simpan Perubahan</button>
+                        }}>Simpan Perubahan</button>
                       </div>
 
                       <div style={{ flex: 1, minWidth: '300px' }}>
@@ -2046,7 +2046,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             updateTenantSettings(newSettings);
                             alert('Catatan nota berhasil disimpan!');
                           } catch(e) { alert('Gagal menyimpan'); }
-                        }}>💾 Simpan Catatan</button>
+                        }}>Simpan Catatan</button>
                       </div>
 
                       <div style={{ flex: 1, minWidth: '300px' }}>
@@ -2165,7 +2165,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             : 'Mengecek info versi...'}
                         </div>
                         <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
-                          📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                          Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
                         </div>
                       </div>
                     </div>
@@ -2317,7 +2317,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             } catch(e) { alert('Gagal menyimpan promo: ' + (e?.message || 'kesalahan jaringan')); }
                           }}
                         >
-                          💾 Simpan Pengaturan Banner Promo
+                          Simpan Pengaturan Banner Promo
                         </button>
                       </div>
                     )}
@@ -2600,12 +2600,12 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
         ) : activeTab === 'master' ? (
           <div className="glass-panel inventory-management" style={{ minHeight: '400px' }}>
              <div className="inventory-management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-               <h3 style={{ margin: 0 }}>Master Barang & Sparepart ({tenant?.name})</h3>
+               <div className="module-heading"><span>INVENTARIS</span><h3>Barang & Jasa</h3><p>Kelola katalog, harga, dan ketersediaan stok.</p></div>
              </div>
              
              <div className="inventory-tabs" style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-light)' }}>
-               <button onClick={() => setMasterTab('stok')} className={`tab-btn ${masterTab === 'stok' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'stok' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'stok' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📦 Daftar & Stok Barang</button>
-               <button onClick={() => setMasterTab('audit')} className={`tab-btn ${masterTab === 'audit' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'audit' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'audit' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📜 Log Aktivitas Stok</button>
+               <button onClick={() => setMasterTab('stok')} className={`tab-btn ${masterTab === 'stok' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'stok' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'stok' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>Daftar & Stok</button>
+               <button onClick={() => setMasterTab('audit')} className={`tab-btn ${masterTab === 'audit' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'audit' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'audit' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>Riwayat Stok</button>
              </div>
 
              {masterTab === 'stok' && (
@@ -2861,16 +2861,16 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
             />
           ) :
           <div className="glass-panel employee-management" style={{ minHeight: '400px' }}>
-             <h3 className="employee-management-title" style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
+             <div className="module-heading"><span>TIM & KEHADIRAN</span><h3 className="employee-management-title">Manajemen Tim</h3><p>Kelola akses, kompensasi, kasbon, dan kehadiran anggota tim.</p></div>
 
              {/* TABS HEADER */}
              <div className="employee-management-tabs" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
-               <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>👥 Daftar Karyawan</button>
+               <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>Daftar Karyawan</button>
                <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>
-                 💰 Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
+                 Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
                </button>
                <button onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>
-                 📅 Laporan Absensi {newAttendanceCount > 0 && <span className="badge badge-success" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{newAttendanceCount}</span>}
+                 Laporan Absensi {newAttendanceCount > 0 && <span className="badge badge-success" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{newAttendanceCount}</span>}
                </button>
              </div>
 
@@ -2922,16 +2922,16 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
                     </button>
                  </div>
                  </details>
-                 <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
+                 <p style={{ color: 'var(--text-muted)' }}>Anggota tim dapat masuk melalui Portal Tim menggunakan PIN masing-masing.</p>
                  <div className="employee-table-wrap"><table className="table employee-table" style={{ marginTop: '1.5rem' }}>
-                   <thead><tr><th>Nama Karyawan</th><th>No. WA</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
+                   <thead><tr><th>Nama</th><th>WhatsApp</th><th>Peran</th><th>PIN</th><th>Gaji</th><th>Komisi</th><th>Aksi</th></tr></thead>
                    <tbody>
                      {users.map(u => (
                        <tr key={u.id}>
                          <td>{u.name}</td>
                          <td>{u.phone || '-'}</td>
                          <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
-                         <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
+                         <td style={{ fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.12em' }}>••••</td>
                          <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
                          <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
                          <td>
@@ -3377,7 +3377,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
                   Langkah 2: Tambah Karyawan / Teknisi Pertama
                 </h4>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
-                  Karyawan ini dapat login ke Portal Karyawan menggunakan PIN login.
+                  Karyawan ini dapat masuk ke Portal Tim menggunakan PIN.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <input 
@@ -3595,13 +3595,13 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
                         } catch(e) { alert('Gagal menyimpan catatan'); }
                       }}
                     >
-                      💾 Simpan Catatan Admin
+                      Simpan Catatan Admin
                     </button>
                   </div>
 
                   <div>
                     <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem', color: '#0f172a', fontWeight: '800' }}>
-                      ⏳ Riwayat & Timeline Gabungan (Servis + POS Kasir)
+                      Riwayat Aktivitas Servis & Kasir
                     </h4>
                     {timelineItems.length === 0 ? (
                       <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Belum ada riwayat transaksi terdeteksi.</div>

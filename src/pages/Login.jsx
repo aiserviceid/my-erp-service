@@ -564,7 +564,7 @@ export default function Login() {
             <Search size={14} /> Cek Resi
           </button>
           <button onClick={() => navigate('/employee')} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}>
-            Portal Karyawan →
+            Portal Tim →
           </button>
         </div>
 

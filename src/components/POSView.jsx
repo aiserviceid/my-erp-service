@@ -433,23 +433,6 @@ export default function POSView({ products, transactions = [], onTransactionCrea
             <div style={{ fontSize: '1.1rem', fontWeight: '800' }}>{cart.length}</div>
             <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Keranjang</div>
           </div>
-          <button onClick={async () => {
-            if (!window.confirm('⚠️ Rollback Data QA?\nIni akan menghapus transaksi tes POS dan mengembalikan stok sparepart ke 50 unit.')) return;
-            try {
-              const res = await apiService.rollbackQASandbox(tenant.code);
-              alert(res.message);
-              if (onTransactionCreated) onTransactionCreated();
-              fetchProducts();
-            } catch (e) {
-              alert('Gagal rollback QA: ' + e.message);
-            }
-          }} style={{
-            background: 'rgba(239,68,68,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
-            padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-            fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px'
-          }} title="Reset transaksi tes & kembalikan stok sparepart">
-            🧪 Rollback QA
-          </button>
           <button onClick={() => setShowHistory(!showHistory)} style={{
             background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white',
             padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
