@@ -987,25 +987,39 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 ) : cashierServices.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada servis yang sesuai dengan pencarian.</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {cashierServices.map(s => {
                       const tech = technicianUsers.find(t => String(t.id) === String(s.technician_id));
+                      const isCompleted = s.status === 'SELESAI' || s.status === 'DIAMBIL' || s.status === 'DI AMBIL';
+                      const isCancelled = s.status === 'DIBATALKAN' || s.status === 'BATAL';
+
                       return (
                         <div key={s.resi} className="cashier-recent-service">
                           <div className="cashier-service-summary">
                             <div className="cashier-service-details">
-                              <div className="cashier-service-title">{s.customer_name} <span>({s.resi})</span></div>
-                              <div className="cashier-service-device">{s.device_name}</div>
-                              <div className="cashier-service-tech">Teknisi: {tech ? tech.name : 'Belum ditentukan'}</div>
+                              <div className="cashier-service-title">
+                                <span>{s.resi}</span>
+                                <strong>{s.customer_name}</strong>
+                              </div>
+                              <div className="cashier-service-device">
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#f8fafc', padding: '3px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                                  📱 {s.device_name}
+                                </span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#f8fafc', padding: '3px 10px', borderRadius: '6px', border: '1px solid #f1f5f9', color: '#64748b' }}>
+                                  🧑‍🔧 Teknisi: <strong style={{ color: tech ? '#0f172a' : '#94a3b8' }}>{tech ? tech.name : 'Belum ditentukan'}</strong>
+                                </span>
+                              </div>
                             </div>
                             <div className="cashier-service-side">
-                              <span className="badge badge-info">{s.status || 'PROSES'}</span>
+                              <span className={`badge ${isCompleted ? 'badge-success' : isCancelled ? 'badge-danger' : 'badge-info'}`} style={{ padding: '6px 14px', borderRadius: '100px', fontWeight: '800', fontSize: '0.76rem' }}>
+                                {s.status || 'PROSES'}
+                              </span>
                               <div className="cashier-service-actions">
-                                <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DIAMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>
-                                  <Printer size={15} /> Cetak Nota
+                                <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(isCompleted ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>
+                                  <Printer size={15} color="#0284c7" /> Cetak Nota
                                 </button>
                                 <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowBarcodeModal(true); }}>
-                                  Barcode
+                                  <ScanLine size={15} color="#64748b" /> Barcode
                                 </button>
                               </div>
                             </div>
