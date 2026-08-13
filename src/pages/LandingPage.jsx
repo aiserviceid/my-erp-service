@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -18,6 +18,13 @@ import {
   UsersRound,
   Wrench,
   X,
+  ArrowUpRight,
+  Gauge,
+  PackageCheck,
+  Receipt,
+  BellRing,
+  ChevronDown,
+  MonitorSmartphone,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { APP_VERSION, APK_DOWNLOAD_PATH, APK_FILE_NAME } from '../config/appInfo';
@@ -58,6 +65,20 @@ const painPoints = [
   'Status servis sering lupa di-update',
   'Nota, stok, dan laporan masih tercecer',
   'Pelanggan sering tanya: “HP saya sudah jadi?”',
+];
+
+const workflowSteps = [
+  { number: '01', icon: Receipt, title: 'Unit diterima', text: 'Kasir mencatat pelanggan, perangkat, keluhan, dan mencetak nota.' },
+  { number: '02', icon: Wrench, title: 'Teknisi bekerja', text: 'Tugas masuk ke portal teknisi dan progres dapat dipantau.' },
+  { number: '03', icon: BellRing, title: 'Pelanggan mendapat kabar', text: 'Status dan link tracking dapat dikirim melalui WhatsApp.' },
+  { number: '04', icon: BarChart3, title: 'Owner tetap memegang kendali', text: 'Omzet, stok, servis, dan kinerja tim terlihat dalam laporan.' },
+];
+
+const faqs = [
+  { q: 'Apakah UnitPro bisa dicoba sebelum berlangganan?', a: 'Bisa. Gunakan demo tanpa membuat akun atau mulai dengan paket Free untuk mencoba alur servis, kasir, dan tracking.' },
+  { q: 'Apakah bisa digunakan dari HP dan komputer?', a: 'Bisa. UnitPro berjalan melalui browser modern dan tersedia juga sebagai APK Android untuk operasional harian.' },
+  { q: 'Apakah pelanggan harus memasang aplikasi?', a: 'Tidak. Pelanggan cukup membuka link tracking dan memasukkan nomor resi untuk melihat status servis.' },
+  { q: 'Bagaimana jika toko memiliki beberapa teknisi?', a: 'Paket Pro mendukung akun tim dengan PIN masing-masing, pembagian tugas servis, absensi, gaji, dan komisi.' },
 ];
 
 const packages = [
@@ -112,18 +133,53 @@ function BrandLogo() {
 }
 
 export default function LandingPage() {
+  const landingRef = useRef(null);
   const navigate = useNavigate();
   const setTenant = useStore((state) => state.setTenant);
   const currentLang = getAppLanguage();
   const [versionInfo, setVersionInfo] = useState(null);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [navScrolled, setNavScrolled] = useState(false);
+  const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
     fetchAppVersionInfo()
       .then((data) => setVersionInfo(data))
       .catch((err) => console.warn('Failed to load version info on landing:', err));
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => setNavScrolled(window.scrollY > 18);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
+
+    const targets = landingRef.current?.querySelectorAll('[data-reveal]') || [];
+    targets.forEach((target) => observer.observe(target));
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
+    };
+  }, []);
+
+  const handlePointerMove = (event) => {
+    if (!landingRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const x = event.clientX / window.innerWidth;
+    const y = event.clientY / window.innerHeight;
+    landingRef.current.style.setProperty('--pointer-x', `${Math.round(x * 100)}%`);
+    landingRef.current.style.setProperty('--pointer-y', `${Math.round(y * 100)}%`);
+    landingRef.current.style.setProperty('--tilt-x', `${(0.5 - y) * 4}deg`);
+    landingRef.current.style.setProperty('--tilt-y', `${(x - 0.5) * 5}deg`);
+  };
 
   const startDemo = (role = 'owner') => {
     const demoSettings = {
@@ -133,7 +189,7 @@ export default function LandingPage() {
       bank_name: 'BCA',
       bank_account: '1234567890',
       bank_holder: 'UnitPro Demo Store',
-      receipt_note_service: 'Simpan nota ini mebikin bukti pengambilan.',
+      receipt_note_service: 'Simpan nota ini sebagai bukti pengambilan.',
       receipt_note_pos: 'Terima kasih sudah berbelanja.',
     };
 
@@ -184,8 +240,10 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="simple-landing">
-      <nav className="simple-nav">
+    <main className="simple-landing" ref={landingRef} onPointerMove={handlePointerMove}>
+      <div className="landing-ambient landing-ambient-one" aria-hidden="true" />
+      <div className="landing-ambient landing-ambient-two" aria-hidden="true" />
+      <nav className={`simple-nav ${navScrolled ? 'is-scrolled' : ''}`}>
         <button type="button" className="simple-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <BrandLogo />
         </button>
@@ -193,13 +251,13 @@ export default function LandingPage() {
           <a href="#fitur">{t('nav_features', 'Fitur', currentLang)}</a>
           <a href="#harga">{t('nav_pricing', 'Harga', currentLang)}</a>
           <a href="#download-apk">{t('nav_apk', 'Download APK', currentLang)}</a>
-          <button type="button" onClick={login}>{t('login_btn', 'Masuk Toko', currentLang)}</button>
+          <button type="button" className="nav-login-button" onClick={login}>{t('login_btn', 'Masuk Toko', currentLang)} <ArrowUpRight size={15} /></button>
         </div>
       </nav>
 
-      <section className="simple-hero">
+      <section className="simple-hero" data-reveal>
         <div className="simple-hero-copy">
-          <p className="simple-kicker"><Wrench size={16} /> {t('landing_badge', 'Aplikasi Kasir & Servis No.1', currentLang)}</p>
+          <p className="simple-kicker"><Wrench size={16} /> {t('landing_badge', 'Sistem operasional toko servis', currentLang)}</p>
           <h1>{t('landing_hero_title', 'Satu aplikasi untuk mengatur servis, kasir, barang/jasa, teknisi, dan pelanggan.', currentLang)}</h1>
           <p className="simple-subtitle">
             {t('landing_hero_subtitle', 'UnitPro membantu toko servis & penjualan barang/jasa bekerja lebih rapi dari unit masuk sampai unit diambil pelanggan.', currentLang)}
@@ -216,34 +274,54 @@ export default function LandingPage() {
             </a>
           </div>
 
-          <p className="simple-note">Bisa dibuka langsung dari Browser (PC/HP) & Aplikasi Android APK resmi.</p>
+          <div className="hero-trust-row">
+            <span><CheckCircle2 size={15} /> Tidak perlu kartu kredit</span>
+            <span><MonitorSmartphone size={15} /> Browser & Android</span>
+            <span><ShieldCheck size={15} /> Data tiap toko terpisah</span>
+          </div>
         </div>
 
-        <aside className="simple-hero-card" aria-label="Ringkasan manfaat UnitPro">
-          <div className="simple-card-header">
-            <span><CheckCircle2 size={22} /></span>
-            <div>
-              <strong>Alur toko lebih terkendali</strong>
-              <small>Kasir → Teknisi → Pelanggan → Owner</small>
+        <aside className="product-stage" aria-label="Pratinjau dashboard UnitPro">
+          <div className="product-stage-glow" aria-hidden="true" />
+          <div className="product-window">
+            <div className="product-window-bar">
+              <div className="window-dots"><i /><i /><i /></div>
+              <span>UnitPro · Ringkasan Owner</span>
+              <small>Aktif</small>
+            </div>
+            <div className="product-dashboard">
+              <div className="product-sidebar">
+                <div className="mini-logo">U</div>
+                {[Gauge, Wrench, ShoppingCart, PackageCheck, UsersRound].map((Icon, index) => <span className={index === 0 ? 'active' : ''} key={index}><Icon size={16} /></span>)}
+              </div>
+              <div className="product-content">
+                <div className="product-title"><div><small>RINGKASAN OWNER</small><strong>Kondisi toko hari ini</strong></div><button>Terima servis</button></div>
+                <div className="product-metrics">
+                  <article><span>Omzet hari ini</span><strong>Rp 2.850.000</strong><small>+12,4%</small></article>
+                  <article><span>Servis aktif</span><strong>18 unit</strong><small>6 selesai</small></article>
+                  <article><span>Siap diambil</span><strong>5 unit</strong><small>Perlu follow-up</small></article>
+                </div>
+                <div className="product-chart-card">
+                  <div className="chart-heading"><span>Tren omzet</span><small>7 hari terakhir</small></div>
+                  <div className="chart-visual"><i /><i /><i /><i /><i /><i /><i /></div>
+                  <div className="chart-labels"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="simple-flow-list">
-            <p><span>1</span> Kasir input servis dan cetak nota</p>
-            <p><span>2</span> Teknisi update progres kerja</p>
-            <p><span>3</span> Pelanggan cek status lewat resi</p>
-            <p><span>4</span> Owner melihat laporan toko</p>
-          </div>
+          <div className="floating-status floating-status-one"><span><CheckCircle2 size={16} /></span><div><strong>Servis selesai</strong><small>Pelanggan siap dihubungi</small></div></div>
+          <div className="floating-status floating-status-two"><span><TrendingUp size={16} /></span><div><strong>Omzet terpantau</strong><small>Laporan diperbarui otomatis</small></div></div>
         </aside>
       </section>
 
-      <section className="simple-proof">
+      <section className="simple-proof" data-reveal>
         <div><strong>Servis</strong><span>resi, status, nota</span></div>
         <div><strong>Kasir</strong><span>penjualan & stok</span></div>
         <div><strong>Teknisi</strong><span>tugas & progres</span></div>
         <div><strong>Laporan</strong><span>omzet & arus kas</span></div>
       </section>
 
-      <section className="simple-section simple-two-column">
+      <section className="simple-section simple-two-column" data-reveal>
         <div>
           <p className="simple-kicker">Masalah umum</p>
           <h2>Kalau toko makin ramai, catatan manual mulai bikin repot.</h2>
@@ -255,7 +333,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="fitur" className="simple-section">
+      <section className="simple-section workflow-section" data-reveal>
+        <div className="simple-section-head workflow-heading">
+          <p className="simple-kicker">Satu alur kerja</p>
+          <h2>Dari unit masuk sampai laporan, semuanya tetap tersambung.</h2>
+          <p>Setiap orang melihat hal yang mereka butuhkan tanpa membuat data terpisah-pisah.</p>
+        </div>
+        <div className="workflow-track">
+          {workflowSteps.map(({ number, icon: Icon, title, text }) => (
+            <article className="workflow-card" key={number}>
+              <div className="workflow-card-top"><span>{number}</span><Icon size={20} /></div>
+              <h3>{title}</h3><p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="fitur" className="simple-section" data-reveal>
         <div className="simple-section-head">
           <p className="simple-kicker">Fitur inti</p>
           <h2>Cukup fitur yang benar-benar dipakai toko setiap hari.</h2>
@@ -271,7 +365,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="simple-demo-strip">
+      <section className="simple-demo-strip" data-reveal>
         <div>
           <p className="simple-kicker">Demo cepat</p>
           <h2>Coba dulu sebelum dipakai di toko.</h2>
@@ -284,7 +378,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="harga" className="simple-section simple-pricing-section">
+      <section id="harga" className="simple-section simple-pricing-section" data-reveal>
         <div className="simple-section-head">
           <p className="simple-kicker">Harga</p>
           <h2>Pilih paket sesuai tahap toko atau bisnis partner kamu.</h2>
@@ -314,7 +408,7 @@ export default function LandingPage() {
       </section>
 
       {/* REVAMPED PUBLIC APK DOWNLOAD SECTION & INSTALL GUIDE */}
-      <section id="download-apk" className="simple-section simple-apk-pro-section">
+      <section id="download-apk" className="simple-section simple-apk-pro-section" data-reveal>
         <div className="simple-apk-pro-card">
           <div className="simple-apk-pro-header">
             <div className="simple-apk-icon-badge">
@@ -323,7 +417,7 @@ export default function LandingPage() {
             <div>
               <span className="simple-apk-status-tag"><Sparkles size={14} /> Aplikasi Android Resmi</span>
               <h2>Unduh UnitPro untuk Android</h2>
-              <p>Kelola toko servis, kasir POS, dan tugas teknisi langsung dari perangkat Android Anda dengan integrasi auto update otomatis.</p>
+              <p>Kelola toko servis, kasir POS, dan tugas teknisi langsung dari perangkat Android dengan pembaruan aplikasi yang praktis.</p>
             </div>
           </div>
 
@@ -347,7 +441,7 @@ export default function LandingPage() {
               <Download size={20} /> Unduh APK Resmi (v{versionInfo?.version || APP_VERSION})
             </a>
             <p className="simple-apk-trust-text">
-              <ShieldCheck size={16} color="#0284c7" /> Bebas Malware & Virus • Aman Dipasang di Seluruh Perangkat Android
+              <ShieldCheck size={16} color="#0284c7" /> Unduh hanya melalui halaman resmi UnitPro
             </p>
           </div>
 
@@ -392,7 +486,24 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="simple-final-cta">
+      <section className="simple-section faq-section" data-reveal>
+        <div className="simple-section-head">
+          <p className="simple-kicker">Pertanyaan umum</p>
+          <h2>Hal penting sebelum mulai menggunakan UnitPro.</h2>
+        </div>
+        <div className="faq-list">
+          {faqs.map((item, index) => (
+            <article className={`faq-item ${openFaq === index ? 'open' : ''}`} key={item.q}>
+              <button type="button" onClick={() => setOpenFaq(openFaq === index ? -1 : index)} aria-expanded={openFaq === index}>
+                <span>{item.q}</span><ChevronDown size={20} />
+              </button>
+              <div className="faq-answer"><p>{item.a}</p></div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="simple-final-cta" data-reveal>
         <ShieldCheck size={30} />
         <h2>Mulai rapikan toko servis kamu hari ini.</h2>
         <p>Jangan tunggu toko makin ramai baru sistemnya dibenahi.</p>
@@ -426,13 +537,13 @@ export default function LandingPage() {
               <strong>Keamanan & Privasi</strong>
               <button type="button" className="link-btn" onClick={() => setShowPrivacyModal(true)}>Kebijakan Privasi</button>
               <span><Lock size={14} /> Encrypted Data Safety</span>
-              <span><ShieldCheck size={14} /> Certified Cloud Backup</span>
+              <span><ShieldCheck size={14} /> Isolasi data per tenant</span>
             </div>
           </div>
         </div>
         <div className="simple-footer-bottom">
           <span>© {new Date().getFullYear()} UnitPro Indonesia. Hak Cipta Dilindungi.</span>
-          <span>Aplikasi Manajemen Servis HP, Laptop, & Elektronik No.1</span>
+          <span>Sistem operasional servis, kasir, dan tim</span>
         </div>
       </footer>
 
@@ -476,4 +587,3 @@ export default function LandingPage() {
     </main>
   );
 }
-
