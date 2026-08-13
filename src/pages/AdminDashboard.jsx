@@ -73,6 +73,7 @@ export default function AdminDashboard() {
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('Bulan Ini');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [obStoreName, setObStoreName] = useState('');
