@@ -3663,7 +3663,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
           display: 'flex', alignItems: 'center', gap: '8px',
           transition: 'all 0.2s ease'
         }}
-        title="Kirim Kritik & Saran ke Super Admin"
+        title="Kirim Kritik & Saran ke Admin"
       >
         <MessageSquareHeart size={18} />
         <span>Kritik & Saran</span>

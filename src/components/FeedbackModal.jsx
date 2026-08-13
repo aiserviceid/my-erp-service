@@ -75,7 +75,7 @@ export default function FeedbackModal({ tenant, user, onClose, onSuccess }) {
             </div>
             <h3 style={{ margin: '0 0 8px', color: '#0f172a', fontSize: '1.25rem', fontWeight: '800' }}>Terima Kasih Banyak!</h3>
             <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 20px' }}>
-              Kritik & saran Anda telah langsung terkirim ke <strong>Super Admin UnitPro</strong>. Kami akan menggunakannya untuk terus menyempurnakan aplikasi.
+              Kritik & saran Anda telah langsung terkirim ke <strong>Admin UnitPro</strong>. Kami akan menggunakannya untuk terus menyempurnakan aplikasi.
             </p>
             <button
               type="button"
@@ -97,7 +97,7 @@ export default function FeedbackModal({ tenant, user, onClose, onSuccess }) {
               </div>
               <div>
                 <h3 style={{ margin: '0', color: '#0f172a', fontSize: '1.15rem', fontWeight: '800' }}>Kritik & Saran Pengembang</h3>
-                <p style={{ margin: '2px 0 0', color: '#64748b', fontSize: '0.78rem' }}>Semua masukan dikirim langsung ke Super Admin UnitPro</p>
+                <p style={{ margin: '2px 0 0', color: '#64748b', fontSize: '0.78rem' }}>Semua masukan dikirim langsung ke Admin UnitPro</p>
               </div>
             </div>
 
@@ -218,7 +218,7 @@ export default function FeedbackModal({ tenant, user, onClose, onSuccess }) {
                 boxShadow: '0 4px 14px rgba(2, 132, 199, 0.3)', opacity: submitting ? 0.7 : 1
               }}
             >
-              <Send size={16} /> {submitting ? 'Mengirim Masukan...' : 'Kirim Kritik & Saran ke Super Admin'}
+              <Send size={16} /> {submitting ? 'Mengirim Masukan...' : 'Kirim Kritik & Saran ke Admin'}
             </button>
           </form>
         )}

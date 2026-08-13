@@ -1393,7 +1393,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           display: 'flex', alignItems: 'center', gap: '8px',
           transition: 'all 0.2s ease'
         }}
-        title="Kirim Kritik & Saran ke Super Admin"
+        title="Kirim Kritik & Saran ke Admin"
       >
         <MessageSquareHeart size={18} />
         <span>Kritik & Saran</span>
