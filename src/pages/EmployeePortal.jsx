@@ -1091,8 +1091,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 <Download size={20} />
                 <div>
                   <strong>Update Aplikasi</strong>
-                  <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru ${latestVersionInfo.version} tersedia` : `Versi saat ini ${APP_VERSION}`}</span>
-                  <button className="btn btn-primary" onClick={openEmployeeUpdate}>Update APK</button>
+                  <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru v${latestVersionInfo.version} tersedia` : `Versi saat ini v${APP_VERSION}`}</span>
+                  <small style={{ display: 'block', color: '#64748b', fontSize: '0.76rem', marginTop: '2px', fontWeight: '600' }}>
+                    📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                  </small>
+                  <button className="btn btn-primary" onClick={openEmployeeUpdate} style={{ marginTop: '8px' }}>Update APK</button>
                 </div>
               </div>
               <div className="employee-setting-card">
@@ -1341,8 +1344,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 <Download size={20} />
                 <div>
                   <strong>Update Aplikasi</strong>
-                  <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru ${latestVersionInfo.version} tersedia` : `Versi saat ini ${APP_VERSION}`}</span>
-                  <button className="btn btn-primary" onClick={openEmployeeUpdate}>Update APK</button>
+                  <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru v${latestVersionInfo.version} tersedia` : `Versi saat ini v${APP_VERSION}`}</span>
+                  <small style={{ display: 'block', color: '#64748b', fontSize: '0.76rem', marginTop: '2px', fontWeight: '600' }}>
+                    📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                  </small>
+                  <button className="btn btn-primary" onClick={openEmployeeUpdate} style={{ marginTop: '8px' }}>Update APK</button>
                 </div>
               </div>
               <div className="employee-setting-card">

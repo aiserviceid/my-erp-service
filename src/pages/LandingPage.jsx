@@ -334,7 +334,7 @@ export default function LandingPage() {
             </div>
             <div className="simple-apk-meta-item">
               <small>Tanggal Pembaruan</small>
-              <strong>{versionInfo?.releaseDate || 'Agustus 2026'}</strong>
+              <strong>{versionInfo?.releaseDate || '13 Agustus 2026'}</strong>
             </div>
             <div className="simple-apk-meta-item">
               <small>Fitur Auto-Update</small>

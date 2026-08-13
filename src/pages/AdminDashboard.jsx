@@ -2146,11 +2146,14 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                       <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#0f766e', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Smartphone size={24} /></div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: '800', color: '#134e4a' }}>UnitPro Android</div>
-                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi saat ini: {appVersion}</div>
+                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi saat ini: v{appVersion}</div>
                         <div style={{ color: latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, appVersion) ? '#b45309' : '#047857', fontSize: '0.82rem', marginTop: '3px', fontWeight: '800' }}>
                           {latestVersionInfo?.version
-                            ? (isNewerVersion(latestVersionInfo.version, appVersion) ? `Versi baru tersedia: ${latestVersionInfo.version}` : 'Aplikasi sudah versi terbaru')
+                            ? (isNewerVersion(latestVersionInfo.version, appVersion) ? `Versi baru tersedia: v${latestVersionInfo.version}` : 'Aplikasi sudah versi terbaru')
                             : 'Mengecek info versi...'}
+                        </div>
+                        <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
+                          📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
                         </div>
                       </div>
                     </div>

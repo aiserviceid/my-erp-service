@@ -31,6 +31,11 @@ export default function AndroidUpdateModal({ updateInfo, onClose }) {
           </div>
           <h3>Pembaruan Aplikasi Tersedia</h3>
           <span>Versi baru: v{updateInfo.version || '1.2.0'} | Versi Anda: v{APP_VERSION}</span>
+          <div style={{ marginTop: '6px' }}>
+            <span style={{ fontSize: '0.78rem', background: '#f1f5f9', color: '#475569', padding: '3px 12px', borderRadius: '100px', fontWeight: '700', border: '1px solid #cbd5e1', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              📅 Terakhir Update: <strong>{updateInfo.releaseDate || updateInfo.release_date || '13 Agustus 2026'}</strong>
+            </span>
+          </div>
         </div>
 
         <div className="unitpro-update-changelog">
