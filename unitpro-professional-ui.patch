@@ -1,0 +1,743 @@
+diff --git a/src/components/CustomerCRMInsights.jsx b/src/components/CustomerCRMInsights.jsx
+index 6515473..67fa6a3 100644
+--- a/src/components/CustomerCRMInsights.jsx
++++ b/src/components/CustomerCRMInsights.jsx
+@@ -99,6 +99,11 @@ export default function CustomerCRMInsights({ services = [], transactions = [],
+ 
+   const [campaignImageUrl, setCampaignImageUrl] = useState('');
+   const [disabledPhones, setDisabledPhones] = useState(new Set());
++  const [broadcastBatchSize, setBroadcastBatchSize] = useState(10);
++  const [broadcastDelaySec, setBroadcastDelaySec] = useState(5);
++  const [isBroadcasting, setIsBroadcasting] = useState(false);
++  const [broadcastProgress, setBroadcastProgress] = useState(0);
++  const [broadcastLogs, setBroadcastLogs] = useState([]);
+   const [savedTemplates, setSavedTemplates] = useState(() => {
+     try {
+       return JSON.parse(localStorage.getItem('UNITPRO_WA_SAVED_TEMPLATES') || '[]');
+@@ -542,9 +547,9 @@ export default function CustomerCRMInsights({ services = [], transactions = [],
+     <div className="customer-crm-insights">
+       <div className="customer-crm-hero" style={{ position: 'relative', overflow: 'hidden' }}>
+         <div>
+-          <p style={{ letterSpacing: '0.08em', fontWeight: '900' }}>CRM PELANGGAN & WHATSAPP MARKETING PRO</p>
+-          <h3 style={{ fontSize: '1.5rem', margin: '4px 0 8px 0' }}>AI Agent + Campaign Cerdas Toko Anda</h3>
+-          <span style={{ fontSize: '0.88rem', opacity: 0.9 }}>Balas WhatsApp otomatis, buat promo barang/jasa, follow-up CRM, dan personalisasi pesan cukup dengan bahasa sehari-hari.</span>
++          <p style={{ letterSpacing: '0.08em', fontWeight: '900' }}>PELANGGAN & WHATSAPP</p>
++          <h3 style={{ fontSize: '1.5rem', margin: '4px 0 8px 0' }}>Hubungan Pelanggan</h3>
++          <span style={{ fontSize: '0.88rem', opacity: 0.9 }}>Kelola segmen pelanggan, tindak lanjut servis, dan kampanye WhatsApp dari satu tempat.</span>
+         </div>
+         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+           <div className="customer-crm-pro-badge"><Crown size={15} /> WhatsApp Marketing Pro</div>
+@@ -588,7 +593,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [],
+         </div>
+         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+           <button type="button" className="btn btn-ghost" onClick={() => setShowGuide((value) => !value)} style={{ fontWeight: '800', fontSize: '0.8rem' }}>
+-            ❓ Panduan 1 Menit
++            Panduan Singkat
+           </button>
+           <button type="button" className="btn btn-ghost" disabled={gatewayTestStatus === 'testing'} onClick={handleTestGateway} style={{ fontWeight: '800', fontSize: '0.8rem', background: '#ffffff', border: '1px solid #cbd5e1' }}>
+             <RefreshCw size={14} className={gatewayTestStatus === 'testing' ? 'animate-spin' : ''} /> {gatewayTestStatus === 'testing' ? 'Menguji...' : 'Tes Koneksi Gateway'}
+@@ -598,19 +603,19 @@ export default function CustomerCRMInsights({ services = [], transactions = [],
+ 
+       {showGuide && (
+         <div style={{ marginTop: '10px', padding: '16px', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', animation: 'fadeIn 0.3s ease-out' }}>
+-          <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem' }}>📖 Panduan Lengkap UnitPro AI + WhatsApp Marketing</strong>
++          <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem' }}>Panduan Pelanggan & WhatsApp</strong>
+           <div style={{ display: 'grid', gap: '6px', fontSize: '0.84rem', lineHeight: 1.5 }}>
+             <span><b>1.</b> Buka <b>Pengaturan → WhatsApp Gateway</b> untuk memasukkan Token Fonnte/Custom Anda jika menggunakan server pribadi.</span>
+-            <span><b>2.</b> Aktifkan <b>AI Agent</b> di bawah. AI otomatis menjawab status servis, invoice, harga barang/jasa, dan lokasi toko 24/7.</span>
+-            <span><b>3.</b> Pilih salah satu <b>Segmen Pelanggan</b> di bawah. UnitPro memilah pelanggan secara otomatis.</span>
+-            <span><b>4.</b> Klik <b>Tombol Preset Cepat</b> atau tulis perintah ke AI Copywriter Gemini untuk memuat draf promosi.</span>
+-            <span><b>5.</b> Cek simulasi tampilan gelembung chat WhatsApp di sebelah kanan, lalu jalankan <b>Broadcast Gateway</b> secara aman.</span>
++            <span><b>2.</b> Pilih <b>segmen pelanggan</b> yang ingin dihubungi.</span>
++            <span><b>3.</b> Pilih template atau susun pesan yang singkat dan relevan.</span>
++            <span><b>4.</b> Periksa pratinjau pesan, jumlah penerima, dan jeda pengiriman.</span>
++            <span><b>5.</b> Jalankan broadcast dan pantau status pengiriman.</span>
+           </div>
+         </div>
+       )}
+ 
+       {/* AI AGENT CONTROL PANEL */}
+-      <div style={{ marginTop: '1rem', padding: '1.2rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
++      {false && <div style={{ marginTop: '1rem', padding: '1.2rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+             <div style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: agentEnabled ? '#16a34a' : '#64748b', color: '#fff', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)' }}><Bot size={24} /></div>
+@@ -630,9 +635,9 @@ export default function CustomerCRMInsights({ services = [], transactions = [],
+           <button type="button" className="btn btn-ghost" onClick={handleToggleAgentChats} style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.78rem' }}>👤 {showAgentChats ? 'Tutup Percakapan' : 'Ambil Alih Chat Human'}</button>
+         </div>}
+         {agentStatus && <div style={{ marginTop: 10, fontSize: '0.82rem', fontWeight: 700, color: agentStatus.startsWith('❌') ? '#b91c1c' : '#166534' }}>{agentStatus}</div>}
+-      </div>
++      </div>}
+ 
+-      {showAgentChats && (
++      {false && showAgentChats && (
+         <div style={{ marginTop: '10px', padding: '14px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+             <div>
+@@ -800,7 +805,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [],
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+               <label style={{ fontSize: '0.8rem', fontWeight: '900', color: '#166534' }}>📝 Pesan WhatsApp (Bebas Edit)</label>
+               <button type="button" className="btn btn-ghost" onClick={handleSaveCurrentTemplate} style={{ fontSize: '0.72rem', background: '#fff', border: '1px solid #cbd5e1', padding: '3px 8px' }}>
+-                💾 Simpan Jadi Template Toko
++                Simpan sebagai Template
+               </button>
+             </div>
+             <textarea ref={messageRef} className="input-field" value={campaignMessage} onChange={(e) => setCampaignMessage(e.target.value)} rows={6} placeholder={'Halo Kak {nama_pelanggan}, ...'} style={{ resize: 'vertical', lineHeight: 1.5, background: '#fff', fontSize: '0.86rem' }} />
+diff --git a/src/components/POSView.jsx b/src/components/POSView.jsx
+index 086822c..aa8459a 100644
+--- a/src/components/POSView.jsx
++++ b/src/components/POSView.jsx
+@@ -433,23 +433,6 @@ export default function POSView({ products, transactions = [], onTransactionCrea
+             <div style={{ fontSize: '1.1rem', fontWeight: '800' }}>{cart.length}</div>
+             <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Keranjang</div>
+           </div>
+-          <button onClick={async () => {
+-            if (!window.confirm('⚠️ Rollback Data QA?\nIni akan menghapus transaksi tes POS dan mengembalikan stok sparepart ke 50 unit.')) return;
+-            try {
+-              const res = await apiService.rollbackQASandbox(tenant.code);
+-              alert(res.message);
+-              if (onTransactionCreated) onTransactionCreated();
+-              fetchProducts();
+-            } catch (e) {
+-              alert('Gagal rollback QA: ' + e.message);
+-            }
+-          }} style={{
+-            background: 'rgba(239,68,68,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
+-            padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+-            fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px'
+-          }} title="Reset transaksi tes & kembalikan stok sparepart">
+-            🧪 Rollback QA
+-          </button>
+           <button onClick={() => setShowHistory(!showHistory)} style={{
+             background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white',
+             padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+diff --git a/src/components/PremiumFinanceReport.jsx b/src/components/PremiumFinanceReport.jsx
+index d3056c8..90f235e 100644
+--- a/src/components/PremiumFinanceReport.jsx
++++ b/src/components/PremiumFinanceReport.jsx
+@@ -525,7 +525,7 @@ export default function PremiumFinanceReport({
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+           <div>
+             <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+-              📊 Pusat Laporan Keuangan
++              PUSAT LAPORAN
+             </span>
+             <h2 style={{ margin: '4px 0 0 0', fontSize: '1.4rem', fontWeight: '900', color: '#ffffff' }}>
+               Laporan Keuangan & Arus Kas Toko
+@@ -572,7 +572,7 @@ export default function PremiumFinanceReport({
+               onClick={() => setPeriod('custom')}
+               style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: '700', borderRadius: '10px', background: period === 'custom' ? '#0ea5e9' : 'transparent', color: period === 'custom' ? '#fff' : '#cbd5e1', border: 'none' }}
+             >
+-              Custom 📅
++              Pilih Tanggal
+             </button>
+           </div>
+         </div>
+@@ -627,7 +627,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'ringkasan' ? '#ffffff' : '#475569'
+           }}
+         >
+-          📊 Ringkasan
++          Ringkasan
+         </button>
+ 
+         <button
+@@ -645,7 +645,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'arus_kas' ? '#ffffff' : '#475569'
+           }}
+         >
+-          🔄 Arus Kas
++          Arus Kas
+         </button>
+ 
+         <button
+@@ -663,7 +663,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'pengeluaran' ? '#ffffff' : '#475569'
+           }}
+         >
+-          💸 Pengeluaran ({expenseList.length})
++          Pengeluaran ({expenseList.length})
+         </button>
+ 
+         <button
+@@ -681,7 +681,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'laba_rugi' ? '#ffffff' : '#475569'
+           }}
+         >
+-          📈 Laba Rugi
++          Laba Rugi
+         </button>
+ 
+         <button
+@@ -699,7 +699,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'sumber_omzet' ? '#ffffff' : '#475569'
+           }}
+         >
+-          🍕 Sumber Omzet
++          Sumber Omzet
+         </button>
+ 
+         <button
+@@ -717,7 +717,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'piutang' ? '#ffffff' : '#475569'
+           }}
+         >
+-          ⏳ Piutang ({summaryMetrics.unpaidCount})
++          Piutang ({summaryMetrics.unpaidCount})
+         </button>
+ 
+         <button
+@@ -735,7 +735,7 @@ export default function PremiumFinanceReport({
+             color: activeSubTab === 'export' ? '#ffffff' : '#0369a1'
+           }}
+         >
+-          📥 Export Excel
++          Export Excel
+         </button>
+       </div>
+ 
+@@ -808,7 +808,7 @@ export default function PremiumFinanceReport({
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '10px' }}>
+               <div>
+                 <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
+-                  📈 Grafik Tren Pemasukan vs Pengeluaran Periode Ini
++                  Tren Pemasukan dan Pengeluaran
+                 </h4>
+                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                   Perbandingan pemasukan (omzet) dan pengeluaran harian
+@@ -833,7 +833,7 @@ export default function PremiumFinanceReport({
+                       boxShadow: chartType === 'AREA' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
+                     }}
+                   >
+-                    📈 Area Chart
++                    Area
+                   </button>
+                   <button
+                     type="button"
+@@ -850,7 +850,7 @@ export default function PremiumFinanceReport({
+                       boxShadow: chartType === 'BAR' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
+                     }}
+                   >
+-                    📊 Bar Chart
++                    Batang
+                   </button>
+                 </div>
+ 
+@@ -870,7 +870,7 @@ export default function PremiumFinanceReport({
+             <div style={{ height: '280px', width: '100%' }}>
+               {!chartTrendData.some((item) => Number(item.Pemasukan || 0) > 0 || Number(item.Pengeluaran || 0) > 0) ? (
+                 <div className="chart-empty-state">
+-                  <div className="chart-empty-icon" aria-hidden="true">📈</div>
++                  <div className="chart-empty-icon" aria-hidden="true">—</div>
+                   <strong>Belum ada transaksi</strong>
+                   <span>Data akan muncul otomatis setelah transaksi pertama</span>
+                 </div>
+@@ -952,7 +952,7 @@ export default function PremiumFinanceReport({
+               </div>
+             ) : (
+               <div className="chart-empty-state chart-empty-state--small">
+-                <div className="chart-empty-icon" aria-hidden="true">📊</div>
++                <div className="chart-empty-icon" aria-hidden="true">—</div>
+                 <strong>Belum ada transaksi</strong>
+                 <span>Data bulanan akan muncul otomatis setelah transaksi pertama</span>
+               </div>
+@@ -964,7 +964,7 @@ export default function PremiumFinanceReport({
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+               <div>
+                 <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
+-                  👨‍🔧 Kinerja & Omzet Jasa Teknisi Periode Ini
++                  Kinerja Teknisi
+                 </h4>
+                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                   Total unit servis diselesaikan & kontribusi omzet per teknisi
+@@ -1091,7 +1091,7 @@ export default function PremiumFinanceReport({
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
+             <div>
+               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+-                💸 Catatan Pengeluaran Toko
++                Catatan Pengeluaran
+               </h3>
+               <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                 Total Pengeluaran Periode Ini: <strong style={{ color: '#dc2626' }}>Rp {formatRupiah(summaryMetrics.totalExpense)}</strong>
+@@ -1250,7 +1250,7 @@ export default function PremiumFinanceReport({
+       {activeSubTab === 'sumber_omzet' && (
+         <div className="glass-panel" style={{ padding: '1.5rem', animation: 'fadeIn 0.2s ease-in-out' }}>
+           <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+-            🍕 Breakdown Sumber Omzet & Pendapatan
++            Rincian Sumber Omzet
+           </h3>
+ 
+           {(() => {
+@@ -1329,7 +1329,7 @@ export default function PremiumFinanceReport({
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
+             <div>
+               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+-                ⏳ Daftar Piutang & Servis Belum Lunas
++                Piutang & Servis Belum Lunas
+               </h3>
+               <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                 Total Tagihan Belum Terbayar: <strong style={{ color: '#d97706' }}>Rp {formatRupiah(summaryMetrics.unpaidTotal)}</strong> ({summaryMetrics.unpaidCount} unit)
+@@ -1556,7 +1556,7 @@ export default function PremiumFinanceReport({
+                   disabled={isSubmittingExpense}
+                   style={{ fontWeight: '800' }}
+                 >
+-                  {isSubmittingExpense ? 'Simpan...' : '💾 Simpan Pengeluaran'}
++                  {isSubmittingExpense ? 'Menyimpan...' : 'Simpan Pengeluaran'}
+                 </button>
+               </div>
+             </form>
+diff --git a/src/index.css b/src/index.css
+index d219c4a..ec2ce23 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -585,6 +585,178 @@
+   .technician-task-actions > .btn { flex: 1 1 150px; justify-content: center; }
+ }
+ 
++/* UnitPro professional design layer */
++:root {
++  --primary: #0f766e;
++  --primary-hover: #0b5f59;
++  --accent: #0f766e;
++  --text: #172033;
++  --text-muted: #65758b;
++  --border-light: #e2e8f0;
++  --glass-bg: #ffffff;
++}
++
++body {
++  color: var(--text);
++  background: #f6f8fb;
++  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
++}
++
++.sidebar {
++  background: #ffffff;
++  border-right: 1px solid #e6ebf1;
++  box-shadow: 8px 0 30px rgba(15, 23, 42, 0.035);
++}
++
++.sidebar .btn {
++  min-height: 42px;
++  border-radius: 10px;
++  font-weight: 650;
++}
++
++.main-content {
++  background: #f6f8fb;
++}
++
++.glass-panel,
++.employee-pro-panel,
++.employee-setting-card,
++.attendance-card {
++  border: 1px solid #e2e8f0;
++  background: #ffffff;
++  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.045);
++}
++
++.glass-panel:hover {
++  transform: none;
++}
++
++.btn {
++  border-radius: 10px;
++  font-weight: 700;
++  box-shadow: none;
++}
++
++.btn-primary {
++  background: #0f766e !important;
++  border-color: #0f766e !important;
++  color: #ffffff !important;
++}
++
++.btn-primary:hover {
++  background: #0b5f59 !important;
++}
++
++.btn-ghost {
++  color: #475569;
++  background: transparent;
++}
++
++.input-field,
++input,
++select,
++textarea {
++  border-radius: 10px;
++  border-color: #cfd8e3;
++  box-shadow: none;
++}
++
++.input-field:focus,
++input:focus,
++select:focus,
++textarea:focus {
++  border-color: #0f766e;
++  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
++  outline: none;
++}
++
++.table {
++  border-collapse: separate;
++  border-spacing: 0;
++}
++
++.table th {
++  background: #f8fafc;
++  color: #526174;
++  font-size: 0.72rem;
++  font-weight: 800;
++  letter-spacing: 0.035em;
++  text-transform: uppercase;
++}
++
++.table td {
++  color: #273449;
++  border-bottom-color: #edf1f5;
++}
++
++.table tbody tr:hover {
++  background: #f8fbfb;
++}
++
++.module-heading {
++  margin-bottom: 18px;
++}
++
++.module-heading > span {
++  color: #0f766e;
++  font-size: 0.68rem;
++  font-weight: 850;
++  letter-spacing: 0.1em;
++}
++
++.module-heading h3 {
++  margin: 4px 0 3px;
++  color: #172033;
++  font-size: 1.25rem;
++  font-weight: 800;
++}
++
++.module-heading p {
++  margin: 0;
++  color: #65758b;
++  font-size: 0.84rem;
++}
++
++.employee-metric-grid {
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++}
++
++.employee-work-hero {
++  background: #123d3a;
++  box-shadow: none;
++}
++
++.employee-quick-grid button {
++  border-radius: 12px;
++  background: #ffffff;
++}
++
++.employee-quick-grid button:hover {
++  color: #0f766e;
++  border-color: #7fc3bd;
++  background: #f2fbfa;
++}
++
++.store-settings-nav {
++  background: #f8fafc !important;
++}
++
++.store-settings-nav-list .btn {
++  color: #445267;
++}
++
++.attendance-status,
++.badge {
++  box-shadow: none;
++}
++
++@media (max-width: 768px) {
++  .main-content { padding-left: 14px; padding-right: 14px; }
++  .glass-panel { border-radius: 14px; }
++  .employee-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++  .module-heading h3 { font-size: 1.12rem; }
++}
++
+ @keyframes mobileSheetIn {
+   from { transform: translateY(100%); }
+   to { transform: translateY(0); }
+diff --git a/src/pages/AdminDashboard.jsx b/src/pages/AdminDashboard.jsx
+index 1161780..12fbff4 100644
+--- a/src/pages/AdminDashboard.jsx
++++ b/src/pages/AdminDashboard.jsx
+@@ -980,7 +980,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+             <Building2 size={12} /> {tenant?.name || tenant?.code}
+           </div>
+           <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px' }}>
+-            Tier: <strong style={{ color: isEnterprise ? '#7c3aed' : isFree ? '#64748b' : '#0284c7', textTransform: 'uppercase' }}>{tenant?.tier || 'free'}</strong>
++            Paket <strong style={{ color: isEnterprise ? '#7c3aed' : isFree ? '#64748b' : '#0284c7', textTransform: 'capitalize' }}>{tenant?.tier || 'Free'}</strong>
+           </div>
+           {trialDaysLeft !== null && (
+             <div style={{ fontSize: '0.72rem', color: '#d97706', marginTop: '2px', fontWeight: 'bold' }}>
+@@ -1744,15 +1744,15 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+               <div className="store-settings-nav" style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
+                 <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Pengaturan Toko</h3>
+                 <div className="store-settings-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+-                  <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>🎨 Tema & Branding</button>
+-                  <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? '#059669' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>💬 WhatsApp Gateway</button>
++                  <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>Tampilan & Branding</button>
++                  <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? 'var(--primary)' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>Koneksi WhatsApp</button>
+                   <button onClick={() => setSettingTab('rekening')} className={`btn ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
+                   <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
+-                  <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? '#f59e0b' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>📢 Iklan & Promo</button>
++                  <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? 'var(--primary)' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>Iklan & Promo</button>
+                   <button onClick={() => setSettingTab('aplikasi')} className={`btn ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
+                   <button onClick={() => setSettingTab('keamanan')} className={`btn ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
+                   <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
+-                  <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#ef4444', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>⚠️ Reset Data</button>
++                  <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#dc2626', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>Zona Berbahaya</button>
+                 </div>
+               </div>
+ 
+@@ -1830,7 +1830,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                         } catch(e) {
+                           alert('Gagal menyimpan');
+                         }
+-                      }}>💾 Simpan Perubahan</button>
++                      }}>Simpan Perubahan</button>
+                     </div>
+                   </div>
+                 )}
+@@ -1898,7 +1898,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                           } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                         }}
+                       >
+-                        💾 Simpan Pengaturan WA
++                        Simpan Pengaturan WA
+                       </button>
+                     </div>
+                   </div>
+@@ -1973,7 +1973,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                             updateTenantSettings(newSettings);
+                             alert('Informasi kontak, rekening, dan QRIS berhasil disimpan!');
+                           } catch(e) { alert('Gagal menyimpan'); }
+-                        }}>💾 Simpan Perubahan</button>
++                        }}>Simpan Perubahan</button>
+                       </div>
+ 
+                       <div style={{ flex: 1, minWidth: '300px' }}>
+@@ -2036,7 +2036,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                             updateTenantSettings(newSettings);
+                             alert('Catatan nota berhasil disimpan!');
+                           } catch(e) { alert('Gagal menyimpan'); }
+-                        }}>💾 Simpan Catatan</button>
++                        }}>Simpan Catatan</button>
+                       </div>
+ 
+                       <div style={{ flex: 1, minWidth: '300px' }}>
+@@ -2155,7 +2155,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                             : 'Mengecek info versi...'}
+                         </div>
+                         <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
+-                          📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
++                          Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                         </div>
+                       </div>
+                     </div>
+@@ -2307,7 +2307,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                             } catch(e) { alert('Gagal menyimpan promo: ' + (e?.message || 'kesalahan jaringan')); }
+                           }}
+                         >
+-                          💾 Simpan Pengaturan Banner Promo
++                          Simpan Pengaturan Banner Promo
+                         </button>
+                       </div>
+                     )}
+@@ -2590,12 +2590,12 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
+         ) : activeTab === 'master' ? (
+           <div className="glass-panel inventory-management" style={{ minHeight: '400px' }}>
+              <div className="inventory-management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+-               <h3 style={{ margin: 0 }}>Master Barang & Sparepart ({tenant?.name})</h3>
++               <div className="module-heading"><span>INVENTARIS</span><h3>Barang & Jasa</h3><p>Kelola katalog, harga, dan ketersediaan stok.</p></div>
+              </div>
+              
+              <div className="inventory-tabs" style={{ display: 'flex', gap: '15px', marginBottom: '1.5rem', borderBottom: '2px solid var(--border-light)' }}>
+-               <button onClick={() => setMasterTab('stok')} className={`tab-btn ${masterTab === 'stok' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'stok' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'stok' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📦 Daftar & Stok Barang</button>
+-               <button onClick={() => setMasterTab('audit')} className={`tab-btn ${masterTab === 'audit' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'audit' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'audit' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>📜 Log Aktivitas Stok</button>
++               <button onClick={() => setMasterTab('stok')} className={`tab-btn ${masterTab === 'stok' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'stok' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'stok' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>Daftar & Stok</button>
++               <button onClick={() => setMasterTab('audit')} className={`tab-btn ${masterTab === 'audit' ? 'active' : ''}`} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: 'bold', color: masterTab === 'audit' ? 'var(--accent)' : 'var(--text-muted)', borderBottom: masterTab === 'audit' ? '3px solid var(--accent)' : '3px solid transparent', cursor: 'pointer' }}>Riwayat Stok</button>
+              </div>
+ 
+              {masterTab === 'stok' && (
+@@ -2851,16 +2851,16 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
+             />
+           ) :
+           <div className="glass-panel employee-management" style={{ minHeight: '400px' }}>
+-             <h3 className="employee-management-title" style={{ marginBottom: '1.5rem' }}>Manajemen Karyawan ({tenant?.name})</h3>
++             <div className="module-heading"><span>TIM & KEHADIRAN</span><h3 className="employee-management-title">Manajemen Tim</h3><p>Kelola akses, kompensasi, kasbon, dan kehadiran anggota tim.</p></div>
+ 
+              {/* TABS HEADER */}
+              <div className="employee-management-tabs" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
+-               <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>👥 Daftar Karyawan</button>
++               <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>Daftar Karyawan</button>
+                <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>
+-                 💰 Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
++                 Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
+                </button>
+                <button onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>
+-                 📅 Laporan Absensi {newAttendanceCount > 0 && <span className="badge badge-success" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{newAttendanceCount}</span>}
++                 Laporan Absensi {newAttendanceCount > 0 && <span className="badge badge-success" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{newAttendanceCount}</span>}
+                </button>
+              </div>
+ 
+@@ -2912,16 +2912,16 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
+                     </button>
+                  </div>
+                  </details>
+-                 <p style={{ color: 'var(--text-muted)' }}>*Karyawan ini nantinya bisa login melalui Portal Karyawan menggunakan PIN.</p>
++                 <p style={{ color: 'var(--text-muted)' }}>Anggota tim dapat masuk melalui Portal Tim menggunakan PIN masing-masing.</p>
+                  <div className="employee-table-wrap"><table className="table employee-table" style={{ marginTop: '1.5rem' }}>
+-                   <thead><tr><th>Nama Karyawan</th><th>No. WA</th><th>Peran (Role)</th><th>PIN Login</th><th>Gaji (Rp)</th><th>Komisi (%)</th><th>Aksi</th></tr></thead>
++                   <thead><tr><th>Nama</th><th>WhatsApp</th><th>Peran</th><th>PIN</th><th>Gaji</th><th>Komisi</th><th>Aksi</th></tr></thead>
+                    <tbody>
+                      {users.map(u => (
+                        <tr key={u.id}>
+                          <td>{u.name}</td>
+                          <td>{u.phone || '-'}</td>
+                          <td><span className={`badge ${u.role === 'KASIR' ? 'badge-success' : 'badge-warning'}`}>{u.role}</span></td>
+-                         <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pin}</td>
++                         <td style={{ fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.12em' }}>••••</td>
+                          <td>Rp {(tenant.settings?.employee_salaries?.[u.id] || 0).toLocaleString('id-ID')}</td>
+                          <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
+                          <td>
+@@ -3367,7 +3367,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
+                   Langkah 2: Tambah Karyawan / Teknisi Pertama
+                 </h4>
+                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
+-                  Karyawan ini dapat login ke Portal Karyawan menggunakan PIN login.
++                  Karyawan ini dapat masuk ke Portal Tim menggunakan PIN.
+                 </p>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                   <input 
+@@ -3585,13 +3585,13 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
+                         } catch(e) { alert('Gagal menyimpan catatan'); }
+                       }}
+                     >
+-                      💾 Simpan Catatan Admin
++                      Simpan Catatan Admin
+                     </button>
+                   </div>
+ 
+                   <div>
+                     <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem', color: '#0f172a', fontWeight: '800' }}>
+-                      ⏳ Riwayat & Timeline Gabungan (Servis + POS Kasir)
++                      Riwayat Aktivitas Servis & Kasir
+                     </h4>
+                     {timelineItems.length === 0 ? (
+                       <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Belum ada riwayat transaksi terdeteksi.</div>
+diff --git a/src/pages/EmployeePortal.jsx b/src/pages/EmployeePortal.jsx
+index df97602..602f5e2 100644
+--- a/src/pages/EmployeePortal.jsx
++++ b/src/pages/EmployeePortal.jsx
+@@ -808,7 +808,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+         tenant_code: employee.tenant_code || tenant.code,
+         type: type,
+         amount: 0,
+-        description: `ATTENDANCE_EMP_${employee.id}`
++        description: `ATTENDANCE_EMP_${employee.id}`,
++        idempotency_key: `ATTENDANCE_${employee.id}_${todayDateKey}_${type}`,
+       });
+       await fetchTransactions();
+       alert(`Absensi ${type === 'ATTENDANCE_IN' ? 'masuk' : 'pulang'} berhasil dicatat.`);
+@@ -926,11 +927,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+             <strong>{isKasir ? services.filter(s => !isPaidServiceStatus(s.status)).length : finishedToday.length}</strong>
+             <small>{isKasir ? 'Masih berjalan' : 'Sudah lunas/diambil'}</small>
+           </article>
+-          <article>
+-            <span>Update APK</span>
+-            <strong>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? 'Baru' : 'OK'}</strong>
+-            <small>v{APP_VERSION}</small>
+-          </article>
+         </section>
+ 
+       {isKasir ? (
+@@ -1095,7 +1091,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                   <strong>Update Aplikasi</strong>
+                   <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru v${latestVersionInfo.version} tersedia` : `Versi saat ini v${APP_VERSION}`}</span>
+                   <small style={{ display: 'block', color: '#64748b', fontSize: '0.76rem', marginTop: '2px', fontWeight: '600' }}>
+-                    📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
++                    Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                   </small>
+                   <button className="btn btn-primary" onClick={openEmployeeUpdate} style={{ marginTop: '8px' }}>Update APK</button>
+                 </div>
+@@ -1120,7 +1116,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+               Scan
+             </button>
+             <button className={`btn ${activeTab === 'keuangan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('keuangan')}>
+-              Keuangan Saya
++              Gaji & Komisi
+             </button>
+             <button className={`btn ${activeTab === 'pengaturan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('pengaturan')}>
+               Pengaturan
+@@ -1348,7 +1344,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
+                   <strong>Update Aplikasi</strong>
+                   <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru v${latestVersionInfo.version} tersedia` : `Versi saat ini v${APP_VERSION}`}</span>
+                   <small style={{ display: 'block', color: '#64748b', fontSize: '0.76rem', marginTop: '2px', fontWeight: '600' }}>
+-                    📅 Terakhir Update: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
++                    Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                   </small>
+                   <button className="btn btn-primary" onClick={openEmployeeUpdate} style={{ marginTop: '8px' }}>Update APK</button>
+                 </div>
+diff --git a/src/pages/Login.jsx b/src/pages/Login.jsx
+index db82aa2..9dc7a38 100644
+--- a/src/pages/Login.jsx
++++ b/src/pages/Login.jsx
+@@ -564,7 +564,7 @@ export default function Login() {
+             <Search size={14} /> Cek Resi
+           </button>
+           <button onClick={() => navigate('/employee')} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}>
+-            Portal Karyawan →
++            Portal Tim →
+           </button>
+         </div>
+ 
+diff --git a/src/services/api.js b/src/services/api.js
+index 1aa7465..1280267 100644
+--- a/src/services/api.js
++++ b/src/services/api.js
+@@ -1,6 +1,7 @@
+ import { supabase } from './supabase';
+ import { compressImageFile } from '../utils/imageCompressor';
+ import { allocateServiceDiscount, normalizeKasbonAmount, normalizeMoneyInteger, normalizeTransactionAmounts, transactionMatchesServiceResi } from '../utils/financeUtils';
++import { demoStore } from './demoStore';
+ 
+ const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
+ 
+@@ -494,7 +495,10 @@ export const apiService = {
+             created_at: new Date(Date.now() - (i * 3600000 * 6)).toISOString()
+           });
+         }
+-        return demoTxs;
++        const attendanceTxs = demoStore.getTransactions().filter((transaction) =>
++          String(transaction.type || '').startsWith('ATTENDANCE_')
++        );
++        return [...attendanceTxs, ...demoTxs].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+       }
+ 
+       const { data, error } = await supabase
+@@ -870,6 +874,12 @@ export const apiService = {
+       }
+ 
+       if (endpoint === '/transactions') {
++        if (body?.tenant_code === 'DEMO-STORE') {
++          return demoStore.addTransaction({
++            ...body,
++            amount: normalizeMoneyInteger(body?.amount),
++          });
++        }
+         const idempotencyKey = body?.idempotency_key || body?.idempotencyKey;
+         if (idempotencyKey && idempotencyCache.has(idempotencyKey)) {
+           console.warn('⚡ [Idempotency Guard] Request duplikat terdeteksi & diblokir di backend API:', idempotencyKey);
