@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { isPaidServiceStatus } from '../utils/financeUtils';
 import {
+  AreaChart,
+  Area,
   LineChart,
   Line,
   XAxis,
@@ -62,15 +64,28 @@ export default function EmployeeFinanceInsights({ services = [], employee, salar
         {hasTrend ? (
           <div style={{ width: '100%', height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={11} />
-                <YAxis tickFormatter={compactRupiah} axisLine={false} tickLine={false} width={68} fontSize={11} tickCount={5} />
-                <Tooltip formatter={(value, name) => [fullRupiah(value), name]} />
-                <Legend />
-                <Line type="monotone" dataKey="Gaji" stroke="#3B82F6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="Komisi" stroke="#10B981" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-              </LineChart>
+              <AreaChart data={trendData} margin={{ top: 12, right: 12, left: 4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="empGajiGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
+                  </linearGradient>
+                  <linearGradient id="empKomisiGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" strokeDasharray="3 3" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={11} stroke="#94a3b8" />
+                <YAxis tickFormatter={compactRupiah} axisLine={false} tickLine={false} width={68} fontSize={11} stroke="#94a3b8" tickCount={5} />
+                <Tooltip
+                  formatter={(value, name) => [fullRupiah(value), name]}
+                  contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: '1px solid #1e293b', boxShadow: '0 10px 25px rgba(0,0,0,0.25)', padding: '10px 14px' }}
+                />
+                <Legend wrapperStyle={{ paddingTop: '8px', fontSize: '0.82rem' }} />
+                <Area type="monotone" dataKey="Gaji" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#empGajiGrad)" dot={{ r: 4, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7 }} />
+                <Area type="monotone" dataKey="Komisi" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#empKomisiGrad)" dot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7 }} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         ) : (
