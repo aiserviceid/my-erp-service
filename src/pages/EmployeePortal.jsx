@@ -496,6 +496,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     
     let htmlContent = '';
     const dateStr = new Date().toLocaleString('id-ID');
+    const techObj = (technicianUsers || []).find(u => String(u.id) === String(selectedService.technician_id));
+    const techName = techObj ? techObj.name : (selectedService.technician_name || selectedService.technician || 'Teknisi Toko');
     
     const css = `
       <style>
@@ -535,6 +537,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
             <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item"><strong>Teknisi</strong> <span>${techName}</span></div>
           </div>
           <div><strong style="color: #64748b; font-size: 0.9rem;">Keluhan & Kelengkapan:</strong></div>
           <div class="issue-box">${selectedService.issue}</div>
@@ -561,7 +564,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         <div class="receipt-container">
           <div class="header">
             <h2>${tenant?.name || 'Toko Servis'}</h2>
-            <p>NOTA PELUNASAN SERVIS</p>
+            <p>NOTA PELUNASAN SERVIS (GARANSI)</p>
           </div>
           <div class="divider"></div>
           <div class="info-grid">
@@ -569,6 +572,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item"><strong>Teknisi</strong> <span>${techName}</span></div>
           </div>
           
           <div><strong style="color: #64748b; font-size: 0.9rem;">Rincian Perbaikan:</strong></div>

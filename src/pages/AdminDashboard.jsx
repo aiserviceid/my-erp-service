@@ -426,6 +426,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     const trackingUrl = `${window.location.origin}/track`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(selectedService.resi)}`;
     
+    const techObj = (users || []).find(u => String(u.id) === String(selectedService.technician_id));
+    const techName = techObj ? techObj.name : (selectedService.technician_name || selectedService.technician || 'Teknisi Toko');
+
     const css = `
       <style>
         body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: ${printerType === 'thermal' ? '0' : '20px'}; background: #fff; }
@@ -478,7 +481,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
-            <div class="info-item" style="grid-column: 1 / -1;"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item"><strong>Teknisi</strong> <span>${techName}</span></div>
           </div>
           <div><strong style="color: #64748b; font-size: 0.85em; text-transform: uppercase;">Keluhan & Kelengkapan:</strong></div>
           <div class="issue-box">${selectedService.issue}</div>
@@ -514,7 +518,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               ${logoHtml}
               <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
             </div>
-            <p>NOTA PELUNASAN SERVIS</p>
+            <p>NOTA PELUNASAN SERVIS (GARANSI)</p>
           </div>
           <div class="divider"></div>
           <div class="info-grid">
@@ -522,6 +526,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item"><strong>Teknisi</strong> <span>${techName}</span></div>
           </div>
           
           <div><strong style="color: #64748b; font-size: 0.85em; text-transform: uppercase;">Rincian Perbaikan:</strong></div>
