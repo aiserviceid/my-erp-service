@@ -65,11 +65,6 @@ function TrackResiRedirect() {
   return <Navigate to={`/tracking?resi=${encodeURIComponent(resi || '')}`} replace />;
 }
 
-function TrackResiRedirect() {
-  const { resi } = useParams();
-  return <Navigate to={`/tracking?resi=${encodeURIComponent(resi || '')}`} replace />;
-}
-
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
