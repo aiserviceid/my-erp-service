@@ -1920,5 +1920,98 @@ export const apiService = {
       console.error('Seed QA Error:', err);
       throw err;
     }
+  },
+
+  /**
+   * Kritik & Saran (Feedback) API Suite
+   */
+  getFeedbackList: async () => {
+    try {
+      const localData = JSON.parse(localStorage.getItem('UNITPRO_FEEDBACK_MESSAGES') || '[]');
+      try {
+        const { data, error } = await supabase.from('feedbacks').select('*').order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          const existingIds = new Set(localData.map(f => String(f.id)));
+          data.forEach(item => {
+            if (!existingIds.has(String(item.id))) localData.push(item);
+          });
+        }
+      } catch (sbErr) {
+        console.warn('Supabase feedback fetch fallback:', sbErr);
+      }
+      return localData.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    } catch (err) {
+      console.error('getFeedbackList error:', err);
+      return [];
+    }
+  },
+
+  submitFeedback: async (feedbackObj) => {
+    try {
+      const newFeedback = {
+        id: `FB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        created_at: new Date().toISOString(),
+        status: 'unread',
+        tenant_code: feedbackObj.tenant_code || '',
+        tenant_name: feedbackObj.tenant_name || '',
+        sender_name: feedbackObj.sender_name || 'Admin Toko',
+        sender_phone: feedbackObj.sender_phone || '',
+        category: feedbackObj.category || 'Saran',
+        subject: feedbackObj.subject || '',
+        message: feedbackObj.message || '',
+        rating: feedbackObj.rating || 5,
+      };
+
+      const existing = JSON.parse(localStorage.getItem('UNITPRO_FEEDBACK_MESSAGES') || '[]');
+      existing.unshift(newFeedback);
+      localStorage.setItem('UNITPRO_FEEDBACK_MESSAGES', JSON.stringify(existing));
+
+      try {
+        await supabase.from('feedbacks').insert([newFeedback]);
+      } catch (sbErr) {
+        console.warn('Supabase insert feedback fallback:', sbErr);
+      }
+
+      return newFeedback;
+    } catch (err) {
+      console.error('submitFeedback error:', err);
+      throw err;
+    }
+  },
+
+  updateFeedbackStatus: async (id, status) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('UNITPRO_FEEDBACK_MESSAGES') || '[]');
+      const updated = existing.map(f => f.id === id ? { ...f, status } : f);
+      localStorage.setItem('UNITPRO_FEEDBACK_MESSAGES', JSON.stringify(updated));
+
+      try {
+        await supabase.from('feedbacks').update({ status }).eq('id', id);
+      } catch (sbErr) {
+        console.warn('Supabase update feedback error:', sbErr);
+      }
+      return true;
+    } catch (err) {
+      console.error('updateFeedbackStatus error:', err);
+      return false;
+    }
+  },
+
+  deleteFeedback: async (id) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('UNITPRO_FEEDBACK_MESSAGES') || '[]');
+      const filtered = existing.filter(f => f.id !== id);
+      localStorage.setItem('UNITPRO_FEEDBACK_MESSAGES', JSON.stringify(filtered));
+
+      try {
+        await supabase.from('feedbacks').delete().eq('id', id);
+      } catch (sbErr) {
+        console.warn('Supabase delete feedback error:', sbErr);
+      }
+      return true;
+    } catch (err) {
+      console.error('deleteFeedback error:', err);
+      return false;
+    }
   }
 };

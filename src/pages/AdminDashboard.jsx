@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck, Clock } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck, Clock, MessageSquareHeart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -16,6 +16,7 @@ import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
 import OnboardingProgressCard from '../components/OnboardingProgressCard';
 import AndroidUpdateModal from '../components/AndroidUpdateModal';
 import IssueChips from '../components/IssueChips';
+import FeedbackModal from '../components/FeedbackModal';
 
 const ForumCommunity = lazy(() => import('../components/ForumCommunity'));
 const POSView = lazy(() => import('../components/POSView'));
@@ -3638,6 +3639,34 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
           onClose={() => setAvailableUpdateInfo(null)}
         />
       )}
+
+      {/* KRITIK & SARAN MODAL */}
+      {showFeedbackModal && (
+        <FeedbackModal
+          tenant={tenant}
+          user={user}
+          onClose={() => setShowFeedbackModal(false)}
+        />
+      )}
+
+      {/* Floating Kritik & Saran Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setShowFeedbackModal(true)}
+        style={{
+          position: 'fixed', bottom: '80px', right: '20px', zIndex: 900,
+          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+          color: '#ffffff', border: 'none', padding: '11px 18px', borderRadius: '100px',
+          fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+          boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          transition: 'all 0.2s ease'
+        }}
+        title="Kirim Kritik & Saran ke Super Admin"
+      >
+        <MessageSquareHeart size={18} />
+        <span>Kritik & Saran</span>
+      </button>
 
       {/* Hidden iframe for printing nota */}
       <iframe ref={printIframeRef} style={{ display: 'none' }} title="Receipt Printer" />

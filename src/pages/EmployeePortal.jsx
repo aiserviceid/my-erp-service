@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch, MessageSquareHeart } from 'lucide-react';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
@@ -12,6 +12,7 @@ import IssueChips from '../components/IssueChips';
 import EmployeeFinanceInsights from '../components/EmployeeFinanceInsights';
 import AndroidUpdateModal from '../components/AndroidUpdateModal';
 import BarcodeScanner from '../components/BarcodeScanner';
+import FeedbackModal from '../components/FeedbackModal';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { SERVICE_STATUSES } from '../config/tierLimits';
 import { buildKasbonDescription, isPaidServiceStatus, normalizeKasbonAmount, parseKasbonDescription } from '../utils/financeUtils';
@@ -43,6 +44,7 @@ export default function EmployeePortal() {
   const [currentLang, setCurrentLang] = useState(getAppLanguage());
   const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
   const [latestVersionInfo, setLatestVersionInfo] = useState(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceNow, setAttendanceNow] = useState(new Date());
 
@@ -1369,6 +1371,33 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           onClose={() => setAvailableUpdateInfo(null)}
         />
       )}
+
+      {showFeedbackModal && (
+        <FeedbackModal
+          tenant={tenant}
+          user={employee}
+          onClose={() => setShowFeedbackModal(false)}
+        />
+      )}
+
+      {/* Floating Kritik & Saran Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setShowFeedbackModal(true)}
+        style={{
+          position: 'fixed', bottom: '80px', right: '20px', zIndex: 900,
+          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+          color: '#ffffff', border: 'none', padding: '10px 16px', borderRadius: '100px',
+          fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+          boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          transition: 'all 0.2s ease'
+        }}
+        title="Kirim Kritik & Saran ke Super Admin"
+      >
+        <MessageSquareHeart size={18} />
+        <span>Kritik & Saran</span>
+      </button>
 
       {showTeamScanner && (
         <BarcodeScanner

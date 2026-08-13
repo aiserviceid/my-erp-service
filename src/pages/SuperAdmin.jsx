@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock, MessageSquareHeart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SuperAdminAISettings from '../components/SuperAdminAISettings';
 
@@ -484,6 +484,8 @@ export default function SuperAdmin() {
 
   // Audit Logs & Billing Modals State
   const [saasLogs, setSaasLogs] = useState([]);
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [feedbackFilter, setFeedbackFilter] = useState('all');
   const [manualPayTenant, setManualPayTenant] = useState(null);
   const [payAmount, setPayAmount] = useState('149000');
   const [payMethod, setPayMethod] = useState('Transfer Bank (BRI)');
@@ -595,20 +597,41 @@ export default function SuperAdmin() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const [data, affResult, reviewData, logs] = await Promise.all([
+      const [data, affResult, reviewData, logs, feedbacks] = await Promise.all([
         apiService.getAdminStats(),
         apiService.getAffiliateAdminData(),
         apiService.getAdminPlatformReviews(),
         apiService.getSaasAdminLogs(),
+        apiService.getFeedbackList(),
       ]);
       setStats(data);
       setAffData(affResult);
       setReviews(reviewData);
       setSaasLogs(logs || []);
+      setFeedbackList(feedbacks || []);
     } catch (e) {
       console.error(e);
     }
     setLoading(false);
+  };
+
+  const handleUpdateFeedbackStatus = async (id, newStatus) => {
+    try {
+      await apiService.updateFeedbackStatus(id, newStatus);
+      setFeedbackList(prev => prev.map(f => f.id === id ? { ...f, status: newStatus } : f));
+    } catch (err) {
+      alert('Gagal mengubah status: ' + err.message);
+    }
+  };
+
+  const handleDeleteFeedback = async (id) => {
+    if (!window.confirm('Hapus pesan kritik & saran ini secara permanen?')) return;
+    try {
+      await apiService.deleteFeedback(id);
+      setFeedbackList(prev => prev.filter(f => f.id !== id));
+    } catch (err) {
+      alert('Gagal menghapus pesan: ' + err.message);
+    }
   };
 
   // Auto-logout on session expiry
@@ -910,6 +933,24 @@ export default function SuperAdmin() {
             }}
           >
             <FileText size={18} /> Log Aktivitas SaaS ({saasLogs.length})
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('feedback')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
+              background: activeTab === 'feedback' ? '#0ea5e9' : '#ffffff', color: activeTab === 'feedback' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'feedback' ? '0 4px 12px rgba(14, 165, 233, 0.3)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'feedback' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <MessageSquareHeart size={18} /> Kritik & Saran ({feedbackList.length})
+            {feedbackList.filter(f => f.status === 'unread').length > 0 && (
+              <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
+                {feedbackList.filter(f => f.status === 'unread').length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1607,6 +1648,165 @@ export default function SuperAdmin() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* 8. KRITIK & SARAN MASUK (FEEDBACK INBOX) */}
+          {activeTab === 'feedback' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <MessageSquareHeart size={26} color="#0ea5e9" /> Kotak Masuk Kritik & Saran
+                  </h2>
+                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                    Pesan, kendala, dan masukan fitur dari seluruh pengelola toko pengguna UnitPro
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadStats}
+                  style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '700', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={14} /> Refresh Pesan
+                </button>
+              </div>
+
+              {/* Filter Tabs */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1.2rem' }}>
+                {[
+                  { id: 'all', label: `Semua (${feedbackList.length})` },
+                  { id: 'unread', label: `Belum Dibaca (${feedbackList.filter(f => f.status === 'unread').length})` },
+                  { id: 'Kritik', label: `💬 Kritik (${feedbackList.filter(f => f.category === 'Kritik').length})` },
+                  { id: 'Saran', label: `💡 Saran (${feedbackList.filter(f => f.category === 'Saran').length})` },
+                  { id: 'Kendala / Bug', label: `⚠️ Kendala (${feedbackList.filter(f => f.category === 'Kendala / Bug').length})` },
+                  { id: 'Permintaan Fitur', label: `🚀 Permintaan Fitur (${feedbackList.filter(f => f.category === 'Permintaan Fitur').length})` },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setFeedbackFilter(tab.id)}
+                    style={{
+                      padding: '8px 14px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800',
+                      border: feedbackFilter === tab.id ? 'none' : '1px solid #e2e8f0',
+                      background: feedbackFilter === tab.id ? '#0ea5e9' : '#ffffff',
+                      color: feedbackFilter === tab.id ? '#ffffff' : '#475569',
+                      cursor: 'pointer', boxShadow: feedbackFilter === tab.id ? '0 4px 12px rgba(14, 165, 233, 0.25)' : 'none'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Feedback Cards */}
+              {feedbackList.filter(f => {
+                if (feedbackFilter === 'unread') return f.status === 'unread';
+                if (feedbackFilter !== 'all') return f.category === feedbackFilter;
+                return true;
+              }).length === 0 ? (
+                <div style={{ background: '#ffffff', borderRadius: '16px', padding: '3rem 2rem', textAlign: 'center', color: '#94a3b8', border: '1px dashed #cbd5e1' }}>
+                  <MessageSquareHeart size={44} style={{ opacity: 0.4, marginBottom: '10px' }} />
+                  <h4 style={{ margin: '0 0 6px', color: '#0f172a' }}>Tidak ada pesan kritik & saran</h4>
+                  <p style={{ margin: 0, fontSize: '0.85rem' }}>Pesan yang dikirimkan pengelola toko akan muncul secara otomatis di panel ini.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '14px' }}>
+                  {feedbackList.filter(f => {
+                    if (feedbackFilter === 'unread') return f.status === 'unread';
+                    if (feedbackFilter !== 'all') return f.category === feedbackFilter;
+                    return true;
+                  }).map(item => {
+                    const isUnread = item.status === 'unread';
+                    const categoryColors = {
+                      'Kritik': { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+                      'Saran': { bg: '#fef3c7', color: '#b45309', border: '#fde68a' },
+                      'Kendala / Bug': { bg: '#f3e8ff', color: '#7e22ce', border: '#e9d5ff' },
+                      'Permintaan Fitur': { bg: '#e0e7ff', color: '#4338ca', border: '#c7d2fe' }
+                    };
+                    const catStyle = categoryColors[item.category] || { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
+
+                    return (
+                      <div key={item.id} style={{
+                        background: isUnread ? '#ffffff' : '#f8fafc',
+                        borderRadius: '16px', padding: '20px',
+                        border: isUnread ? '2px solid #38bdf8' : '1px solid #e2e8f0',
+                        boxShadow: isUnread ? '0 8px 25px rgba(56, 189, 248, 0.15)' : '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ background: catStyle.bg, color: catStyle.color, border: `1px solid ${catStyle.border}`, padding: '3px 10px', borderRadius: '100px', fontSize: '0.74rem', fontWeight: '900', textTransform: 'uppercase' }}>
+                              {item.category || 'Saran'}
+                            </span>
+                            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600' }}>
+                              {new Date(item.created_at || Date.now()).toLocaleString('id-ID')}
+                            </span>
+                            {item.rating && (
+                              <span style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fef3c7', padding: '2px 8px', borderRadius: '100px', fontSize: '0.74rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                ⭐ {item.rating}/5
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <select
+                              value={item.status || 'unread'}
+                              onChange={(e) => handleUpdateFeedbackStatus(item.id, e.target.value)}
+                              style={{
+                                padding: '4px 10px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800',
+                                background: item.status === 'resolved' ? '#dcfce7' : item.status === 'processed' ? '#fef3c7' : item.status === 'read' ? '#e0f2fe' : '#fee2e2',
+                                color: item.status === 'resolved' ? '#15803d' : item.status === 'processed' ? '#b45309' : item.status === 'read' ? '#0369a1' : '#b91c1c',
+                                border: 'none', cursor: 'pointer'
+                              }}
+                            >
+                              <option value="unread">🔴 Belum Dibaca</option>
+                              <option value="read">🔵 Sudah Dibaca</option>
+                              <option value="processed">🟡 Sedang Diproses</option>
+                              <option value="resolved">🟢 Selesai / Ditanggapi</option>
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFeedback(item.id)}
+                              style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer' }}
+                              title="Hapus Pesan"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Sender info */}
+                        <div style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: '10px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <div>
+                            <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>{item.sender_name || 'Admin Toko'}</strong>
+                            {item.tenant_name && <span style={{ color: '#475569', fontSize: '0.82rem', marginLeft: '6px' }}>({item.tenant_name} · <code>{item.tenant_code}</code>)</span>}
+                          </div>
+                          {item.sender_phone && (
+                            <a
+                              href={`https://wa.me/${item.sender_phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Halo Kak ${item.sender_name}, mengenai masukan Anda tentang "${item.subject || item.category}": `)}`}
+                              target="_blank" rel="noreferrer"
+                              style={{ background: '#25D366', color: '#fff', padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              💬 Balas via WA ({item.sender_phone})
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Subject & Message */}
+                        {item.subject && (
+                          <h4 style={{ margin: '0 0 6px', color: '#0f172a', fontSize: '1rem', fontWeight: '800' }}>
+                            {item.subject}
+                          </h4>
+                        )}
+                        <p style={{ margin: 0, color: '#334155', fontSize: '0.88rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                          {item.message}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
