@@ -83,7 +83,7 @@ export default function AdminDashboard() {
   const [obEmpName, setObEmpName] = useState('');
   const [obEmpPin, setObEmpPin] = useState('');
   const [obEmpRole, setObEmpRole] = useState('TEKNISI');
-  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'rekening' | 'nota' | 'promo' | 'keamanan'
+  const [settingTab, setSettingTab] = useState('umum'); // 'umum' | 'wa' | 'rekening' | 'nota' | 'promo' | 'aplikasi' | 'bantuan' | 'keamanan'
   const [adminCurrentPin, setAdminCurrentPin] = useState('');
   const [adminNewPin, setAdminNewPin] = useState('');
   const [adminConfirmPin, setAdminConfirmPin] = useState('');
@@ -1761,6 +1761,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
                   <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? 'var(--primary)' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>Iklan & Promo</button>
                   <button onClick={() => setSettingTab('aplikasi')} className={`btn ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
+                  <button onClick={() => setSettingTab('bantuan')} className={`btn ${settingTab === 'bantuan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'bantuan' ? '#0284c7' : 'transparent', color: settingTab === 'bantuan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'bantuan' ? '800' : '600' }}><MessageSquareHeart size={17} /> Bantuan & Masukan</button>
                   <button onClick={() => setSettingTab('keamanan')} className={`btn ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
                   <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
                   <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#dc2626', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>Zona Berbahaya</button>
@@ -2322,6 +2323,27 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         </button>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {settingTab === 'bantuan' && (
+                  <div style={{ maxWidth: '580px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ margin: '0 0 0.5rem', color: '#0f172a' }}>Bantuan & Masukan</h3>
+                    <p style={{ margin: '0 0 1.25rem', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                      Laporkan kendala atau kirim saran kepada tim UnitPro tanpa mengganggu menu utama aplikasi.
+                    </p>
+                    <div style={{ padding: '1.25rem', border: '1px solid #bae6fd', borderRadius: '14px', background: '#f0f9ff' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#0284c7', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><MessageSquareHeart size={22} /></div>
+                        <div>
+                          <strong style={{ display: 'block', color: '#0f172a' }}>Kritik & Saran</strong>
+                          <span style={{ display: 'block', marginTop: '4px', color: '#64748b', fontSize: '0.82rem', lineHeight: '1.5' }}>Masukan dikirim langsung ke Super Admin UnitPro beserta identitas toko.</span>
+                        </div>
+                      </div>
+                      <button type="button" className="btn btn-primary" onClick={() => setShowFeedbackModal(true)} style={{ width: '100%', marginTop: '16px', justifyContent: 'center', background: '#0284c7', color: '#fff' }}>
+                        <MessageSquareHeart size={18} /> Tulis Kritik atau Saran
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -3664,25 +3686,6 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
           onClose={() => setShowFeedbackModal(false)}
         />
       )}
-
-      {/* Floating Kritik & Saran Trigger Button */}
-      <button
-        type="button"
-        onClick={() => setShowFeedbackModal(true)}
-        style={{
-          position: 'fixed', bottom: '80px', right: '20px', zIndex: 900,
-          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-          color: '#ffffff', border: 'none', padding: '11px 18px', borderRadius: '100px',
-          fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
-          boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
-          display: 'flex', alignItems: 'center', gap: '8px',
-          transition: 'all 0.2s ease'
-        }}
-        title="Kirim Kritik & Saran ke Admin"
-      >
-        <MessageSquareHeart size={18} />
-        <span>Kritik & Saran</span>
-      </button>
 
       {/* Hidden iframe for printing nota */}
       <iframe ref={printIframeRef} style={{ display: 'none' }} title="Receipt Printer" />

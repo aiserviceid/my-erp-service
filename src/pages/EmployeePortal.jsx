@@ -1109,6 +1109,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 <KeyRound size={20} />
                 <div><strong>Keamanan</strong><span>Ubah PIN login tim Anda.</span><button className="btn btn-ghost" onClick={() => setShowChangePinModal(true)}>Ubah PIN</button></div>
               </div>
+              <div className="employee-setting-card">
+                <MessageSquareHeart size={20} />
+                <div><strong>Bantuan & Masukan</strong><span>Laporkan kendala atau kirim saran kepada UnitPro.</span><button className="btn btn-ghost" onClick={() => setShowFeedbackModal(true)}>Tulis Masukan</button></div>
+              </div>
             </div>
           )}
         </>
@@ -1384,25 +1388,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           onClose={() => setShowFeedbackModal(false)}
         />
       )}
-
-      {/* Floating Kritik & Saran Trigger Button */}
-      <button
-        type="button"
-        onClick={() => setShowFeedbackModal(true)}
-        style={{
-          position: 'fixed', bottom: '80px', right: '20px', zIndex: 900,
-          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-          color: '#ffffff', border: 'none', padding: '10px 16px', borderRadius: '100px',
-          fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
-          boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
-          display: 'flex', alignItems: 'center', gap: '8px',
-          transition: 'all 0.2s ease'
-        }}
-        title="Kirim Kritik & Saran ke Admin"
-      >
-        <MessageSquareHeart size={18} />
-        <span>Kritik & Saran</span>
-      </button>
 
       {showTeamScanner && (
         <BarcodeScanner

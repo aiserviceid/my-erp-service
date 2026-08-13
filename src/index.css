@@ -794,13 +794,33 @@ textarea:focus {
 html.native-app,
 html.native-app body,
 html.native-app #root {
-  min-height: 100dvh;
   background: #eef3f8;
 }
 
+html.native-app {
+  height: 100%;
+  overflow: hidden;
+}
+
 html.native-app body {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   font-family: Inter, Roboto, Arial, sans-serif;
   background: #eef3f8;
+}
+
+html.native-app #root {
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 html.native-app .dashboard-layout {
@@ -963,6 +983,41 @@ html.native-app .native-login-footer button {
   padding: 0 10px;
   color: #087a9a !important;
 }
+
+html.native-app .native-employee-entry {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  margin: -8px 0 18px;
+  padding: 11px 12px;
+  border: 1px solid #bae6fd;
+  border-radius: 14px;
+  background: #f0f9ff;
+  color: #0f172a;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+html.native-app .native-employee-entry > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #0284c7;
+  color: #fff;
+}
+
+html.native-app .native-employee-entry strong,
+html.native-app .native-employee-entry small {
+  display: block;
+}
+
+html.native-app .native-employee-entry strong { font-size: 14px; }
+html.native-app .native-employee-entry small { margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.35; }
+html.native-app .native-employee-entry > svg { color: #0284c7; }
 
 html.native-app .native-employee-card h2 {
   font-size: 26px;

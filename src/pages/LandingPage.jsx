@@ -437,12 +437,17 @@ export default function LandingPage() {
               <small>Fitur Auto-Update</small>
               <strong><CheckCircle2 size={16} color="#059669" /> Aktif di APK</strong>
             </div>
+            <div className="simple-apk-meta-item">
+              <small>Nama File</small>
+              <strong>{versionInfo?.apkFileName || APK_FILE_NAME}</strong>
+            </div>
           </div>
 
           <div className="simple-apk-action-area">
-            <a className="simple-btn primary large" href={APK_DOWNLOAD_PATH} download={APK_FILE_NAME}>
+            <a className="simple-btn primary large" href={versionInfo?.apkUrl || APK_DOWNLOAD_PATH} download={versionInfo?.apkFileName || APK_FILE_NAME}>
               <Download size={20} /> Unduh APK Resmi (v{versionInfo?.version || APP_VERSION})
             </a>
+            <p className="simple-apk-release-description">{versionInfo?.description || `Rilis resmi UnitPro Android v${APP_VERSION}.`}</p>
             <p className="simple-apk-trust-text">
               <ShieldCheck size={16} color="#0284c7" /> Unduh hanya melalui halaman resmi UnitPro
             </p>
@@ -456,7 +461,7 @@ export default function LandingPage() {
                 <span className="step-num">1</span>
                 <div>
                   <strong>Unduh File APK</strong>
-                  <p>Tekan tombol unduh di atas untuk menyimpan file UnitPro.apk ke perangkat Anda.</p>
+                  <p>Tekan tombol unduh untuk menyimpan {versionInfo?.apkFileName || APK_FILE_NAME} ke perangkat Anda.</p>
                 </div>
               </div>
               <div className="simple-step-box">
@@ -528,7 +533,7 @@ export default function LandingPage() {
               <strong>Produk & Aplikasi</strong>
               <a href="#fitur">Fitur Utama</a>
               <a href="#harga">Pilihan Paket</a>
-              <a href={APK_DOWNLOAD_PATH} download={APK_FILE_NAME}>Download APK Android</a>
+              <a href={versionInfo?.apkUrl || APK_DOWNLOAD_PATH} download={versionInfo?.apkFileName || APK_FILE_NAME}>Download APK Android</a>
             </div>
             <div className="footer-col">
               <strong>Bantuan & Support</strong>

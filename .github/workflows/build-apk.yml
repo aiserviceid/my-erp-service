@@ -54,13 +54,13 @@ jobs:
 
       - name: Name APK for Distribution
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/UnitPro.apk
+          cp android/app/build/outputs/apk/release/app-release.apk "android/app/build/outputs/apk/release/UnitPro-Android-v${{ steps.app_version.outputs.version }}.apk"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: UnitPro-v${{ steps.app_version.outputs.version }}-apk
-          path: android/app/build/outputs/apk/release/UnitPro.apk
+          path: android/app/build/outputs/apk/release/UnitPro-Android-v${{ steps.app_version.outputs.version }}.apk
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -71,6 +71,6 @@ jobs:
           body: "Unduh file APK Android resmi UnitPro v${{ steps.app_version.outputs.version }}."
           draft: false
           prerelease: false
-          files: android/app/build/outputs/apk/release/UnitPro.apk
+          files: android/app/build/outputs/apk/release/UnitPro-Android-v${{ steps.app_version.outputs.version }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

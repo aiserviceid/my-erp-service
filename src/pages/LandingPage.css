@@ -455,7 +455,7 @@
 
 .simple-apk-meta-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -463,6 +463,7 @@
   padding: 16px 20px;
   margin-bottom: 24px;
 }
+.simple-apk-meta-item strong { overflow-wrap: anywhere; }
 .simple-apk-meta-item small {
   display: block;
   color: #64748b;
@@ -497,6 +498,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+.simple-apk-release-description {
+  max-width: 680px;
+  margin: 12px auto 0;
+  color: #475569;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.55;
 }
 
 .simple-apk-install-steps {

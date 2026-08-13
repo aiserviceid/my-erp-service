@@ -1,14 +1,18 @@
 {
-  "version": "1.2.2",
-  "buildNumber": 14,
-  "apkUrl": "https://unitproid.vercel.app/downloads/UnitPro.apk",
+  "version": "1.2.3",
+  "buildNumber": 15,
+  "apkUrl": "https://unitproid.vercel.app/downloads/UnitPro-Android-v1.2.3.apk",
+  "apkFileName": "UnitPro-Android-v1.2.3.apk",
+  "releaseTitle": "UnitPro Android v1.2.3",
+  "description": "Rilis stabil dengan scroll satu jari, akses Portal Karyawan yang jelas, menu masukan yang lebih rapi, dan ikon aplikasi yang lebih proporsional.",
   "minRequiredVersion": "1.0.0",
   "releaseDate": "13 Agustus 2026",
   "changelog": [
-    "Ikon aplikasi disinkronkan dengan logo resmi UnitPro",
-    "Splash screen UnitPro baru pada mode potret dan lanskap",
-    "Perbaikan scroll satu jari pada landing page mobile",
-    "Sinkronisasi harga dan kontak resmi UnitPro"
+    "Perbaikan scroll satu jari pada seluruh halaman APK Android",
+    "Ukuran logo aplikasi dirapikan dengan ruang aman yang lebih proporsional",
+    "Kritik dan Saran dipindahkan ke menu Bantuan dan Masukan",
+    "Portal Karyawan ditampilkan jelas pada halaman masuk APK",
+    "Navigasi dashboard dan portal karyawan menjadi lebih bersih"
   ],
   "forceUpdate": false
 }

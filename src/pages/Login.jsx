@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
-import { Store, LogIn, Search, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame } from 'lucide-react';
+import { Store, LogIn, Search, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame, UsersRound } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import UnitProLogo from '../components/UnitProLogo';
@@ -261,6 +261,21 @@ export default function Login() {
             Daftar Toko Baru
           </button>
         </div>
+
+        {isNativeApp && (
+          <button
+            type="button"
+            className="native-employee-entry"
+            onClick={() => navigate('/employee')}
+          >
+            <span><UsersRound size={19} /></span>
+            <div>
+              <strong>Portal Karyawan</strong>
+              <small>Masuk sebagai kasir atau teknisi dengan PIN</small>
+            </div>
+            <ArrowRight size={18} />
+          </button>
+        )}
 
         {error && (
           <div style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#b91c1c', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.5rem', fontWeight: '600' }}>

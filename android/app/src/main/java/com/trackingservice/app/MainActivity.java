@@ -31,6 +31,9 @@ public class MainActivity extends BridgeActivity {
             webSettings.setDomStorageEnabled(true);
             webSettings.setDatabaseEnabled(true);
             webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+            webView.setNestedScrollingEnabled(true);
+            webView.setVerticalScrollBarEnabled(true);
+            webView.setOverScrollMode(View.OVER_SCROLL_ALWAYS);
         }
     }
 }
