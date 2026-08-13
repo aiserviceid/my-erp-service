@@ -3645,7 +3645,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
       {showFeedbackModal && (
         <FeedbackModal
           tenant={tenant}
-          user={user}
+          user={null}
           onClose={() => setShowFeedbackModal(false)}
         />
       )}
