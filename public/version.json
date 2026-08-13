@@ -1,14 +1,14 @@
 {
-  "version": "1.2.1",
-  "buildNumber": 13,
+  "version": "1.2.2",
+  "buildNumber": 14,
   "apkUrl": "https://unitproid.vercel.app/downloads/UnitPro.apk",
   "minRequiredVersion": "1.0.0",
   "releaseDate": "13 Agustus 2026",
   "changelog": [
-    "Sinkronisasi paket Free, UnitPro Pro, dan Enterprise",
-    "Pembatasan kuota servis, POS, produk, dan karyawan",
-    "Landing page lebih rapi dan responsif",
-    "Perbaikan stabilitas pembaruan aplikasi"
+    "Ikon aplikasi disinkronkan dengan logo resmi UnitPro",
+    "Splash screen UnitPro baru pada mode potret dan lanskap",
+    "Perbaikan scroll satu jari pada landing page mobile",
+    "Sinkronisasi harga dan kontak resmi UnitPro"
   ],
   "forceUpdate": false
 }
