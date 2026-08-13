@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
-import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock, MessageSquareHeart } from 'lucide-react';
+import { Settings, Users, ArrowDownCircle, CheckCircle, TrendingUp, Shield, Wallet, Gift, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock, MessageSquareHeart, Handshake, ReceiptText, Activity, Smartphone, LifeBuoy, Bot, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SuperAdminAISettings from '../components/SuperAdminAISettings';
+import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
+import { fetchAppVersionInfo } from '../utils/versionUtils';
 
 // ============================================================
 // KONFIGURASI KEAMANAN SUPER ADMIN
@@ -287,7 +289,7 @@ function SuperAdminLoginGate({ onSuccess }) {
   );
 }
 
-// ── CRM PELANGGAN — dikelompokkan berdasarkan paket berlangganan ──
+// ── CUSTOMER SUCCESS — pemilik toko pengguna UnitPro ──
 const TIER_META = {
   free: { label: 'Gratis', color: '#059669', bg: '#ecfdf5', border: '#86efac' },
   pro: { label: 'Pro', color: '#0284c7', bg: '#e0f2fe', border: '#7dd3fc' },
@@ -327,11 +329,12 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>CRM Pelanggan 📇</h2>
-          <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>Data pelanggan yang mendaftar, dikelompokkan otomatis berdasarkan paket langganan</p>
+          <p style={{ margin: 0, color: '#0f766e', fontSize: '.74rem', fontWeight: 900, letterSpacing: '.08em' }}>CUSTOMER SUCCESS</p>
+          <h2 style={{ margin: '5px 0 0', fontSize: '1.4rem', fontWeight: '900' }}>Pemilik Toko UnitPro</h2>
+          <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>Pantau calon pelanggan, pengguna gratis, dan tenant berbayar berdasarkan tahap langganannya.</p>
         </div>
         <button onClick={onRefresh} style={{ padding: '6px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
-          Refresh Data 🔄
+          Perbarui Data
         </button>
       </div>
 
@@ -350,7 +353,7 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
             >
               <div style={{ fontSize: '0.8rem', color: meta.color, fontWeight: '800', textTransform: 'uppercase' }}>Paket {meta.label}</div>
               <div style={{ fontSize: '2rem', fontWeight: '900', color: '#0f172a' }}>{counts[tier]}</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Pelanggan Terdaftar</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Tenant terdaftar</div>
             </div>
           );
         })}
@@ -387,7 +390,7 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
           <div key={tier} style={{ marginBottom: '1.8rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.8rem' }}>
               <span style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '900' }}>
-                Paket {meta.label} — {items.length} Pelanggan
+                Paket {meta.label} — {items.length} tenant
               </span>
             </div>
 
@@ -396,7 +399,7 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px' }}>Nama Toko / Pelanggan</th>
+                      <th style={{ padding: '12px' }}>Nama Toko</th>
                       <th style={{ padding: '12px' }}>Kode Toko</th>
                       <th style={{ padding: '12px' }}>No. WhatsApp</th>
                       <th style={{ padding: '12px' }}>Reputasi</th>
@@ -448,7 +451,7 @@ function CrmPelangganPanel({ tenants, onRefresh }) {
                       );
                     })}
                     {items.length === 0 && (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>Belum ada pelanggan di paket ini</td></tr>
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>Belum ada tenant di paket ini</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -466,6 +469,9 @@ export default function SuperAdmin() {
   const [authenticated, setAuthenticated] = useState(isSessionValid());
   const [stats, setStats] = useState({ tenants: [], withdrawals: [], platform_balance: 0 });
   const [affData, setAffData] = useState({ affiliates: [], commissions: [] });
+  const [affiliateSettings, setAffiliateSettings] = useState({ first_payment_rate: 0.20, pro_price: 99000, enterprise_price: 299000, payout_model: 'FIRST_PAYMENT' });
+  const [affiliateRateInput, setAffiliateRateInput] = useState('20');
+  const [platformVersion, setPlatformVersion] = useState({ version: APP_VERSION, apkUrl: APK_PUBLIC_URL });
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -597,18 +603,23 @@ export default function SuperAdmin() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const [data, affResult, reviewData, logs, feedbacks] = await Promise.all([
+      const [data, affResult, affiliateConfig, reviewData, logs, feedbacks, versionInfo] = await Promise.all([
         apiService.getAdminStats(),
         apiService.getAffiliateAdminData(),
+        apiService.getAffiliateSettings(),
         apiService.getAdminPlatformReviews(),
         apiService.getSaasAdminLogs(),
         apiService.getFeedbackList(),
+        fetchAppVersionInfo().catch(() => ({ version: APP_VERSION, apkUrl: APK_PUBLIC_URL })),
       ]);
       setStats(data);
       setAffData(affResult);
+      setAffiliateSettings(affiliateConfig);
+      setAffiliateRateInput(String(Math.round(Number(affiliateConfig.first_payment_rate || 0.20) * 100)));
       setReviews(reviewData);
       setSaasLogs(logs || []);
       setFeedbackList(feedbacks || []);
+      setPlatformVersion(versionInfo || { version: APP_VERSION, apkUrl: APK_PUBLIC_URL });
     } catch (e) {
       console.error(e);
     }
@@ -621,6 +632,24 @@ export default function SuperAdmin() {
       setFeedbackList(prev => prev.map(f => f.id === id ? { ...f, status: newStatus } : f));
     } catch (err) {
       alert('Gagal mengubah status: ' + err.message);
+    }
+  };
+
+  const handleSaveAffiliateSettings = async () => {
+    const percentage = Number(affiliateRateInput);
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 50) {
+      return alert('Komisi harus berada di antara 0% sampai 50%.');
+    }
+    try {
+      const saved = await apiService.updateAffiliateSettings({
+        ...affiliateSettings,
+        first_payment_rate: percentage / 100
+      });
+      setAffiliateSettings(saved);
+      alert(`Komisi afiliasi berhasil ditetapkan menjadi ${percentage}% dari pembayaran pertama.`);
+      loadStats();
+    } catch (e) {
+      alert('Gagal menyimpan pengaturan afiliasi: ' + e.message);
     }
   };
 
@@ -787,6 +816,21 @@ export default function SuperAdmin() {
 
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Memuat Data Super Admin...</div>;
 
+  const tenantList = stats.tenants || [];
+  const paidTenants = tenantList.filter(t => ['pro', 'enterprise'].includes(String(t.tier || '').toLowerCase()));
+  const trialTenants = tenantList.filter(t => getSubStatus(t) === 'trial');
+  const expiredTenants = tenantList.filter(t => getSubStatus(t) === 'expired');
+  const suspendedTenants = tenantList.filter(t => getSubStatus(t) === 'suspended');
+  const trialEndingSoon = trialTenants.filter(t => {
+    const s = typeof t.settings === 'string' ? JSON.parse(t.settings || '{}') : (t.settings || {});
+    const end = Number(s.trial_ends_at || s.active_until || 0);
+    return end > Date.now() && end <= Date.now() + (7 * 86400000);
+  });
+  const estimatedMrr = paidTenants.reduce((total, tenant) => total + (String(tenant.tier).toLowerCase() === 'enterprise' ? 299000 : 99000), 0);
+  const pendingAffiliateCommissions = (affData.commissions || []).filter(c => c.status === 'PENDING');
+  const pendingAffiliateAmount = pendingAffiliateCommissions.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+  const unreadFeedback = feedbackList.filter(item => item.status === 'unread');
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a', fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       
@@ -835,7 +879,7 @@ export default function SuperAdmin() {
               border: activeTab === 'dashboard' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <TrendingUp size={18} /> Dashboard Platform
+            <TrendingUp size={18} /> Ringkasan Bisnis
           </button>
 
           <button 
@@ -848,7 +892,20 @@ export default function SuperAdmin() {
               border: activeTab === 'tenants' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <Users size={18} /> Manajemen Toko ({stats.tenants.length})
+            <Building2 size={18} /> Manajemen Toko ({stats.tenants.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('billing')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px',
+              background: activeTab === 'billing' ? '#0f766e' : '#ffffff', color: activeTab === 'billing' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'billing' ? '0 4px 12px rgba(15,118,110,.25)' : '0 2px 5px rgba(0,0,0,.03)',
+              border: activeTab === 'billing' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <ReceiptText size={18} /> Langganan & Pembayaran
           </button>
 
           <button 
@@ -861,7 +918,21 @@ export default function SuperAdmin() {
               border: activeTab === 'crm' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <Contact size={18} /> CRM Pelanggan ({stats.tenants.length})
+            <Contact size={18} /> Customer Success
+          </button>
+
+          <button
+            onClick={() => setActiveTab('afiliasi')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px',
+              background: activeTab === 'afiliasi' ? '#059669' : '#ffffff', color: activeTab === 'afiliasi' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'afiliasi' ? '0 4px 12px rgba(5,150,105,.25)' : '0 2px 5px rgba(0,0,0,.03)',
+              border: activeTab === 'afiliasi' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <Handshake size={18} /> Afiliasi
+            {pendingAffiliateCommissions.length > 0 && <span style={{ marginLeft: 'auto', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 999, fontSize: '0.72rem' }}>{pendingAffiliateCommissions.length}</span>}
           </button>
 
           <button
@@ -890,7 +961,7 @@ export default function SuperAdmin() {
               border: activeTab === 'ai' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <span style={{ fontSize: '1rem' }}>🤖</span> AI & Automation
+            <Bot size={18} /> AI & Otomasi
           </button>
 
           <button 
@@ -903,7 +974,20 @@ export default function SuperAdmin() {
               border: activeTab === 'wagateway' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <MessageSquare size={18} /> Server WA Gateway
+            <MessageSquare size={18} /> WhatsApp Platform
+          </button>
+
+          <button
+            onClick={() => setActiveTab('health')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px',
+              background: activeTab === 'health' ? '#0f766e' : '#ffffff', color: activeTab === 'health' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'health' ? '0 4px 12px rgba(15,118,110,.25)' : '0 2px 5px rgba(0,0,0,.03)',
+              border: activeTab === 'health' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <Activity size={18} /> Kesehatan Sistem
           </button>
 
           <button 
@@ -916,7 +1000,7 @@ export default function SuperAdmin() {
               border: activeTab === 'saaslogs' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <FileText size={18} /> Log Aktivitas SaaS ({saasLogs.length})
+            <FileText size={18} /> Log Audit ({saasLogs.length})
           </button>
 
           <button 
@@ -929,7 +1013,7 @@ export default function SuperAdmin() {
               border: activeTab === 'feedback' ? 'none' : '1px solid #e2e8f0'
             }}
           >
-            <MessageSquareHeart size={18} /> Kritik & Saran ({feedbackList.length})
+            <LifeBuoy size={18} /> Dukungan ({feedbackList.length})
             {feedbackList.filter(f => f.status === 'unread').length > 0 && (
               <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
                 {feedbackList.filter(f => f.status === 'unread').length}
@@ -944,17 +1028,16 @@ export default function SuperAdmin() {
           {/* 1. DASHBOARD OVERVIEW */}
           {activeTab === 'dashboard' && (
             <div>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <p style={{ margin: 0, color: '#0f766e', fontSize: '0.75rem', fontWeight: 900, letterSpacing: '.08em' }}>UNITPRO CONTROL CENTER</p>
+                <h1 style={{ margin: '5px 0 4px', fontSize: '1.7rem', fontWeight: 900 }}>Ringkasan Bisnis SaaS</h1>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '.88rem' }}>Pantau pertumbuhan, pendapatan, risiko langganan, dukungan, dan afiliasi dari satu layar.</p>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '2rem' }}>
-                {/* Platform Wallet */}
                 <div style={{ padding: '1.8rem', borderRadius: '20px', background: 'linear-gradient(135deg, #0284c7 0%, #1e40af 100%)', color: 'white', boxShadow: '0 8px 25px rgba(2, 132, 199, 0.25)' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#bae6fd', fontWeight: '700', textTransform: 'uppercase' }}>Saldo Komisi Platform (1%)</div>
-                  <h1 style={{ margin: '8px 0 1.2rem 0', fontSize: '2.4rem', fontWeight: '900' }}>Rp {stats.platform_balance.toLocaleString('id-ID')}</h1>
-                  <button 
-                    onClick={handlePlatformWithdraw}
-                    style={{ background: 'white', color: '#0369a1', border: 'none', padding: '8px 16px', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', width: '100%' }}
-                  >
-                    Tarik ke Rekening Utama →
-                  </button>
+                  <div style={{ fontSize: '0.8rem', color: '#bae6fd', fontWeight: '700', textTransform: 'uppercase' }}>Estimasi Pendapatan Bulanan</div>
+                  <h1 style={{ margin: '8px 0 6px', fontSize: '2.25rem', fontWeight: '900' }}>Rp {estimatedMrr.toLocaleString('id-ID')}</h1>
+                  <span style={{ color: '#dbeafe', fontSize: '.78rem' }}>{paidTenants.length} toko berbayar aktif</span>
                 </div>
                 
                 {/* Total Stores */}
@@ -972,7 +1055,7 @@ export default function SuperAdmin() {
                   <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#d97706' }}>
                     {stats.tenants.filter(t => getSubStatus(t) === 'trial').length}
                   </h1>
-                  <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px', fontWeight: '600' }}>Masa Percobaan 30 Hari</div>
+                  <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px', fontWeight: '600' }}>{trialEndingSoon.length} berakhir dalam 7 hari</div>
                 </div>
 
                 {/* Expired Stores */}
@@ -993,17 +1076,30 @@ export default function SuperAdmin() {
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>Akses Dibekukan</div>
                 </div>
 
+                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #d1fae5', borderLeft: '4px solid #059669', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Komisi Afiliasi Menunggu</div>
+                  <h1 style={{ margin: '6px 0 0', fontSize: '1.8rem', fontWeight: 900, color: '#047857' }}>Rp {pendingAffiliateAmount.toLocaleString('id-ID')}</h1>
+                  <button onClick={() => setActiveTab('afiliasi')} style={{ marginTop: 8, border: 0, background: 'transparent', color: '#047857', fontWeight: 800, cursor: 'pointer', padding: 0 }}>Tinjau {pendingAffiliateCommissions.length} komisi →</button>
+                </div>
+
 
               </div>
 
-              {/* Quick Info Box */}
-              <div style={{ padding: '1.5rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', fontWeight: '800' }}>🛡️ Panduan Pengelolaan SaaS Super Admin</h3>
-                <ul style={{ margin: 0, paddingLeft: '20px', color: '#475569', lineHeight: '1.7', fontSize: '0.88rem' }}>
-                  <li><strong>Aktivasi Langganan:</strong> Buka tab <em>"Manajemen Toko"</em>, ubah paket toko menjadi <code>PRO</code> atau <code>ENTERPRISE</code> dan atur status ke <code>ACTIVE</code>.</li>
-                  <li><strong>Perpanjang Masa Aktif:</strong> Klik tombol <code>📅 Perpanjang</code> untuk menambah masa aktif +30 hari / +1 tahun dan catat bukti bayar.</li>
-                  <li><strong>Peringatan Expired:</strong> Gunakan tombol <code>💬 Billing WA</code> untuk mengirim reminder tagihan via WhatsApp secara langsung.</li>
-                </ul>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
+                <section style={{ padding: '1.4rem', borderRadius: 18, background: '#fff', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ margin: '0 0 12px', fontSize: '1rem' }}>Perlu Ditindaklanjuti</h3>
+                  {[
+                    [`${trialEndingSoon.length} trial segera berakhir`, 'billing'],
+                    [`${expiredTenants.length} toko kedaluwarsa`, 'tenants'],
+                    [`${unreadFeedback.length} tiket belum dibaca`, 'feedback'],
+                    [`${pendingAffiliateCommissions.length} komisi afiliasi menunggu`, 'afiliasi']
+                  ].map(([label, tab]) => <button key={label} onClick={() => setActiveTab(tab)} style={{ width: '100%', padding: '10px 0', display: 'flex', justifyContent: 'space-between', background: 'transparent', border: 0, borderBottom: '1px solid #f1f5f9', color: '#334155', cursor: 'pointer', textAlign: 'left' }}><span>{label}</span><span>→</span></button>)}
+                </section>
+                <section style={{ padding: '1.4rem', borderRadius: 18, background: '#fff', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ margin: '0 0 12px', fontSize: '1rem' }}>Status Platform</h3>
+                  {[['Database & tenant', 'Terhubung'], ['WhatsApp platform', 'Perlu verifikasi berkala'], ['Versi web', 'Produksi'], ['Audit log', `${saasLogs.length} aktivitas`]].map(([name, value], index) => <div key={name} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: '.84rem' }}><span style={{ color: '#475569' }}>{name}</span><strong style={{ color: index === 1 ? '#b45309' : '#047857' }}>{value}</strong></div>)}
+                  <button onClick={() => setActiveTab('health')} className="btn btn-ghost" style={{ marginTop: 12 }}>Buka kesehatan sistem</button>
+                </section>
               </div>
             </div>
           )}
@@ -1131,7 +1227,7 @@ export default function SuperAdmin() {
                                   }}
                                 >
                                   <option value="free">Starter (Gratis)</option>
-                                  <option value="pro">Pro Titan (Rp 149rb)</option>
+                                  <option value="pro">Pro (Rp 99rb)</option>
                                   <option value="enterprise">Enterprise (Rp 299rb)</option>
                                   <option value="whitelabel">White Label Partner</option>
                                 </select>
@@ -1265,6 +1361,74 @@ export default function SuperAdmin() {
           )}
 
 
+          {activeTab === 'billing' && (
+            <section style={{ padding: '1.8rem', borderRadius: 20, background: '#fff', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18 }}>
+                <div>
+                  <p style={{ margin: 0, color: '#0f766e', fontSize: '.74rem', fontWeight: 900, letterSpacing: '.08em' }}>REVENUE OPERATIONS</p>
+                  <h2 style={{ margin: '5px 0 3px' }}>Langganan & Pembayaran</h2>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '.85rem' }}>Pantau masa aktif, risiko kedaluwarsa, dan pencatatan pembayaran tenant.</p>
+                </div>
+                <button onClick={loadStats} className="btn btn-ghost"><RefreshCw size={15} /> Perbarui</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12, marginBottom: 18 }}>
+                {[
+                  ['Estimasi MRR', `Rp ${estimatedMrr.toLocaleString('id-ID')}`, '#0f766e'],
+                  ['Toko Berbayar', paidTenants.length, '#0284c7'],
+                  ['Trial ≤ 7 Hari', trialEndingSoon.length, '#d97706'],
+                  ['Kedaluwarsa', expiredTenants.length, '#dc2626']
+                ].map(([label, value, color]) => <article key={label} style={{ padding: 16, border: '1px solid #e2e8f0', borderRadius: 14, borderTop: `3px solid ${color}` }}><span style={{ fontSize: '.78rem', color: '#64748b' }}>{label}</span><strong style={{ display: 'block', marginTop: 5, fontSize: '1.45rem', color }}>{value}</strong></article>)}
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ minWidth: 780 }}>
+                  <thead><tr><th>Toko</th><th>Paket</th><th>Status</th><th>Masa Aktif</th><th>Kontak</th><th>Aksi</th></tr></thead>
+                  <tbody>
+                    {tenantList.slice().sort((a, b) => {
+                      const order = { expired: 0, trial: 1, suspended: 2, active: 3 };
+                      return order[getSubStatus(a)] - order[getSubStatus(b)];
+                    }).map(t => {
+                      const settings = typeof t.settings === 'string' ? JSON.parse(t.settings || '{}') : (t.settings || {});
+                      const until = settings.active_until || settings.trial_ends_at;
+                      const status = getSubStatus(t);
+                      return <tr key={t.code}>
+                        <td><strong>{t.name || t.code}</strong><small style={{ display: 'block', color: '#94a3b8' }}>{t.code}</small></td>
+                        <td>{String(t.tier || 'free').toUpperCase()}</td>
+                        <td><span style={{ fontWeight: 800, color: status === 'active' ? '#047857' : status === 'trial' ? '#b45309' : '#b91c1c' }}>{status.toUpperCase()}</span></td>
+                        <td>{until ? new Date(Number(until)).toLocaleDateString('id-ID') : 'Belum diatur'}</td>
+                        <td>{t.phone || settings.store_wa || '-'}</td>
+                        <td><button className="btn btn-primary" onClick={() => setManualPayTenant(t)}><CreditCard size={14} /> Catat Pembayaran</button></td>
+                      </tr>;
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'health' && (
+            <section style={{ padding: '1.8rem', borderRadius: 20, background: '#fff', border: '1px solid #e2e8f0' }}>
+              <p style={{ margin: 0, color: '#0f766e', fontSize: '.74rem', fontWeight: 900, letterSpacing: '.08em' }}>OPERASIONAL PLATFORM</p>
+              <h2 style={{ margin: '5px 0 3px' }}>Kesehatan Sistem & Versi</h2>
+              <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: '.85rem' }}>Status berdasarkan koneksi data yang berhasil dimuat pada sesi Super Admin ini.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 14 }}>
+                {[
+                  [Activity, 'Database Tenant', `${tenantList.length} tenant termuat`, '#047857'],
+                  [MessageSquare, 'WhatsApp Platform', 'Konfigurasi tersedia', '#b45309'],
+                  [Smartphone, 'Versi Web', `v${platformVersion?.version || APP_VERSION}`, '#0284c7'],
+                  [FileText, 'Audit Operasional', `${saasLogs.length} aktivitas tercatat`, '#4f46e5']
+                ].map(([Icon, title, detail, color]) => <article key={title} style={{ padding: 18, borderRadius: 15, border: '1px solid #e2e8f0' }}><Icon size={20} color={color} /><strong style={{ display: 'block', marginTop: 10 }}>{title}</strong><span style={{ display: 'block', color, fontSize: '.82rem', marginTop: 3 }}>{detail}</span></article>)}
+              </div>
+              <div style={{ marginTop: 18, padding: 18, borderRadius: 15, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div><strong>Distribusi APK Android</strong><span style={{ display: 'block', color: '#64748b', fontSize: '.82rem', marginTop: 3 }}>Versi publik v{platformVersion?.version || APP_VERSION} · pembaruan aplikasi karyawan tersedia dari Portal Tim.</span></div>
+                <a href={platformVersion?.apkUrl || APK_PUBLIC_URL} target="_blank" rel="noreferrer" className="btn btn-primary">Buka APK</a>
+              </div>
+              <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '.82rem' }}>
+                Status “konfigurasi tersedia” bukan jaminan gateway online. Gunakan pengujian koneksi di menu WhatsApp Platform sebelum mengirim kampanye penting.
+              </div>
+            </section>
+          )}
+
+
           {/* 2B. CRM PELANGGAN — dikelompokkan berdasarkan paket */}
           {activeTab === 'crm' && (
             <CrmPelangganPanel tenants={stats.tenants} onRefresh={loadStats} />
@@ -1313,12 +1477,25 @@ export default function SuperAdmin() {
             <div style={{ padding: '2rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>Manajemen Komisi Afiliasi 🎁</h2>
-                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>Komisi <strong style={{ color: '#059669' }}>80% Pembelian Pertama</strong> — Approve untuk kirim ke dompet afiliasi</p>
+                  <p style={{ margin: 0, color: '#047857', fontSize: '.74rem', fontWeight: 900, letterSpacing: '.08em' }}>PARTNER GROWTH</p>
+                  <h2 style={{ margin: '5px 0 0', fontSize: '1.4rem', fontWeight: '900' }}>Program Afiliasi UnitPro</h2>
+                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>Komisi <strong style={{ color: '#059669' }}>{Math.round(Number(affiliateSettings.first_payment_rate || 0.20) * 100)}% pembayaran pertama</strong>, dibayarkan setelah pembayaran tenant terverifikasi.</p>
                 </div>
                 <button onClick={loadStats} style={{ padding: '6px 14px', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
                   Refresh 🔄
                 </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'end', gap: 10, flexWrap: 'wrap', padding: 14, borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', marginBottom: 16 }}>
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <label style={{ display: 'block', fontSize: '.78rem', fontWeight: 800, color: '#334155', marginBottom: 5 }}>Komisi pembayaran pertama</label>
+                  <div style={{ position: 'relative' }}>
+                    <input className="input-field" type="number" min="0" max="50" value={affiliateRateInput} onChange={(e) => setAffiliateRateInput(e.target.value)} style={{ paddingRight: 36 }} />
+                    <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: '#64748b' }}>%</span>
+                  </div>
+                </div>
+                <button className="btn btn-primary" onClick={handleSaveAffiliateSettings}>Simpan Kebijakan Komisi</button>
+                <small style={{ width: '100%', color: '#64748b' }}>Batas aman konfigurasi 0–50%. Rekomendasi UnitPro: 20% sekali bayar.</small>
               </div>
 
               {/* Summary Cards */}
@@ -1343,7 +1520,7 @@ export default function SuperAdmin() {
 
               {/* Petunjuk */}
               <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '10px', padding: '12px 16px', marginBottom: '1.5rem', fontSize: '0.88rem', color: '#14532d' }}>
-                <strong>📋 Cara Kerja:</strong> Ketika toko baru mendaftar Pro/Enterprise menggunakan kode afiliasi, komisi 80% otomatis tercatat di sini dengan status <strong>PENDING</strong>. Anda cukup klik <strong>"Setujui & Bayar"</strong> setelah memverifikasi pembayaran dari toko baru tersebut masuk ke rekening Anda.
+                <strong>Cara kerja:</strong> Ketika toko baru membeli Pro/Enterprise menggunakan kode afiliasi, komisi otomatis tercatat dengan status <strong>PENDING</strong>. Setujui komisi hanya setelah pembayaran tenant masuk dan terverifikasi.
               </div>
 
               <div style={{ overflowX: 'auto' }}>
@@ -1353,7 +1530,7 @@ export default function SuperAdmin() {
                       <th style={{ padding: '12px' }}>Afiliasi (Pemilik Kode)</th>
                       <th style={{ padding: '12px' }}>Toko yang Direferensikan</th>
                       <th style={{ padding: '12px' }}>Paket</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Komisi 80%</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Komisi</th>
                       <th style={{ padding: '12px', textAlign: 'center' }}>Status</th>
                       <th style={{ padding: '12px', textAlign: 'center' }}>Aksi</th>
                     </tr>
@@ -1382,7 +1559,7 @@ export default function SuperAdmin() {
                             background: c.status === 'PAID' ? '#dcfce7' : '#fef3c7',
                             color: c.status === 'PAID' ? '#15803d' : '#b45309'
                           }}>
-                            {c.status === 'PAID' ? '✅ Dibayar' : '⏳ Menunggu'}
+                            {c.status === 'PAID' ? 'Dibayar' : 'Menunggu'}
                           </span>
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
@@ -1401,7 +1578,7 @@ export default function SuperAdmin() {
                               <CheckCircle size={14} style={{ marginRight: '4px' }} /> Setujui & Bayar
                             </button>
                           ) : (
-                            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Selesai ✓</span>
+                            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Selesai</span>
                           )}
                         </td>
                       </tr>
@@ -2024,4 +2201,3 @@ export default function SuperAdmin() {
     </div>
   );
 }
-

@@ -23,6 +23,7 @@ const POSView = lazy(() => import('../components/POSView'));
 const BarcodeScanner = lazy(() => import('../components/BarcodeScanner'));
 const CustomerCRMInsights = lazy(() => import('../components/CustomerCRMInsights'));
 const PremiumFinanceReport = lazy(() => import('../components/PremiumFinanceReport'));
+const AffiliatePortal = lazy(() => import('../components/AffiliatePortal'));
 
 const TabLoadingSkeleton = () => (
   <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
@@ -785,7 +786,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   };
 
   // Icon mapping for dynamic tabs
-  const iconMap = { LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare };
+  const iconMap = { LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, Gift };
 
   const todayStr = new Date().toDateString();
   const newServiceCount = services.filter(s => new Date(s.created_at || Date.now()).toDateString() === todayStr && s.status === 'PROSES').length;
@@ -2410,6 +2411,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               </div>
             </div>
           </div>
+        ) : activeTab === 'affiliate' ? (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <AffiliatePortal />
+          </Suspense>
         ) : activeTab === 'forum' ? (
           <Suspense fallback={<TabLoadingSkeleton />}>
             <ForumCommunity />

@@ -267,6 +267,6 @@ export const ADMIN_TABS = [
   { id: 'pelanggan',   name: 'Pelanggan & WA',     feature: 'basicReport',    iconName: 'MessageSquare' },
   { id: 'keuangan',    name: 'Laporan',            feature: 'basicReport',    iconName: 'TrendingUp' },
   { id: 'karyawan',    name: 'Tim',                feature: 'employees',      iconName: 'Users' },
+  { id: 'affiliate',   name: 'Afiliasi',           feature: 'basicReport',    iconName: 'Gift' },
   { id: 'pengaturan',  name: 'Pengaturan Toko',    feature: 'themeSettings',  iconName: 'Settings' },
 ];
-

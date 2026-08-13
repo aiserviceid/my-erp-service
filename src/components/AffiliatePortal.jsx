@@ -3,8 +3,7 @@ import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
 import { Gift, Copy, CheckCircle, TrendingUp, Users, DollarSign, Clock, Share2, ExternalLink } from 'lucide-react';
 
-const COMMISSION_RATE = 80;
-const tierLabels = { pro: 'Pro Titan (Rp 49rb)', enterprise: 'Enterprise (Rp 79rb)', free: 'Starter Gratis' };
+const tierLabels = { pro: 'Pro', enterprise: 'Enterprise', free: 'Starter Gratis' };
 const tierColors = { pro: '#0284c7', enterprise: '#7c3aed', free: '#64748b' };
 
 export default function AffiliatePortal() {
@@ -12,12 +11,17 @@ export default function AffiliatePortal() {
   const [data, setData] = useState({ affiliate: null, commissions: [] });
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [affiliateSettings, setAffiliateSettings] = useState({ first_payment_rate: 0.20, pro_price: 99000, enterprise_price: 299000 });
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const result = await apiService.getAffiliateData(tenant.code);
+      const [result, settings] = await Promise.all([
+        apiService.getAffiliateData(tenant.code),
+        apiService.getAffiliateSettings()
+      ]);
       setData(result);
+      setAffiliateSettings(settings);
     } catch (e) {
       console.error(e);
     }
@@ -29,8 +33,12 @@ export default function AffiliatePortal() {
   }, [tenant?.code]);
 
   const referralUrl = data.affiliate
-    ? `https://aiserviceid.vercel.app/?ref=${data.affiliate.affiliate_code}`
+    ? `${window.location.origin}/login?ref=${data.affiliate.affiliate_code}`
     : '';
+
+  const commissionRate = Math.round(Number(affiliateSettings.first_payment_rate || 0.20) * 100);
+  const proCommission = Math.floor(Number(affiliateSettings.pro_price || 99000) * Number(affiliateSettings.first_payment_rate || 0.20));
+  const enterpriseCommission = Math.floor(Number(affiliateSettings.enterprise_price || 299000) * Number(affiliateSettings.first_payment_rate || 0.20));
 
   const copyCode = () => {
     if (!data.affiliate?.affiliate_code) return;
@@ -47,14 +55,14 @@ export default function AffiliatePortal() {
   };
 
   const shareWA = () => {
-    const msg = `Halo! 👋 Saya pakai *UnitPro* untuk kelola toko servis HP/Laptop saya — keren banget!
+    const msg = `Halo, saya menggunakan *UnitPro* untuk mengelola operasional toko servis.
 
-🆓 Bisa daftar GRATIS, atau upgrade Pro cuma *Rp 49.000/bulan*.
+Bisa mulai dari paket Gratis atau menggunakan paket Pro sesuai kebutuhan toko.
 
 Daftar pakai kode afiliasi saya *${data.affiliate?.affiliate_code}* atau klik link ini:
 👉 ${referralUrl}
 
-Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manajemen Multi-Karyawan & WhatsApp Blast! 🚀`;
+Fitur utama: servis, kasir, stok, tim, laporan, tracking pelanggan, dan WhatsApp.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -83,7 +91,7 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manaj
           <Gift size={32} />
           <div>
             <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900', color: 'white' }}>Program Afiliasi UnitPro</h2>
-            <p style={{ margin: '2px 0 0 0', color: '#bae6fd', fontSize: '0.9rem' }}>Dapatkan komisi <strong style={{ color: '#fef08a', fontSize: '1.1rem' }}>80%</strong> dari setiap toko yang mendaftar lewat link Anda!</p>
+            <p style={{ margin: '2px 0 0 0', color: '#bae6fd', fontSize: '0.9rem' }}>Dapatkan komisi <strong style={{ color: '#fef08a', fontSize: '1.1rem' }}>{commissionRate}%</strong> dari pembayaran pertama toko yang bergabung melalui link Anda.</p>
           </div>
         </div>
 
@@ -91,8 +99,8 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manaj
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
           {[
             { icon: '🔗', title: 'Bagikan Kode', desc: 'Share kode/link afiliasi ke teman teknisi & pemilik bengkel' },
-            { icon: '💳', title: 'Mereka Bayar', desc: 'Teman Anda daftar Pro (49rb) atau Enterprise (79rb)' },
-            { icon: '💰', title: 'Dapat Komisi 80%', desc: 'Pro = Rp 39.200 | Enterprise = Rp 63.200 per orang!' },
+            { icon: '💳', title: 'Mereka Berlangganan', desc: 'Referral membeli paket Pro atau Enterprise' },
+            { icon: '💰', title: `Dapat Komisi ${commissionRate}%`, desc: `Pro = Rp ${proCommission.toLocaleString('id-ID')} | Enterprise = Rp ${enterpriseCommission.toLocaleString('id-ID')}` },
             { icon: '🏦', title: 'Tarik ke Rekening', desc: 'Saldo masuk ke dompet, tarik via BCA/BRI/DANA kapan saja' },
           ].map((s, i) => (
             <div key={i} style={{ flex: '1 1 160px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.15)' }}>
@@ -126,7 +134,7 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manaj
 
         <div style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', borderRadius: '16px', padding: '1.4rem', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a7f3d0', fontSize: '0.82rem', fontWeight: '700', marginBottom: '6px' }}><TrendingUp size={16} /> POTENSI / REFERRAL</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: '900', color: 'white' }}>Rp 39.200 – 63.200</div>
+          <div style={{ fontSize: '1.4rem', fontWeight: '900', color: 'white' }}>Rp {proCommission.toLocaleString('id-ID')} – {enterpriseCommission.toLocaleString('id-ID')}</div>
           <div style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: '2px' }}>Per 1 toko yang bergabung</div>
         </div>
       </div>
@@ -205,7 +213,7 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manaj
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8' }}>
             <Gift size={48} style={{ margin: '0 auto 12px auto', display: 'block', opacity: 0.4 }} />
             <p style={{ fontWeight: '700' }}>Belum ada komisi masuk.</p>
-            <p style={{ fontSize: '0.88rem' }}>Bagikan kode afiliasi Anda ke teknisi dan pemilik bengkel, dan mulai hasilkan komisi 80% hari ini!</p>
+            <p style={{ fontSize: '0.88rem' }}>Bagikan kode afiliasi kepada pemilik toko servis yang membutuhkan UnitPro.</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -215,7 +223,7 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manaj
                   <th style={{ padding: '10px', textAlign: 'left', fontWeight: '800' }}>Toko Referral</th>
                   <th style={{ padding: '10px', textAlign: 'left', fontWeight: '800' }}>Paket</th>
                   <th style={{ padding: '10px', textAlign: 'right', fontWeight: '800' }}>Harga Toko</th>
-                  <th style={{ padding: '10px', textAlign: 'right', fontWeight: '800' }}>Komisi Anda (80%)</th>
+                  <th style={{ padding: '10px', textAlign: 'right', fontWeight: '800' }}>Komisi Anda</th>
                   <th style={{ padding: '10px', textAlign: 'center', fontWeight: '800' }}>Status</th>
                 </tr>
               </thead>
@@ -256,7 +264,7 @@ Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manaj
         {/* Catatan penting */}
         <div style={{ marginTop: '16px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: '10px', padding: '12px 14px', fontSize: '0.85rem', color: '#78350f' }}>
           <strong>⚠️ Ketentuan Program Afiliasi:</strong><br />
-          • Komisi <strong>80% hanya berlaku untuk pembayaran PERTAMA</strong> toko yang Anda referensikan.<br />
+          • Komisi <strong>{commissionRate}% hanya berlaku untuk pembayaran pertama</strong> toko yang Anda referensikan.<br />
           • Perpanjangan langganan bulanan berikutnya <strong>tidak</strong> menghasilkan komisi tambahan.<br />
           • Paket Starter Gratis tidak menghasilkan komisi (tidak ada pembayaran).<br />
           • Pencairan komisi diproses admin dalam <strong>1×24 jam</strong> setelah diverifikasi.

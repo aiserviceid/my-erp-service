@@ -22,6 +22,7 @@ export default function Login() {
   const initialTab = location.state?.tab || 'login'; // 'login' | 'register'
   const initialTier = location.state?.tier || 'pro'; // default Pro agar user selalu lihat payment
   const initialBilling = location.state?.billing || 'monthly'; // 'monthly' | 'yearly'
+  const referralCode = new URLSearchParams(location.search).get('ref')?.trim().toUpperCase() || '';
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [tenantCode, setTenantCode] = useState('');
@@ -147,6 +148,11 @@ export default function Login() {
       try {
         const res = await apiService.loginTenant(code, name, pin, cleanPhone);
         const data = res.tenant || res;
+        if (referralCode) {
+          await apiService.attachAffiliateReferral(referralCode, data.code).catch((referralError) => {
+            console.warn('Referral could not be attached:', referralError);
+          });
+        }
         setSuccessMsg('Akun Gratis berhasil dibuat! Mengalihkan ke Dashboard...');
         setTenant(data.code, data.name, '', 'free', res.token || `tenant_${data.code}`, cleanPhone, data.settings);
         setTimeout(() => { navigate('/admin'); }, 1500);
@@ -158,7 +164,7 @@ export default function Login() {
     } else {
       // Paket berbayar — tampilkan payment modal DULU, belum simpan ke DB
       // Simpan data form di pendingReg untuk diproses setelah konfirmasi
-      setPendingReg({ code, name, pin, phone: cleanPhone, tier: selectedTier, billingCycle });
+      setPendingReg({ code, name, pin, phone: cleanPhone, tier: selectedTier, billingCycle, referralCode });
       setShowPaymentModal(true);
     }
   };
@@ -170,6 +176,11 @@ export default function Login() {
     try {
       const res = await apiService.loginTenant(pendingReg.code, pendingReg.name, pendingReg.pin, pendingReg.phone);
       const data = res.tenant || res;
+      if (pendingReg.referralCode) {
+        await apiService.attachAffiliateReferral(pendingReg.referralCode, data.code).catch((referralError) => {
+          console.warn('Referral could not be attached:', referralError);
+        });
+      }
       setTenant(data.code, data.name, '', pendingReg.tier, res.token || `tenant_${data.code}`, pendingReg.phone, data.settings);
     } catch (err) {
       console.error('Register after payment confirm failed:', err);

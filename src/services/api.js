@@ -1590,8 +1590,45 @@ export const apiService = {
   },
 
   // ============================================================
-  // 12. SISTEM AFILIASI (Komisi 80% Pembelian Pertama)
+  // 12. SISTEM AFILIASI
   // ============================================================
+
+  getAffiliateSettings: async () => {
+    const defaults = {
+      first_payment_rate: 0.20,
+      pro_price: 99000,
+      enterprise_price: 299000,
+      payout_model: 'FIRST_PAYMENT'
+    };
+    try {
+      const { data } = await supabase
+        .from('app_config')
+        .select('value')
+        .eq('key', 'affiliate_settings')
+        .maybeSingle();
+      if (!data?.value) return defaults;
+      const saved = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+      return { ...defaults, ...(saved || {}) };
+    } catch (e) {
+      console.warn('Affiliate settings fallback used:', e);
+      return defaults;
+    }
+  },
+
+  updateAffiliateSettings: async (settings) => {
+    const rate = Math.min(0.50, Math.max(0, Number(settings?.first_payment_rate || 0)));
+    const payload = {
+      first_payment_rate: rate,
+      pro_price: Math.max(0, Number(settings?.pro_price || 99000)),
+      enterprise_price: Math.max(0, Number(settings?.enterprise_price || 299000)),
+      payout_model: 'FIRST_PAYMENT'
+    };
+    const { error } = await supabase
+      .from('app_config')
+      .upsert({ key: 'affiliate_settings', value: JSON.stringify(payload) }, { onConflict: 'key' });
+    if (error) throw error;
+    return payload;
+  },
 
   // Ambil atau buat kode afiliasi unik untuk toko ini
   getOrCreateAffiliateCode: async (tenantCode) => {
@@ -1643,6 +1680,35 @@ export const apiService = {
     }
   },
 
+  attachAffiliateReferral: async (affiliateCode, tenantCode) => {
+    const cleanCode = String(affiliateCode || '').trim().toUpperCase();
+    if (!cleanCode || !tenantCode) return { success: false, reason: 'missing_code' };
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('tenant_code, affiliate_code')
+      .eq('affiliate_code', cleanCode)
+      .maybeSingle();
+    if (affiliateError) throw affiliateError;
+    if (!affiliate) throw new Error('Kode afiliasi tidak valid.');
+    if (affiliate.tenant_code === tenantCode) throw new Error('Kode afiliasi tidak dapat digunakan untuk toko sendiri.');
+
+    const { data: tenant, error: tenantError } = await supabase
+      .from('tenants')
+      .select('settings')
+      .eq('code', tenantCode)
+      .single();
+    if (tenantError) throw tenantError;
+    const settings = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant?.settings || {});
+    if (settings.affiliate_code && settings.affiliate_code !== cleanCode) {
+      throw new Error('Toko ini sudah terhubung dengan afiliasi lain.');
+    }
+    const { error } = await supabase.from('tenants').update({
+      settings: { ...settings, affiliate_code: cleanCode, referred_by_tenant: affiliate.tenant_code, referral_attached_at: Date.now() }
+    }).eq('code', tenantCode);
+    if (error) throw error;
+    return { success: true, affiliateTenantCode: affiliate.tenant_code };
+  },
+
   // Proses referral baru (dipanggil saat registrasi toko baru dengan kode afiliasi)
   processAffiliateReferral: async (affiliateCode, newTenantCode, newTenantName, tier) => {
     try {
@@ -1664,9 +1730,14 @@ export const apiService = {
 
       if (existing) throw new Error('Toko ini sudah terdaftar dari afiliasi sebelumnya.');
 
-      // Hitung komisi 80% dari pembelian pertama
-      const COMMISSION_RATE = 0.80;
-      const tierPrices = { pro: 49000, enterprise: 79000, free: 0 };
+      // Hitung komisi dari pembayaran pertama berdasarkan konfigurasi platform.
+      const affiliateSettings = await apiService.getAffiliateSettings();
+      const COMMISSION_RATE = Number(affiliateSettings.first_payment_rate || 0.20);
+      const tierPrices = {
+        pro: Number(affiliateSettings.pro_price || 99000),
+        enterprise: Number(affiliateSettings.enterprise_price || 299000),
+        free: 0
+      };
       const basePrice = tierPrices[tier] || 0;
       const commissionAmount = Math.floor(basePrice * COMMISSION_RATE);
 
@@ -1863,7 +1934,23 @@ export const apiService = {
         `Pembayaran Rp ${Number(amount).toLocaleString('id-ID')} via ${paymentMethod} (${daysToAdd} Hari, Tier: ${targetTier.toUpperCase()}). Ref: ${refNumber || '-'}`
       );
 
-      return { success: true, data, newActiveUntilMs };
+      let affiliateCommission = null;
+      if (currentSettings.affiliate_code) {
+        try {
+          affiliateCommission = await apiService.processAffiliateReferral(
+            currentSettings.affiliate_code,
+            tenantCode,
+            data?.name || tenantCode,
+            targetTier
+          );
+        } catch (affiliateError) {
+          if (!String(affiliateError?.message || '').includes('sudah terdaftar')) {
+            console.warn('Affiliate commission was not created:', affiliateError);
+          }
+        }
+      }
+
+      return { success: true, data, newActiveUntilMs, affiliateCommission };
     } catch (e) {
       console.error('recordManualPayment error:', e);
       throw e;
