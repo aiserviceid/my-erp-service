@@ -927,6 +927,15 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <strong>{isKasir ? services.filter(s => !isPaidServiceStatus(s.status)).length : finishedToday.length}</strong>
             <small>{isKasir ? 'Masih berjalan' : 'Sudah lunas/diambil'}</small>
           </article>
+          <article className={`employee-update-summary ${latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? 'has-update' : ''}`}>
+            <span>Status Aplikasi</span>
+            <strong>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? 'Update' : 'Terbaru'}</strong>
+            <small>
+              {latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION)
+                ? `v${APP_VERSION} → v${latestVersionInfo.version}`
+                : `UnitPro v${APP_VERSION}`}
+            </small>
+          </article>
         </section>
 
       {isKasir ? (

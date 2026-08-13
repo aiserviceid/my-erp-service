@@ -615,34 +615,34 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
       )}
 
       {/* AI AGENT CONTROL PANEL */}
-      {false && <div style={{ marginTop: '1rem', padding: '1.2rem', borderRadius: '18px', background: agentEnabled ? 'linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%)' : '#f8fafc', border: `1px solid ${agentEnabled ? '#86efac' : '#cbd5e1'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+      <div className="customer-ai-agent-panel" data-status={agentEnabled ? 'active' : 'inactive'}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <div style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: agentEnabled ? '#16a34a' : '#64748b', color: '#fff', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)' }}><Bot size={24} /></div>
             <div>
-              <strong style={{ display: 'block', color: '#0f172a', fontSize: '1rem' }}>UnitPro AI Auto-Reply Agent</strong>
-              <small style={{ color: '#64748b', fontSize: '0.82rem' }}>{agentEnabled ? (agentPausedUntil > Date.now() ? '⏸️ Dipause sementara' : '🟢 Membalas WhatsApp otomatis 24/7 dengan data servis & stok toko') : '⚫ OFF — Pelanggan ditangani manual'}</small>
+              <strong style={{ display: 'block', color: '#0f172a', fontSize: '1rem' }}>AI Agent WhatsApp</strong>
+              <small style={{ color: '#64748b', fontSize: '0.82rem' }}>{agentEnabled ? (agentPausedUntil > Date.now() ? 'Dijeda sementara' : 'Aktif membalas berdasarkan data servis dan stok toko') : 'Nonaktif — percakapan ditangani staf'}</small>
             </div>
           </div>
           <button type="button" disabled={agentBusy} onClick={handleToggleAgent} style={{ minWidth: 120, border: 'none', borderRadius: 999, padding: '10px 18px', cursor: agentBusy ? 'wait' : 'pointer', background: agentEnabled ? '#16a34a' : '#334155', color: '#fff', fontWeight: 900, boxShadow: agentEnabled ? '0 4px 12px rgba(22, 163, 74, 0.3)' : 'none' }}>
-            {agentBusy ? 'Memproses...' : agentEnabled ? '🟢 AI ON' : '⚫ AI OFF'}
+            {agentBusy ? 'Memproses...' : agentEnabled ? 'AI Aktif' : 'AI Nonaktif'}
           </button>
         </div>
         {agentEnabled && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
           {agentPausedUntil > Date.now()
             ? <button type="button" className="btn btn-ghost" onClick={handleResumeAgent} style={{ background: '#fff', border: '1px solid #bbf7d0', fontSize: '0.78rem' }}><Play size={14} /> Aktifkan Sekarang</button>
             : <button type="button" className="btn btn-ghost" onClick={handlePauseAgent} style={{ background: '#fff', border: '1px solid #e2e8f0', fontSize: '0.78rem' }}><Pause size={14} /> Pause 1 Jam</button>}
-          <button type="button" className="btn btn-ghost" onClick={handleToggleAgentChats} style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.78rem' }}>👤 {showAgentChats ? 'Tutup Percakapan' : 'Ambil Alih Chat Human'}</button>
+          <button type="button" className="btn btn-ghost" onClick={handleToggleAgentChats} style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.78rem' }}>{showAgentChats ? 'Tutup Percakapan' : 'Kelola Percakapan'}</button>
         </div>}
         {agentStatus && <div style={{ marginTop: 10, fontSize: '0.82rem', fontWeight: 700, color: agentStatus.startsWith('❌') ? '#b91c1c' : '#166534' }}>{agentStatus}</div>}
-      </div>}
+      </div>
 
-      {false && showAgentChats && (
+      {showAgentChats && (
         <div style={{ marginTop: '10px', padding: '14px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div>
-              <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.95rem' }}>Percakapan AI Agent & Human Handoff</strong>
-              <small style={{ color: '#64748b' }}>Ambil alih chat kapan saja. AI berhenti membalas nomor yang ditangani staf manusia.</small>
+              <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.95rem' }}>Pengelolaan Percakapan</strong>
+              <small style={{ color: '#64748b' }}>Staf dapat mengambil alih percakapan kapan saja.</small>
             </div>
             <button type="button" className="btn btn-ghost" onClick={loadAgentConversations} disabled={loadingAgentChats} style={{ fontSize: '0.78rem' }}><RefreshCw size={13} /> Refresh</button>
           </div>
@@ -653,10 +653,10 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
                   <div style={{ minWidth: 0 }}>
                     <strong style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a' }}>{conversation.name || conversation.phone}</strong>
                     <small style={{ color: '#64748b', display: 'block', maxWidth: '520px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conversation.last_message || 'Belum ada preview pesan'}</small>
-                    <small style={{ color: conversation.human_takeover ? '#c2410c' : '#16a34a', fontWeight: 800 }}>{conversation.human_takeover ? '👤 Handling Staf Manusia' : '🤖 AI Agent Handling'}</small>
+                    <small style={{ color: conversation.human_takeover ? '#c2410c' : '#16a34a', fontWeight: 800 }}>{conversation.human_takeover ? 'Ditangani staf' : 'Ditangani AI Agent'}</small>
                   </div>
                   <button type="button" className="btn btn-ghost" onClick={() => handleConversationTakeover(conversation, !conversation.human_takeover)} style={{ whiteSpace: 'nowrap', fontSize: '0.74rem', background: '#fff', border: '1px solid #cbd5e1' }}>
-                    {conversation.human_takeover ? '🤖 Kembalikan ke AI' : '👤 Ambil Alih'}
+                    {conversation.human_takeover ? 'Kembalikan ke AI' : 'Ambil Alih'}
                   </button>
                 </div>
               ))}
