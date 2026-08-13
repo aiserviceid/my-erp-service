@@ -410,48 +410,70 @@ export default function PublicTracking() {
             )}
 
             {/* ── PROMO BANNER TOKO (Paket Pro & Trial) ── */}
-            {tenantInfo && ((tenantInfo.tier && tenantInfo.tier.toLowerCase() !== 'free') || tenantInfo.isTrial || tenantSettings.isTrial || String(tenantInfo.tier || '').toLowerCase().includes('promo') || String(tenantInfo.tier || '').toLowerCase().includes('trial')) && ((tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
+            {tenantInfo && ((tenantInfo.tier && tenantInfo.tier.toLowerCase() !== 'free') || tenantInfo.isTrial || tenantSettings.isTrial || String(tenantInfo.tier || '').toLowerCase().includes('promo') || String(tenantInfo.tier || '').toLowerCase().includes('trial')) && ((tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).length > 0) && (
               <div style={{
                 background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                borderRadius: '20px', padding: '20px', color: 'white',
-                marginTop: '16px', border: '1px solid #334155',
-                boxShadow: '0 10px 25px rgba(15, 23, 42, 0.25)'
+                borderRadius: '20px', padding: '24px 20px', color: 'white',
+                marginTop: '20px', border: '1px solid #334155',
+                boxShadow: '0 12px 30px rgba(15, 23, 42, 0.3)'
               }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
-                  🔥 Promo & Penawaran Spesial Toko
-                </div>
-                {(tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && b.title && b.isActive !== false).slice(0, 3).map((banner, i) => (
-                  <div key={banner.id || i} style={{ borderTop: i > 0 ? '1px solid #334155' : 'none', paddingTop: i > 0 ? '14px' : 0, marginTop: i > 0 ? '14px' : 0 }}>
-                    {banner.imageUrl && (
-                      <img src={banner.imageUrl} alt={banner.title} style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '12px', marginBottom: '10px', border: '1px solid #334155' }} />
-                    )}
-                    {banner.badge && (
-                      <span style={{ background: '#fbbf24', color: '#78350f', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: '900', textTransform: 'uppercase', display: 'inline-block', marginBottom: '6px' }}>
-                        {banner.badge}
-                      </span>
-                    )}
-                    <div style={{ fontWeight: '800', fontSize: '1.05rem', color: '#ffffff', marginBottom: '4px' }}>
-                      {banner.title}
-                    </div>
-                    {banner.description && (
-                      <div style={{ fontSize: '0.84rem', color: '#94a3b8', lineHeight: '1.5', marginBottom: '10px' }}>
-                        {banner.description}
-                      </div>
-                    )}
-                    {tenantSettings.store_wa && (
-                      <a
-                        href={`https://wa.me/${(tenantSettings.store_wa || '').replace(/\D/g,'')}?text=${encodeURIComponent(`Halo ${tenantInfo.name || 'Toko'}, saya melacak resi ${result.resi} dan tertarik promo: ${banner.title}`)}`}
-                        target="_blank" rel="noreferrer"
-                        style={{
-                          fontSize: '0.82rem', color: '#ffffff', background: '#0284c7', padding: '6px 14px', borderRadius: '8px',
-                          fontWeight: '800', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px'
-                        }}
-                      >
-                        💬 Tanya / Klaim Promo Ini →
-                      </a>
-                    )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    🔥 <span>Promo & Penawaran Spesial Toko</span>
                   </div>
-                ))}
+                  <span style={{ fontSize: '0.72rem', background: '#334155', color: '#cbd5e1', padding: '2px 8px', borderRadius: '100px', fontWeight: '700' }}>
+                    {(tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).length} Promo
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {(tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).map((banner, i) => (
+                    <div key={banner.id || i} style={{ background: '#1e293b', borderRadius: '16px', padding: '16px', border: '1px solid #334155', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                      {banner.imageUrl && (
+                        <div style={{ background: '#0b1120', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px', border: '1px solid #334155', textAlign: 'center' }}>
+                          <img
+                            src={banner.imageUrl}
+                            alt={banner.title || 'Banner Promo'}
+                            style={{ width: '100%', maxHeight: '280px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                          />
+                        </div>
+                      )}
+                      
+                      {banner.badge && (
+                        <span style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '900', textTransform: 'uppercase', display: 'inline-block', marginBottom: '8px', letterSpacing: '0.5px' }}>
+                          {banner.badge}
+                        </span>
+                      )}
+                      
+                      {banner.title && (
+                        <div style={{ fontWeight: '900', fontSize: '1.1rem', color: '#ffffff', marginBottom: '6px', lineHeight: '1.3' }}>
+                          {banner.title}
+                        </div>
+                      )}
+
+                      {banner.description && (
+                        <div style={{ fontSize: '0.86rem', color: '#94a3b8', lineHeight: '1.5', marginBottom: '12px' }}>
+                          {banner.description}
+                        </div>
+                      )}
+
+                      {tenantSettings.store_wa && (
+                        <a
+                          href={`https://wa.me/${(tenantSettings.store_wa || '').replace(/\D/g,'')}?text=${encodeURIComponent(`Halo ${tenantInfo.name || 'Toko'}, saya melacak resi ${result.resi} dan tertarik promo: ${banner.title || 'Promo Toko'}`)}`}
+                          target="_blank" rel="noreferrer"
+                          style={{
+                            width: '100%', fontSize: '0.85rem', color: '#ffffff', background: 'linear-gradient(135deg, #25D366 0%, #16a34a 100%)',
+                            padding: '10px 16px', borderRadius: '10px', fontWeight: '800', textDecoration: 'none',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            boxShadow: '0 4px 12px rgba(37,211,102,0.25)', border: 'none', boxSizing: 'border-box'
+                          }}
+                        >
+                          💬 Tanya / Klaim Promo Ini via WA →
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

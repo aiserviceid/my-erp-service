@@ -2163,7 +2163,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                               <div>
-                                <label className="label">Judul Promo *</label>
+                                <label className="label">Judul Promo (Opsional)</label>
                                 <input type="text" className="input-field" placeholder="Contoh: Diskon 20% Ganti LCD" value={ad.title || ''} 
                                   onChange={(e) => {
                                     const list = [...((settings.promoBanners || settings.ads || []))];

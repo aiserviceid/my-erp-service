@@ -68,13 +68,13 @@ export default function PublicCatalog() {
         </div>
 
         {/* PROMO BANNERS TOKO (Paket Pro & Trial) */}
-        {tenant && ((tenant.tier && tenant.tier.toLowerCase() !== 'free') || tenant.isTrial || tenant.settings?.isTrial || String(tenant.tier || '').toLowerCase().includes('promo') || String(tenant.tier || '').toLowerCase().includes('trial')) && ((tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
+        {tenant && ((tenant.tier && tenant.tier.toLowerCase() !== 'free') || tenant.isTrial || tenant.settings?.isTrial || String(tenant.tier || '').toLowerCase().includes('promo') || String(tenant.tier || '').toLowerCase().includes('trial')) && ((tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).length > 0) && (
           <div style={{ marginBottom: '2.5rem' }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
               🔥 Promo & Penawaran Spesial Toko
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {(tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && b.title && b.isActive !== false).map((banner, i) => (
+              {(tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).map((banner, i) => (
                 <div 
                   key={banner.id || i}
                   style={{
@@ -85,11 +85,13 @@ export default function PublicCatalog() {
                   }}
                 >
                   {banner.imageUrl && (
-                    <img src={banner.imageUrl} alt={banner.title} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '10px', marginBottom: '10px' }} />
+                    <div style={{ background: '#0b1120', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px', textAlign: 'center' }}>
+                      <img src={banner.imageUrl} alt={banner.title || 'Promo'} style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                    </div>
                   )}
                   <div>
                     {banner.badge && <span style={{ background: '#fbbf24', color: '#78350f', padding: '2px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '900', textTransform: 'uppercase' }}>{banner.badge}</span>}
-                    <h4 style={{ margin: '6px 0 4px 0', fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>{banner.title || 'Promo Spesial Servis'}</h4>
+                    {banner.title && <h4 style={{ margin: '6px 0 4px 0', fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>{banner.title}</h4>}
                     {banner.description && <p style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: '#e0f2fe', lineHeight: '1.4' }}>{banner.description}</p>}
                   </div>
                   {tenant?.settings?.store_wa && (
