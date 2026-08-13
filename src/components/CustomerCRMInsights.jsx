@@ -99,6 +99,11 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
 
   const [campaignImageUrl, setCampaignImageUrl] = useState('');
   const [disabledPhones, setDisabledPhones] = useState(new Set());
+  const [broadcastBatchSize, setBroadcastBatchSize] = useState(10);
+  const [broadcastDelaySec, setBroadcastDelaySec] = useState(5);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastProgress, setBroadcastProgress] = useState(0);
+  const [broadcastLogs, setBroadcastLogs] = useState([]);
   const [savedTemplates, setSavedTemplates] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('UNITPRO_WA_SAVED_TEMPLATES') || '[]');

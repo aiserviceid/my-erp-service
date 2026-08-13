@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { compressImageFile } from '../utils/imageCompressor';
 import { allocateServiceDiscount, normalizeKasbonAmount, normalizeMoneyInteger, normalizeTransactionAmounts, transactionMatchesServiceResi } from '../utils/financeUtils';
+import { demoStore } from './demoStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
@@ -494,7 +495,10 @@ export const apiService = {
             created_at: new Date(Date.now() - (i * 3600000 * 6)).toISOString()
           });
         }
-        return demoTxs;
+        const attendanceTxs = demoStore.getTransactions().filter((transaction) =>
+          String(transaction.type || '').startsWith('ATTENDANCE_')
+        );
+        return [...attendanceTxs, ...demoTxs].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
       }
 
       const { data, error } = await supabase
@@ -870,6 +874,12 @@ export const apiService = {
       }
 
       if (endpoint === '/transactions') {
+        if (body?.tenant_code === 'DEMO-STORE') {
+          return demoStore.addTransaction({
+            ...body,
+            amount: normalizeMoneyInteger(body?.amount),
+          });
+        }
         const idempotencyKey = body?.idempotency_key || body?.idempotencyKey;
         if (idempotencyKey && idempotencyCache.has(idempotencyKey)) {
           console.warn('⚡ [Idempotency Guard] Request duplikat terdeteksi & diblokir di backend API:', idempotencyKey);

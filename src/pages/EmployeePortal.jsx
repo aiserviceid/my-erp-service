@@ -808,7 +808,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         tenant_code: employee.tenant_code || tenant.code,
         type: type,
         amount: 0,
-        description: `ATTENDANCE_EMP_${employee.id}`
+        description: `ATTENDANCE_EMP_${employee.id}`,
+        idempotency_key: `ATTENDANCE_${employee.id}_${todayDateKey}_${type}`,
       });
       await fetchTransactions();
       alert(`Absensi ${type === 'ATTENDANCE_IN' ? 'masuk' : 'pulang'} berhasil dicatat.`);
