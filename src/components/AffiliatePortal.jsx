@@ -54,7 +54,7 @@ export default function AffiliatePortal() {
 Daftar pakai kode afiliasi saya *${data.affiliate?.affiliate_code}* atau klik link ini:
 👉 ${referralUrl}
 
-Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Multi-Karyawan, Forum Teknisi & Saweran! 🚀`;
+Fitur lengkap: Kasir POS, Cek Resi Konsumen Online, Cetak Barcode Thermal, Manajemen Multi-Karyawan & WhatsApp Blast! 🚀`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 

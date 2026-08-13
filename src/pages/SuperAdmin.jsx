@@ -878,23 +878,7 @@ export default function SuperAdmin() {
             {reviews.length > 0 && <span style={{ marginLeft: 'auto', background: activeTab === 'reviews' ? 'rgba(255,255,255,0.2)' : '#d1fae5', color: activeTab === 'reviews' ? '#fff' : '#047857', padding: '2px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800' }}>{reviews.length}</span>}
           </button>
 
-          <button 
-            onClick={() => setActiveTab('withdrawals')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: 'none',
-              background: activeTab === 'withdrawals' ? '#0284c7' : '#ffffff', color: activeTab === 'withdrawals' ? '#ffffff' : '#334155',
-              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
-              boxShadow: activeTab === 'withdrawals' ? '0 4px 12px rgba(2, 132, 199, 0.3)' : '0 2px 5px rgba(0,0,0,0.03)',
-              border: activeTab === 'withdrawals' ? 'none' : '1px solid #e2e8f0'
-            }}
-          >
-            <ArrowDownCircle size={18} /> Penarikan Saldo
-            {stats.withdrawals.filter(w => w.status === 'PENDING').length > 0 && (
-              <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800' }}>
-                {stats.withdrawals.filter(w => w.status === 'PENDING').length}
-              </span>
-            )}
-          </button>
+
 
           <button
             onClick={() => setActiveTab('ai')}
@@ -1009,14 +993,7 @@ export default function SuperAdmin() {
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>Akses Dibekukan</div>
                 </div>
 
-                {/* Pending Withdrawals */}
-                <div style={{ padding: '1.4rem', borderRadius: '18px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Withdraw Pending</div>
-                  <h1 style={{ margin: '6px 0 0 0', fontSize: '2.2rem', fontWeight: '900', color: '#d97706' }}>
-                    {stats.withdrawals.filter(w => w.status === 'PENDING').length}
-                  </h1>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Permintaan Teknisian</div>
-                </div>
+
               </div>
 
               {/* Quick Info Box */}
@@ -1329,73 +1306,7 @@ export default function SuperAdmin() {
             </div>
           )}
 
-          {/* 3. WITHDRAWALS MANAGEMENT */}
-          {activeTab === 'withdrawals' && (
-            <div style={{ padding: '2rem', borderRadius: '20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.4rem', fontWeight: '900' }}>Permintaan Penarikan Dana Teknisi</h2>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px' }}>Tanggal</th>
-                      <th style={{ padding: '12px' }}>Toko / Teknisi</th>
-                      <th style={{ padding: '12px' }}>Nominal</th>
-                      <th style={{ padding: '12px' }}>Rekening / E-Wallet Tujuan</th>
-                      <th style={{ padding: '12px' }}>Status</th>
-                      <th style={{ padding: '12px' }}>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.withdrawals.map(w => (
-                      <tr key={w.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '12px', color: '#64748b' }}>{new Date(w.created_at).toLocaleDateString('id-ID')}</td>
-                        <td style={{ padding: '12px' }}>
-                          <strong>{w.tenant_name || w.tenant_code}</strong><br/>
-                          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{w.tenant_code}</span>
-                        </td>
-                        <td style={{ padding: '12px', fontWeight: '900', color: '#0284c7' }}>
-                          Rp {w.amount.toLocaleString('id-ID')}
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <strong style={{ color: '#0f172a' }}>{w.bank_name} - {w.account_number}</strong><br/>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>a/n {w.account_name}</span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{
-                            padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: '800',
-                            background: w.status === 'SUCCESS' ? '#dcfce7' : w.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
-                            color: w.status === 'SUCCESS' ? '#15803d' : w.status === 'PENDING' ? '#b45309' : '#b91c1c'
-                          }}>
-                            {w.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          {w.status === 'PENDING' ? (
-                            <button 
-                              onClick={() => handleApprove(w.id)}
-                              style={{
-                                background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px',
-                                fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                              }}
-                            >
-                              <CheckCircle size={14} /> Setujui Transfer
-                            </button>
-                          ) : (
-                            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Selesai ✓</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {stats.withdrawals.length === 0 && (
-                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Belum ada pengajuan penarikan</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {/* 4. AFFILIATE COMMISSION APPROVAL */}
           {activeTab === 'afiliasi' && (
