@@ -707,7 +707,11 @@
   --tilt-x: 0deg;
   --tilt-y: 0deg;
   position: relative;
-  overflow: hidden;
+  width: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
+  touch-action: pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(14,165,233,.1), transparent 25rem),
     linear-gradient(180deg, #f8fcff 0%, #f3f9fc 45%, #f8fafc 100%);
@@ -911,6 +915,9 @@
 }
 
 @media (max-width: 680px) {
+  html:has(.simple-landing), body:has(.simple-landing), #root:has(.simple-landing) { min-height:100%; height:auto; overflow-x:hidden; overflow-y:visible; overscroll-behavior-y:auto; touch-action:pan-y pinch-zoom; }
+  .simple-landing, .simple-landing * { touch-action:pan-y pinch-zoom; }
+  .simple-landing button, .simple-landing a { touch-action:manipulation; }
   .simple-nav { top:7px; width:calc(100% - 14px); align-items:center; border-radius:17px; }
   .simple-nav-links a { display:none; }
   .simple-nav .nav-login-button { padding:9px 12px; font-size:12px; }

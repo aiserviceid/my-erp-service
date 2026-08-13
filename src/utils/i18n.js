@@ -63,7 +63,7 @@ export const translations = {
     save_failed: 'Gagal menyimpan pengaturan',
 
     // Landing Page
-    landing_badge: 'Aplikasi Kasir & Servis No.1',
+    landing_badge: 'Sistem Operasional Toko Servis',
     landing_hero_title: 'Satu aplikasi untuk mengatur servis, kasir, barang/jasa, teknisi, dan pelanggan.',
     landing_hero_subtitle: 'UnitPro membantu toko servis & penjualan barang/jasa bekerja lebih rapi dari unit masuk sampai unit diambil pelanggan.',
     see_demo_btn: 'Lihat Demo',
@@ -138,7 +138,7 @@ export const translations = {
     save_failed: 'Failed to save settings',
 
     // Landing Page
-    landing_badge: '#1 POS & Repair Management App',
+    landing_badge: 'Repair Shop Operating System',
     landing_hero_title: 'One platform for repair tracking, POS cashier, items & services, technicians, and customers.',
     landing_hero_subtitle: 'UnitPro helps your repair shop & store operate seamlessly from check-in to completed delivery.',
     see_demo_btn: 'View Demo',

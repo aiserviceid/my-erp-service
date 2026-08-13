@@ -35,7 +35,7 @@ import { fetchAppVersionInfo } from '../utils/versionUtils';
 import './LandingPage.css';
 
 
-const salesWhatsapp = import.meta.env.VITE_SALES_WHATSAPP || '6281234567890';
+const salesWhatsapp = '6285382535050';
 const whatsappUrl = `https://wa.me/${salesWhatsapp}?text=${encodeURIComponent('Halo UnitPro, saya ingin coba aplikasi untuk toko servis saya.')}`;
 const partnerWhatsappUrl = `https://wa.me/${salesWhatsapp}?text=${encodeURIComponent('Halo UnitPro, saya ingin bahas paket White Label / branding sendiri.')}`;
 
@@ -99,14 +99,14 @@ const packages = [
     period: '/bulan',
     badge: 'Rekomendasi',
     featured: true,
-    features: ['Servis, kasir, stok unlimited', 'Tim teknisi hingga 20 akun', 'WhatsApp pelanggan & CRM', 'Laporan owner & export Excel'],
+    features: ['Servis, kasir, stok, dan pelanggan tanpa batas', 'Tim teknisi hingga 20 akun', 'WhatsApp pelanggan & CRM', 'Laporan owner & export Excel'],
     action: 'Coba Pro',
     type: 'pro',
   },
   {
     name: 'Enterprise',
     subtitle: 'Untuk banyak cabang',
-    price: 'Rp299rb+',
+    price: 'Rp299.000',
     period: '/bulan',
     features: ['Hingga 5 cabang/outlet', 'Hingga 50 akun karyawan', 'Laporan cabang', 'Prioritas setup'],
     action: 'Konsultasi',
@@ -173,7 +173,9 @@ export default function LandingPage() {
   }, []);
 
   const handlePointerMove = (event) => {
-    if (!landingRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!landingRef.current
+      || !window.matchMedia('(hover: hover) and (pointer: fine)').matches
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const x = event.clientX / window.innerWidth;
     const y = event.clientY / window.innerHeight;
     landingRef.current.style.setProperty('--pointer-x', `${Math.round(x * 100)}%`);
@@ -241,7 +243,7 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="simple-landing" ref={landingRef} onPointerMove={handlePointerMove}>
+    <main className="simple-landing" ref={landingRef} onMouseMove={handlePointerMove}>
       <div className="landing-ambient one" aria-hidden="true" />
       <div className="landing-ambient two" aria-hidden="true" />
       <nav className={`simple-nav ${navScrolled ? 'is-scrolled' : ''}`}>
