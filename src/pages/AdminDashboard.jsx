@@ -1402,22 +1402,32 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                     ) : (
                       <div className="dashboard-chart-area" style={{ height: '260px', minHeight: '180px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-                            <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
+                          <AreaChart data={chartData} margin={{ top: 12, right: 12, left: 4, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="adminRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#0f766e" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="#0f766e" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" strokeDasharray="3 3" />
                             <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={12} />
                             <YAxis fontSize={11} stroke="#94a3b8" tickFormatter={formatRupiahAxis} width={68} axisLine={false} tickLine={false} tickCount={5} />
                             <Tooltip
-                              cursor={{ fill: 'rgba(15,118,110,0.06)' }}
-                              formatter={(value) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Omzet']}
-                              labelFormatter={(label) => `Omzet ${label}`}
-                              contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                              formatter={(value) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Omzet Toko']}
+                              labelFormatter={(label) => `Periode: ${label}`}
+                              contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: '1px solid #1e293b', boxShadow: '0 10px 25px rgba(0,0,0,0.25)', padding: '10px 14px' }}
                             />
-                            <Bar dataKey="Pendapatan" radius={[8, 8, 2, 2]} minPointSize={3}>
-                              {chartData.map((entry, index) => (
-                                <Cell key={`revenue-bar-${index}`} fill={entry.Pendapatan === maxRevenue && maxRevenue > 0 ? '#0F766E' : '#5EEAD4'} />
-                              ))}
-                            </Bar>
-                          </BarChart>
+                            <Area
+                              type="monotone"
+                              dataKey="Pendapatan"
+                              stroke="#0f766e"
+                              strokeWidth={3}
+                              fillOpacity={1}
+                              fill="url(#adminRevenueGradient)"
+                              dot={{ r: 4, fill: '#0f766e', stroke: '#ffffff', strokeWidth: 2 }}
+                              activeDot={{ r: 7, fill: '#0f766e', stroke: '#ffffff', strokeWidth: 3 }}
+                            />
+                          </AreaChart>
                         </ResponsiveContainer>
                       </div>
                     )}

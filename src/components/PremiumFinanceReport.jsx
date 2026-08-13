@@ -833,7 +833,7 @@ export default function PremiumFinanceReport({
                       boxShadow: chartType === 'AREA' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
                     }}
                   >
-                    📈 Area Chart
+                    📈 Gradient Area
                   </button>
                   <button
                     type="button"
@@ -850,7 +850,7 @@ export default function PremiumFinanceReport({
                       boxShadow: chartType === 'BAR' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none'
                     }}
                   >
-                    📊 Bar Chart
+                    📉 Garis Curve
                   </button>
                 </div>
 
@@ -906,8 +906,8 @@ export default function PremiumFinanceReport({
                       <Area type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#finKeluarGrad)" dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
                     </AreaChart>
                   ) : (
-                    <BarChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <LineChart data={chartTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.18)" />
                       <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} />
                       <YAxis
                         fontSize={11}
@@ -919,11 +919,11 @@ export default function PremiumFinanceReport({
                       />
                       <Tooltip
                         formatter={(val, name) => [`Rp ${formatRupiah(val)}`, name]}
-                        contentStyle={{ background: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                        contentStyle={{ background: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', color: '#fff', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.25)', padding: '10px 14px' }}
                       />
-                      <Bar dataKey="Pemasukan" fill="#10b981" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="Pengeluaran" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                    </BarChart>
+                      <Line type="monotone" dataKey="Pemasukan" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                      <Line type="monotone" dataKey="Pengeluaran" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
+                    </LineChart>
                   )}
                 </ResponsiveContainer>
               )}
@@ -936,18 +936,36 @@ export default function PremiumFinanceReport({
               <p>Perbandingan kontribusi servis, POS, dan pemasukan lainnya.</p>
             </div>
             {monthlyRevenueSourceData.some((row) => Number(row.Servis || 0) > 0 || Number(row.POS || 0) > 0 || Number(row.Lainnya || 0) > 0) ? (
-              <div style={{ height: '260px', width: '100%' }}>
+              <div style={{ height: '270px', width: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyRevenueSourceData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
-                    <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.22)" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} />
-                    <YAxis tickFormatter={formatRupiahAxis} axisLine={false} tickLine={false} width={68} fontSize={11} tickCount={5} />
-                    <Tooltip formatter={(value, name) => [`Rp ${formatRupiah(value)}`, name]} />
-                    <Legend />
-                    <Bar dataKey="Servis" fill="#0EA5E9" radius={[5, 5, 0, 0]} />
-                    <Bar dataKey="POS" fill="#3B82F6" radius={[5, 5, 0, 0]} />
-                    <Bar dataKey="Lainnya" fill="#10B981" radius={[5, 5, 0, 0]} />
-                  </BarChart>
+                  <AreaChart data={monthlyRevenueSourceData} margin={{ top: 12, right: 12, left: 4, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="srcServisGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35}/>
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0}/>
+                      </linearGradient>
+                      <linearGradient id="srcPosGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
+                      </linearGradient>
+                      <linearGradient id="srcLainnyaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" strokeDasharray="3 3" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} stroke="#94a3b8" />
+                    <YAxis tickFormatter={formatRupiahAxis} axisLine={false} tickLine={false} width={68} fontSize={11} stroke="#94a3b8" tickCount={5} />
+                    <Tooltip
+                      formatter={(value, name) => [`Rp ${formatRupiah(value)}`, name]}
+                      labelFormatter={(label) => `Bulan: ${label}`}
+                      contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: '1px solid #1e293b', boxShadow: '0 10px 25px rgba(0,0,0,0.25)', padding: '10px 14px' }}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '0.82rem' }} />
+                    <Area type="monotone" dataKey="Servis" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#srcServisGrad)" dot={{ r: 4, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7 }} />
+                    <Area type="monotone" dataKey="POS" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#srcPosGrad)" dot={{ r: 4, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7 }} />
+                    <Area type="monotone" dataKey="Lainnya" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#srcLainnyaGrad)" dot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 7 }} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
