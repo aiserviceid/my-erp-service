@@ -242,8 +242,8 @@ export default function LandingPage() {
 
   return (
     <main className="simple-landing" ref={landingRef} onPointerMove={handlePointerMove}>
-      <div className="landing-ambient landing-ambient-one" aria-hidden="true" />
-      <div className="landing-ambient landing-ambient-two" aria-hidden="true" />
+      <div className="landing-ambient one" aria-hidden="true" />
+      <div className="landing-ambient two" aria-hidden="true" />
       <nav className={`simple-nav ${navScrolled ? 'is-scrolled' : ''}`}>
         <button type="button" className="simple-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <BrandLogo />
@@ -296,22 +296,22 @@ export default function LandingPage() {
                 {[Gauge, Wrench, ShoppingCart, PackageCheck, UsersRound].map((Icon, index) => <span className={index === 0 ? 'active' : ''} key={index}><Icon size={16} /></span>)}
               </div>
               <div className="product-content">
-                <div className="product-title"><div><small>RINGKASAN OWNER</small><strong>Kondisi toko hari ini</strong></div><button>Terima servis</button></div>
+                <div className="product-title"><div><small>RINGKASAN OWNER</small><strong>Kondisi toko hari ini</strong></div><button type="button">+ Terima servis</button></div>
                 <div className="product-metrics">
-                  <article><span>Omzet hari ini</span><strong>Rp 2.850.000</strong><small>+12,4%</small></article>
-                  <article><span>Servis aktif</span><strong>18 unit</strong><small>6 selesai</small></article>
-                  <article><span>Siap diambil</span><strong>5 unit</strong><small>Perlu follow-up</small></article>
+                  <article className="metric-card"><span>Omzet hari ini</span><strong>Rp2,85 jt</strong><small>↑ 12,4%</small></article>
+                  <article className="metric-card"><span>Servis aktif</span><strong>18 unit</strong><small>6 selesai</small></article>
+                  <article className="metric-card"><span>Siap diambil</span><strong>5 unit</strong><small>Hubungi pelanggan</small></article>
                 </div>
                 <div className="product-chart-card">
-                  <div className="chart-heading"><span>Tren omzet</span><small>7 hari terakhir</small></div>
+                  <div className="chart-heading"><strong>Tren omzet</strong><span>7 hari terakhir</span></div>
                   <div className="chart-visual"><i /><i /><i /><i /><i /><i /><i /></div>
                   <div className="chart-labels"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="floating-status floating-status-one"><span><CheckCircle2 size={16} /></span><div><strong>Servis selesai</strong><small>Pelanggan siap dihubungi</small></div></div>
-          <div className="floating-status floating-status-two"><span><TrendingUp size={16} /></span><div><strong>Omzet terpantau</strong><small>Laporan diperbarui otomatis</small></div></div>
+          <div className="floating-status one"><CheckCircle2 size={16} /><div><strong>Servis selesai</strong><span>Pelanggan siap dihubungi</span></div></div>
+          <div className="floating-status two"><TrendingUp size={16} /><div><strong>Omzet terpantau</strong><span>Laporan diperbarui otomatis</span></div></div>
         </aside>
       </section>
 

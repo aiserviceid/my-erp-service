@@ -1,0 +1,380 @@
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+index c8f1cd7..fd66c74 100644
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -7,8 +7,8 @@ android {
+         applicationId "com.trackingservice.app"
+         minSdkVersion rootProject.ext.minSdkVersion
+         targetSdkVersion rootProject.ext.targetSdkVersion
+-        versionCode 3
+-        versionName "1.2.0"
++        versionCode 4
++        versionName "1.2.1"
+         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+         aaptOptions {
+              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+diff --git a/package-lock.json b/package-lock.json
+index 86f40f8..bf877a7 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "tracking-service",
+-  "version": "1.2.0",
++  "version": "1.2.1",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "tracking-service",
+-      "version": "1.2.0",
++      "version": "1.2.1",
+       "dependencies": {
+         "@capacitor/android": "^6.2.1",
+         "@capacitor/app": "^6.0.3",
+@@ -680,9 +680,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -700,9 +697,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -720,9 +714,6 @@
+         "ppc64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -740,9 +731,6 @@
+         "riscv64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -760,9 +748,6 @@
+         "riscv64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -780,9 +765,6 @@
+         "s390x"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -800,9 +782,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -820,9 +799,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1048,9 +1024,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1068,9 +1041,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1088,9 +1058,6 @@
+         "ppc64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1108,9 +1075,6 @@
+         "s390x"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1128,9 +1092,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1148,9 +1109,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3653,9 +3611,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -3677,9 +3632,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -3701,9 +3653,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -3725,9 +3674,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+diff --git a/package.json b/package.json
+index 8dd808c..3154a26 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "tracking-service",
+   "private": true,
+-  "version": "1.2.0",
++  "version": "1.2.1",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/public/version.json b/public/version.json
+index fb884cd..69ea713 100644
+--- a/public/version.json
++++ b/public/version.json
+@@ -1,14 +1,14 @@
+ {
+-  "version": "1.2.0",
+-  "buildNumber": 12,
++  "version": "1.2.1",
++  "buildNumber": 13,
+   "apkUrl": "https://unitproid.vercel.app/downloads/UnitPro.apk",
+   "minRequiredVersion": "1.0.0",
+   "releaseDate": "13 Agustus 2026",
+   "changelog": [
+-    "Super Admin Control Center & Log Aktivitas SaaS",
+-    "Perhitungan Masa Trial 30 Hari & Notifikasi WA Tagihan",
+-    "Library WhatsApp Campaign Template & Batch Broadcast Anti-Ban",
+-    "Banner Promo Publik Pro & Smart CRM Rules Engine"
++    "Sinkronisasi paket Free, UnitPro Pro, dan Enterprise",
++    "Pembatasan kuota servis, POS, produk, dan karyawan",
++    "Landing page lebih rapi dan responsif",
++    "Perbaikan stabilitas pembaruan aplikasi"
+   ],
+   "forceUpdate": false
+ }
+diff --git a/src/pages/LandingPage.css b/src/pages/LandingPage.css
+index b3c71aa..513de70 100644
+--- a/src/pages/LandingPage.css
++++ b/src/pages/LandingPage.css
+@@ -784,7 +784,7 @@
+ }
+ .simple-hero[data-reveal].is-visible .product-stage { transition-delay: .12s; }
+ 
+-.simple-hero { min-height: 670px; grid-template-columns: minmax(0, .9fr) minmax(470px, .85fr); gap: 58px; }
++.simple-hero { min-height: 640px; grid-template-columns: minmax(0, .92fr) minmax(520px, 1fr); gap: 70px; padding-top: 58px; }
+ .simple-kicker {
+   padding: 8px 12px;
+   border: 1px solid #bae6fd;
+@@ -792,7 +792,8 @@
+   background: rgba(255,255,255,.65);
+   box-shadow: 0 10px 30px rgba(14,165,233,.08);
+ }
+-.simple-hero h1 { text-wrap: balance; }
++.simple-hero h1 { max-width: 650px; font-size: clamp(42px, 4.7vw, 64px); line-height: 1.02; letter-spacing: -.05em; text-wrap: balance; }
++.simple-hero-copy { min-width: 0; }
+ .simple-actions .primary { position: relative; overflow: hidden; }
+ .simple-actions .primary::after {
+   content: "";
+@@ -807,7 +808,7 @@
+ .hero-trust-row span { display: inline-flex; align-items: center; gap: 7px; color: #526579; font-size: 12px; font-weight: 750; }
+ .hero-trust-row svg { color: #0f9f8f; }
+ 
+-.product-stage { position: relative; min-height: 490px; perspective: 1200px; transform-style: preserve-3d; }
++.product-stage { position: relative; min-height: 475px; perspective: 1200px; transform-style: preserve-3d; }
+ .product-stage-glow { position: absolute; inset: 15% 5%; border-radius: 50%; background: linear-gradient(135deg,#38bdf8,#2dd4bf); filter: blur(55px); opacity: .25; }
+ .product-window {
+   position: relative;
+@@ -819,6 +820,7 @@
+   box-shadow: 0 40px 100px rgba(15,23,42,.16), 0 2px 0 rgba(255,255,255,.9) inset;
+   transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+   transition: transform .15s ease-out;
++  isolation: isolate;
+ }
+ .product-window-bar { height: 42px; padding: 0 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2eff7; background: rgba(248,252,255,.95); }
+ .window-dots { display: flex; gap: 6px; }
+@@ -831,10 +833,12 @@
+ .product-sidebar svg { padding: 7px; width: 32px; height: 32px; border-radius: 9px; }
+ .product-sidebar svg.active { color: #fff; background: linear-gradient(135deg,#0ea5e9,#14b8a6); }
+ .mini-logo { width: 32px; height: 32px; margin-bottom: 7px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 900; background: rgba(255,255,255,.12); }
+-.product-content { padding: 22px; min-width: 0; }
++.product-content { padding: 24px; min-width: 0; }
+ .product-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+-.product-title strong { color: #0b1f36; font-size: 15px; }
+-.product-title span { padding: 6px 9px; border-radius: 999px; color: #0f766e; background: #ccfbf1; font-size: 9px; font-weight: 900; }
++.product-title > div { display: grid; gap: 4px; }
++.product-title small { color: #7590a6; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
++.product-title strong { display: block; color: #0b1f36; font-size: 15px; }
++.product-title button { border: 0; padding: 8px 11px; border-radius: 10px; color: #fff; background: #0ea5e9; font: inherit; font-size: 9px; font-weight: 900; }
+ .product-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 17px; }
+ .metric-card { padding: 13px; border: 1px solid #e3eef6; border-radius: 14px; background: #fff; box-shadow: 0 9px 24px rgba(15,23,42,.04); }
+ .metric-card span { color: #708196; font-size: 9px; font-weight: 800; }
+@@ -854,11 +858,11 @@
+ .chart-visual i:nth-child(7) { --bar: 82%; animation-delay:.48s; }
+ .chart-labels { display: flex; justify-content: space-between; padding-top: 7px; color: #94a3b8; font-size: 7px; font-weight: 800; }
+ .floating-status { position: absolute; z-index: 3; display: flex; align-items: center; gap: 10px; width: 185px; padding: 12px; border: 1px solid rgba(186,230,253,.9); border-radius: 16px; background: rgba(255,255,255,.88); backdrop-filter: blur(16px); box-shadow: 0 18px 42px rgba(15,23,42,.13); animation: floatStatus 4.5s ease-in-out infinite; }
+-.floating-status svg { flex: 0 0 auto; padding: 7px; width: 34px; height: 34px; border-radius: 10px; color: #0f766e; background: #ccfbf1; }
++.floating-status > svg { flex: 0 0 auto; padding: 7px; width: 34px; height: 34px; border-radius: 10px; color: #0f766e; background: #ccfbf1; }
+ .floating-status strong { display:block; color:#17314c; font-size:10px; }
+ .floating-status span { display:block; margin-top:2px; color:#708196; font-size:8px; font-weight:750; }
+-.floating-status.one { top: 2px; right: -22px; }
+-.floating-status.two { bottom: 15px; left: -28px; animation-delay: -2.2s; }
++.floating-status.one { top: 0; right: -16px; }
++.floating-status.two { bottom: 12px; left: -20px; animation-delay: -2.2s; }
+ 
+ .simple-proof div, .simple-feature-card, .simple-price-card, .workflow-card { transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease; }
+ .simple-proof div:hover, .simple-feature-card:hover, .simple-price-card:hover, .workflow-card:hover { transform: translateY(-6px); border-color: #a5dff7; box-shadow: 0 28px 65px rgba(15,23,42,.1); }
+@@ -901,6 +905,11 @@
+   .workflow-track::before { display:none; }
+ }
+ 
++@media (min-width: 1081px) and (max-width: 1280px) {
++  .simple-hero { grid-template-columns:minmax(0,.9fr) minmax(480px,1fr); gap:38px; }
++  .simple-hero h1 { font-size:clamp(40px,4.4vw,56px); }
++}
++
+ @media (max-width: 680px) {
+   .simple-nav { top:7px; width:calc(100% - 14px); align-items:center; border-radius:17px; }
+   .simple-nav-links a { display:none; }
+diff --git a/src/pages/LandingPage.jsx b/src/pages/LandingPage.jsx
+index d91b765..091014f 100644
+--- a/src/pages/LandingPage.jsx
++++ b/src/pages/LandingPage.jsx
+@@ -242,8 +242,8 @@ export default function LandingPage() {
+ 
+   return (
+     <main className="simple-landing" ref={landingRef} onPointerMove={handlePointerMove}>
+-      <div className="landing-ambient landing-ambient-one" aria-hidden="true" />
+-      <div className="landing-ambient landing-ambient-two" aria-hidden="true" />
++      <div className="landing-ambient one" aria-hidden="true" />
++      <div className="landing-ambient two" aria-hidden="true" />
+       <nav className={`simple-nav ${navScrolled ? 'is-scrolled' : ''}`}>
+         <button type="button" className="simple-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+           <BrandLogo />
+@@ -296,22 +296,22 @@ export default function LandingPage() {
+                 {[Gauge, Wrench, ShoppingCart, PackageCheck, UsersRound].map((Icon, index) => <span className={index === 0 ? 'active' : ''} key={index}><Icon size={16} /></span>)}
+               </div>
+               <div className="product-content">
+-                <div className="product-title"><div><small>RINGKASAN OWNER</small><strong>Kondisi toko hari ini</strong></div><button>Terima servis</button></div>
++                <div className="product-title"><div><small>RINGKASAN OWNER</small><strong>Kondisi toko hari ini</strong></div><button type="button">+ Terima servis</button></div>
+                 <div className="product-metrics">
+-                  <article><span>Omzet hari ini</span><strong>Rp 2.850.000</strong><small>+12,4%</small></article>
+-                  <article><span>Servis aktif</span><strong>18 unit</strong><small>6 selesai</small></article>
+-                  <article><span>Siap diambil</span><strong>5 unit</strong><small>Perlu follow-up</small></article>
++                  <article className="metric-card"><span>Omzet hari ini</span><strong>Rp2,85 jt</strong><small>↑ 12,4%</small></article>
++                  <article className="metric-card"><span>Servis aktif</span><strong>18 unit</strong><small>6 selesai</small></article>
++                  <article className="metric-card"><span>Siap diambil</span><strong>5 unit</strong><small>Hubungi pelanggan</small></article>
+                 </div>
+                 <div className="product-chart-card">
+-                  <div className="chart-heading"><span>Tren omzet</span><small>7 hari terakhir</small></div>
++                  <div className="chart-heading"><strong>Tren omzet</strong><span>7 hari terakhir</span></div>
+                   <div className="chart-visual"><i /><i /><i /><i /><i /><i /><i /></div>
+                   <div className="chart-labels"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
+                 </div>
+               </div>
+             </div>
+           </div>
+-          <div className="floating-status floating-status-one"><span><CheckCircle2 size={16} /></span><div><strong>Servis selesai</strong><small>Pelanggan siap dihubungi</small></div></div>
+-          <div className="floating-status floating-status-two"><span><TrendingUp size={16} /></span><div><strong>Omzet terpantau</strong><small>Laporan diperbarui otomatis</small></div></div>
++          <div className="floating-status one"><CheckCircle2 size={16} /><div><strong>Servis selesai</strong><span>Pelanggan siap dihubungi</span></div></div>
++          <div className="floating-status two"><TrendingUp size={16} /><div><strong>Omzet terpantau</strong><span>Laporan diperbarui otomatis</span></div></div>
+         </aside>
+       </section>
+ 

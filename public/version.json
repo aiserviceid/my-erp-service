@@ -1,14 +1,14 @@
 {
-  "version": "1.2.0",
-  "buildNumber": 12,
+  "version": "1.2.1",
+  "buildNumber": 13,
   "apkUrl": "https://unitproid.vercel.app/downloads/UnitPro.apk",
   "minRequiredVersion": "1.0.0",
   "releaseDate": "13 Agustus 2026",
   "changelog": [
-    "Super Admin Control Center & Log Aktivitas SaaS",
-    "Perhitungan Masa Trial 30 Hari & Notifikasi WA Tagihan",
-    "Library WhatsApp Campaign Template & Batch Broadcast Anti-Ban",
-    "Banner Promo Publik Pro & Smart CRM Rules Engine"
+    "Sinkronisasi paket Free, UnitPro Pro, dan Enterprise",
+    "Pembatasan kuota servis, POS, produk, dan karyawan",
+    "Landing page lebih rapi dan responsif",
+    "Perbaikan stabilitas pembaruan aplikasi"
   ],
   "forceUpdate": false
 }
