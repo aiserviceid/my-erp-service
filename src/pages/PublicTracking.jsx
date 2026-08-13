@@ -426,49 +426,72 @@ export default function PublicTracking() {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {(tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).map((banner, i) => (
-                    <div key={banner.id || i} style={{ background: '#1e293b', borderRadius: '16px', padding: '16px', border: '1px solid #334155', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                      {banner.imageUrl && (
-                        <div style={{ background: '#0b1120', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px', border: '1px solid #334155', textAlign: 'center' }}>
-                          <img
-                            src={banner.imageUrl}
-                            alt={banner.title || 'Banner Promo'}
-                            style={{ width: '100%', maxHeight: '280px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          />
-                        </div>
-                      )}
-                      
-                      {banner.badge && (
-                        <span style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '900', textTransform: 'uppercase', display: 'inline-block', marginBottom: '8px', letterSpacing: '0.5px' }}>
-                          {banner.badge}
-                        </span>
-                      )}
-                      
-                      {banner.title && (
-                        <div style={{ fontWeight: '900', fontSize: '1.1rem', color: '#ffffff', marginBottom: '6px', lineHeight: '1.3' }}>
-                          {banner.title}
-                        </div>
-                      )}
+                <div style={{
+                  display: 'flex',
+                  gap: '16px',
+                  overflowX: 'auto',
+                  paddingBottom: '8px',
+                  scrollSnapType: 'x mandatory',
+                  WebkitOverflowScrolling: 'touch',
+                }}>
+                  {(tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && (b.title?.trim() || b.imageUrl || b.description?.trim()) && b.isActive !== false).map((banner, i, arr) => (
+                    <div key={banner.id || i} style={{
+                      flex: arr.length > 1 ? '0 0 84%' : '1 1 100%',
+                      minWidth: '260px',
+                      maxWidth: arr.length > 1 ? '340px' : '100%',
+                      scrollSnapAlign: 'center',
+                      background: '#1e293b',
+                      borderRadius: '16px',
+                      padding: '16px',
+                      border: '1px solid #334155',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justify: 'space-between',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div>
+                        {banner.imageUrl && (
+                          <div style={{ background: '#0b1120', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px', border: '1px solid #334155', textAlign: 'center' }}>
+                            <img
+                              src={banner.imageUrl}
+                              alt={banner.title || 'Banner Promo'}
+                              style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                            />
+                          </div>
+                        )}
+                        
+                        {banner.badge && (
+                          <span style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '900', textTransform: 'uppercase', display: 'inline-block', marginBottom: '8px', letterSpacing: '0.5px' }}>
+                            {banner.badge}
+                          </span>
+                        )}
+                        
+                        {banner.title && (
+                          <div style={{ fontWeight: '900', fontSize: '1.05rem', color: '#ffffff', marginBottom: '6px', lineHeight: '1.3' }}>
+                            {banner.title}
+                          </div>
+                        )}
 
-                      {banner.description && (
-                        <div style={{ fontSize: '0.86rem', color: '#94a3b8', lineHeight: '1.5', marginBottom: '12px' }}>
-                          {banner.description}
-                        </div>
-                      )}
+                        {banner.description && (
+                          <div style={{ fontSize: '0.84rem', color: '#94a3b8', lineHeight: '1.5', marginBottom: '14px' }}>
+                            {banner.description}
+                          </div>
+                        )}
+                      </div>
 
                       {tenantSettings.store_wa && (
                         <a
                           href={`https://wa.me/${(tenantSettings.store_wa || '').replace(/\D/g,'')}?text=${encodeURIComponent(`Halo ${tenantInfo.name || 'Toko'}, saya melacak resi ${result.resi} dan tertarik promo: ${banner.title || 'Promo Toko'}`)}`}
                           target="_blank" rel="noreferrer"
                           style={{
-                            width: '100%', fontSize: '0.85rem', color: '#ffffff', background: 'linear-gradient(135deg, #25D366 0%, #16a34a 100%)',
-                            padding: '10px 16px', borderRadius: '10px', fontWeight: '800', textDecoration: 'none',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                            boxShadow: '0 4px 12px rgba(37,211,102,0.25)', border: 'none', boxSizing: 'border-box'
+                            width: '100%', fontSize: '0.84rem', color: '#ffffff', background: 'linear-gradient(135deg, #25D366 0%, #16a34a 100%)',
+                            padding: '10px 14px', borderRadius: '10px', fontWeight: '800', textDecoration: 'none',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                            boxShadow: '0 4px 12px rgba(37,211,102,0.25)', border: 'none', boxSizing: 'border-box', marginTop: 'auto'
                           }}
                         >
-                          💬 Tanya / Klaim Promo Ini via WA →
+                          💬 Tanya / Klaim Promo via WA →
                         </a>
                       )}
                     </div>
