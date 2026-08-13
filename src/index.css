@@ -1402,9 +1402,9 @@ html.native-app .store-settings { border-radius: 18px; overflow: hidden; }
 html.native-app .store-settings-layout { min-height: 0 !important; }
 html.native-app .store-settings-nav { width: 100% !important; padding: 16px !important; border: 0 !important; border-bottom: 1px solid #e4edf1 !important; border-radius: 0 !important; }
 html.native-app .store-settings-nav h3 { margin: 0 0 12px !important; font-size: 19px !important; }
-html.native-app .store-settings-nav-list { display: flex !important; flex-direction: row !important; overflow-x: auto; gap: 8px !important; padding-bottom: 3px; }
-html.native-app .store-settings-nav-list .btn { flex: 0 0 auto; min-height: 38px; padding: 8px 11px !important; white-space: nowrap; }
-html.native-app .store-settings-nav-list > div { display: none; }
+html.native-app .store-settings-nav-list { display: flex !important; flex-direction: column !important; overflow: visible; gap: 7px !important; padding-bottom: 0; }
+html.native-app .store-settings-nav-list .btn { width: 100%; flex: 0 0 auto; min-height: 42px; padding: 10px 12px !important; white-space: normal; justify-content: flex-start !important; }
+html.native-app .store-settings-nav-list > div { display: block; width: 100%; }
 html.native-app .store-settings-content { padding: 18px 16px max(28px, env(safe-area-inset-bottom)) !important; }
 html.native-app .store-settings-content > div { max-width: none !important; }
 html.native-app .store-settings-content [style*="minWidth: '300px'"] { min-width: 0 !important; width: 100%; }
@@ -1638,6 +1638,19 @@ html.native-app .table-container, html.native-app .customer-table-wrap, html.nat
 @media (max-width: 768px) { .customer-crm-hero { flex-direction: column; padding: 18px; } .customer-crm-hero h3 { font-size: 19px; } .customer-crm-pro-badge { width: 100%; justify-content: center; } .customer-crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .customer-segment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .customer-segment-card { min-height: 118px; padding: 13px; } }
 html.native-app .customer-crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 html.native-app .customer-segment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+html.native-app .customer-management,
+html.native-app .customer-crm-insights,
+html.native-app .customer-wa-pro-panel,
+html.native-app .customer-detail-disclosure { width: 100%; min-width: 0; max-width: 100%; }
+html.native-app .customer-management { overflow: hidden; }
+html.native-app .customer-management-header > div,
+html.native-app .customer-wa-pro-panel > div,
+html.native-app .customer-ai-agent-panel > div,
+html.native-app .customer-detail-disclosure summary > span:first-child { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+html.native-app .customer-wa-pro-panel { grid-template-columns: minmax(0, 1fr) !important; }
+html.native-app .customer-wa-pro-panel .btn { max-width: 100%; white-space: normal; }
+html.native-app .customer-ai-agent-panel { min-width: 0; max-width: 100%; overflow: hidden; }
+html.native-app .customer-detail-disclosure summary { align-items: flex-start !important; }
 
 /* Batch 10-12 owner report, onboarding, and readiness polish */
 @media (max-width: 860px) {

@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, CheckCircle2, Clock, MessageCircle, PackageSearch, Plus, ShoppingCart, TrendingUp, UsersRound } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, Clock, MessageCircle, PackageSearch, Plus, ShoppingCart, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const money = (value = 0) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
@@ -27,7 +27,7 @@ export default function PremiumDashboardSummary({
   onCreateService,
   onOpenCashier,
   onOpenTracking,
-  onOpenCustomers,
+  onOpenReports,
 }) {
   const todayServices = services.filter((service) => isToday(service.created_at));
   const unfinishedServices = services.filter((service) => serviceIsOpen(service.status));
@@ -71,7 +71,7 @@ export default function PremiumDashboardSummary({
   const actions = [
     { label: 'Terima Servis', icon: Plus, onClick: onCreateService, primary: true },
     { label: 'Buka Kasir', icon: ShoppingCart, onClick: onOpenCashier },
-    { label: 'Pelanggan & WA', icon: UsersRound, onClick: onOpenCustomers },
+    { label: 'Laporan', icon: BarChart3, onClick: onOpenReports },
     { label: 'Tracking', icon: PackageSearch, onClick: onOpenTracking },
   ];
 

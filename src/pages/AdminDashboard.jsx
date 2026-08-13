@@ -62,6 +62,8 @@ export default function AdminDashboard() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showEditServiceNota, setShowEditServiceNota] = useState(false);
   const [showServiceRegistration, setShowServiceRegistration] = useState(false);
+  const [isCreatingService, setIsCreatingService] = useState(false);
+  const serviceSubmissionLockRef = useRef(false);
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
@@ -176,11 +178,25 @@ export default function AdminDashboard() {
 
   const handleCreateService = async (event) => {
     event.preventDefault();
+
+    if (serviceSubmissionLockRef.current) {
+      alert('Servis sedang disimpan. Jangan tekan tombol dua kali.');
+      return;
+    }
+
+    serviceSubmissionLockRef.current = true;
+    setIsCreatingService(true);
+    const releaseSubmissionLock = () => {
+      serviceSubmissionLockRef.current = false;
+      setIsCreatingService(false);
+    };
+
     const form = event.currentTarget;
     const fd = new FormData(form);
     const phone = String(fd.get('phone') || '').replace(/\s/g, '');
     if (!/^(?:\+?62|0)8\d{7,12}$/.test(phone)) {
       alert('Masukkan nomor WhatsApp yang valid, contoh: 081234567890.');
+      releaseSubmissionLock();
       return;
     }
 
@@ -190,22 +206,49 @@ export default function AdminDashboard() {
       const shouldContinue = window.confirm(`${customerPhoneConflictMessage(phoneConflict.name)}
 
 Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
-      if (!shouldContinue) return;
+      if (!shouldContinue) {
+        releaseSubmissionLock();
+        return;
+      }
     }
 
     const kelengkapan = fd.get('kelengkapan') || '-';
     const estWaktu = fd.get('estimasi_waktu') || '';
     const estBiaya = fd.get('estimasi_biaya') || '';
+    const customerName = String(fd.get('name') || '').trim();
+    const deviceName = String(fd.get('device') || '').trim();
     const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}${estWaktu ? ` | Est. Waktu: ${estWaktu}` : ''}${estBiaya ? ` | Est. Biaya: Rp ${normalizeMoneyInput(estBiaya).toLocaleString('id-ID')}` : ''}`;
     const resiGenerated = `TRX-${Date.now()}`;
+
+    const recentDuplicate = services.find((service) => {
+      const createdAt = new Date(service.created_at || 0).getTime();
+      return Date.now() - createdAt < 2 * 60 * 1000
+        && normalizeWhatsAppNumber(service.customer_phone) === normalizedPhone
+        && String(service.device_name || '').trim().toLowerCase() === deviceName.toLowerCase();
+    });
+
+    if (recentDuplicate) {
+      const shouldSaveDuplicate = await (window.UnitProConfirm
+        ? window.UnitProConfirm({
+            title: 'Servis serupa sudah tercatat',
+            message: `${customerName} dengan perangkat ${deviceName} baru saja disimpan dengan resi ${recentDuplicate.resi}. Simpan lagi hanya jika memang ada dua unit berbeda.`,
+            confirmText: 'Tetap Simpan',
+            tone: 'warning',
+          })
+        : Promise.resolve(window.confirm(`Servis serupa baru saja tercatat dengan resi ${recentDuplicate.resi}.\n\nTetap simpan sebagai servis baru?`)));
+      if (!shouldSaveDuplicate) {
+        releaseSubmissionLock();
+        return;
+      }
+    }
 
     try {
       await apiService.post('/services', {
         tenant_code: tenant.code,
         resi: resiGenerated,
-        customer_name: fd.get('name'),
+        customer_name: customerName,
         customer_phone: normalizedPhone,
-        device_name: fd.get('device'),
+        device_name: deviceName,
         issue: issueText,
         technician_id: fd.get('technician_id'),
         status: 'PROSES'
@@ -216,6 +259,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       apiService.getServices(tenant.code).then(setServices);
     } catch (error) {
       alert('Gagal mendaftarkan servis. Periksa koneksi lalu coba lagi.');
+    } finally {
+      releaseSubmissionLock();
     }
   };
 
@@ -1060,7 +1105,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               products={products}
               onCreateService={() => setShowServiceRegistration(true)}
               onOpenCashier={() => setActiveTab('pos')}
-              onOpenCustomers={() => setActiveTab('pelanggan')}
+              onOpenReports={() => setActiveTab('keuangan')}
               onOpenTracking={() => window.open('/tracking', '_blank', 'noopener,noreferrer')}
             />
             
@@ -3187,7 +3232,9 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
                 </select>
               </label>
             </div>
-            <button type="submit" className="btn btn-primary service-registration-submit"><Check size={18} /> Simpan Servis & Kirim Tugas</button>
+            <button type="submit" className="btn btn-primary service-registration-submit" disabled={isCreatingService} aria-busy={isCreatingService}>
+              <Check size={18} /> {isCreatingService ? 'Sedang menyimpan...' : 'Simpan Servis & Kirim Tugas'}
+            </button>
           </form>
         </div>
       )}

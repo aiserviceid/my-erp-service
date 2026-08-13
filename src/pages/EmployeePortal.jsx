@@ -98,6 +98,8 @@ export default function EmployeePortal() {
     }
   };
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [isAddingService, setIsAddingService] = useState(false);
+  const serviceSubmissionLockRef = useRef(false);
   const [showBonModal, setShowBonModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferService, setTransferService] = useState(null);
@@ -405,6 +407,10 @@ export default function EmployeePortal() {
 
   const handleAddService = async (e) => {
     e.preventDefault();
+    if (serviceSubmissionLockRef.current) {
+      setServiceWizardError('Servis sedang disimpan. Jangan tekan tombol dua kali.');
+      return;
+    }
     const fd = new FormData(e.target);
     const customerPhone = String(fd.get('phone') || '').trim();
     if (!/^(?:\+?62|0)8\d{7,12}$/.test(customerPhone)) {
@@ -438,6 +444,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       technician_id: technician_id,
       status: 'PROSES'
     };
+    serviceSubmissionLockRef.current = true;
+    setIsAddingService(true);
     try {
       await apiService.post('/services', serviceData);
 
@@ -476,6 +484,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       fetchServices();
     } catch (err) {
       alert('Gagal tambah tugas');
+    } finally {
+      serviceSubmissionLockRef.current = false;
+      setIsAddingService(false);
     }
   };
 
@@ -1713,7 +1724,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               {serviceWizardError && <p className="service-wizard-error">{serviceWizardError}</p>}
               <div className="service-wizard-actions">
                 {serviceWizardStep > 1 ? <button type="button" className="btn btn-ghost" onClick={() => moveServiceWizard(-1)}><ChevronLeft size={18} /> Kembali</button> : <button type="button" className="btn btn-ghost" onClick={closeServiceWizard}>Batal</button>}
-                {serviceWizardStep < 4 ? <button type="button" className="btn btn-primary" onClick={() => moveServiceWizard(1)}>Lanjut <ChevronRight size={18} /></button> : <button type="submit" className="btn btn-primary"><Plus size={18} /> Simpan Servis</button>}
+                {serviceWizardStep < 4 ? <button type="button" className="btn btn-primary" onClick={() => moveServiceWizard(1)}>Lanjut <ChevronRight size={18} /></button> : <button type="submit" className="btn btn-primary" disabled={isAddingService} aria-busy={isAddingService}><Plus size={18} /> {isAddingService ? 'Sedang menyimpan...' : 'Simpan Servis'}</button>}
               </div>
             </form>
           </div>

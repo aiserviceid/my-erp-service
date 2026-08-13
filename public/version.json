@@ -1,18 +1,18 @@
 {
-  "version": "1.2.3",
-  "buildNumber": 15,
-  "apkUrl": "https://unitproid.vercel.app/downloads/UnitPro-Android-v1.2.3.apk",
-  "apkFileName": "UnitPro-Android-v1.2.3.apk",
-  "releaseTitle": "UnitPro Android v1.2.3",
-  "description": "Rilis stabil dengan scroll satu jari, akses Portal Karyawan yang jelas, menu masukan yang lebih rapi, dan ikon aplikasi yang lebih proporsional.",
+  "version": "1.2.4",
+  "buildNumber": 16,
+  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.4/UnitPro-Android-v1.2.4.apk",
+  "apkFileName": "UnitPro-Android-v1.2.4.apk",
+  "releaseTitle": "UnitPro Android v1.2.4",
+  "description": "Pembaruan pengalaman mobile untuk mencegah servis ganda dan merapikan navigasi serta tampilan pelanggan.",
   "minRequiredVersion": "1.0.0",
-  "releaseDate": "13 Agustus 2026",
+  "releaseDate": "14 Agustus 2026",
   "changelog": [
-    "Perbaikan scroll satu jari pada seluruh halaman APK Android",
-    "Ukuran logo aplikasi dirapikan dengan ruang aman yang lebih proporsional",
-    "Kritik dan Saran dipindahkan ke menu Bantuan dan Masukan",
-    "Portal Karyawan ditampilkan jelas pada halaman masuk APK",
-    "Navigasi dashboard dan portal karyawan menjadi lebih bersih"
+    "Tombol cepat Pelanggan dan WA di beranda diganti menjadi Laporan",
+    "Pencegahan klik ganda saat menyimpan servis pada dashboard dan portal kasir",
+    "Peringatan ditampilkan bila servis yang sama baru saja tercatat",
+    "Tampilan Pelanggan dan WhatsApp tidak lagi terpotong pada layar HP",
+    "Tab Pengaturan APK disusun vertikal agar lebih rapi dan mudah dipilih"
   ],
   "forceUpdate": false
 }
