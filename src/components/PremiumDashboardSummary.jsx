@@ -1,4 +1,5 @@
 import { AlertTriangle, BarChart3, CheckCircle2, Clock, MessageCircle, PackageSearch, Plus, ShoppingCart, TrendingUp, UsersRound } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const money = (value = 0) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
 
@@ -201,16 +202,48 @@ export default function PremiumDashboardSummary({
             </div>
           </div>
 
-          <div className="unitpro-trend-bars" style={{ height: 138, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '.48rem', alignItems: 'end', padding: '.35rem .15rem .1rem' }}>
-            {revenueTrend.map((item) => {
-              const height = Math.max(8, Math.round((item.revenue / maxRevenue) * 100));
-              return (
-                <div key={item.label} style={{ display: 'grid', gap: '.35rem', alignItems: 'end', minWidth: 0 }} title={`${item.label}: ${money(item.revenue)}`}>
-                  <div style={{ height: `${height}%`, minHeight: 8, borderRadius: '12px 12px 5px 5px', background: item.isToday ? 'linear-gradient(180deg, #14b8a6, #0f766e)' : 'linear-gradient(180deg, #bae6fd, #0ea5e9)', boxShadow: item.isToday ? '0 10px 20px rgba(20,184,166,.24)' : 'none' }} />
-                  <span style={{ color: item.isToday ? '#0f766e' : '#64748b', fontSize: '.68rem', fontWeight: 900, textAlign: 'center', whiteSpace: 'nowrap' }}>{item.label}</span>
-                </div>
-              );
-            })}
+          <div style={{ height: 160, width: '100%', padding: '.2rem 0' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revenueTrend} margin={{ top: 10, right: 12, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="summaryRevenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" strokeDasharray="3 3" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} fontSize={11} stroke="#94a3b8" />
+                <YAxis
+                  tickFormatter={(val) => {
+                    const amount = Number(val || 0);
+                    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1).replace('.0','')}jt`;
+                    if (amount >= 1000) return `${Math.round(amount / 1000)}rb`;
+                    return `${amount}`;
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={45}
+                  fontSize={10}
+                  stroke="#94a3b8"
+                  tickCount={4}
+                />
+                <Tooltip
+                  formatter={(val) => [`Rp ${Number(val || 0).toLocaleString('id-ID')}`, 'Omzet Toko']}
+                  labelFormatter={(lbl) => `Hari: ${lbl}`}
+                  contentStyle={{ background: '#0f172a', borderRadius: '12px', color: '#fff', border: '1px solid #1e293b', fontSize: '0.82rem', boxShadow: '0 10px 25px rgba(0,0,0,0.25)', padding: '8px 12px' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#0ea5e9"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#summaryRevenueGrad)"
+                  dot={{ r: 4, fill: '#0ea5e9', stroke: '#ffffff', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: '#0ea5e9', stroke: '#ffffff', strokeWidth: 3 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '.65rem', flexWrap: 'wrap', marginTop: '.55rem', paddingTop: '.7rem', borderTop: '1px solid #f1f5f9' }}>
