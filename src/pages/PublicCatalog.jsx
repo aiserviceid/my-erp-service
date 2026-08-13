@@ -67,14 +67,14 @@ export default function PublicCatalog() {
           </div>
         </div>
 
-        {/* PROMO BANNERS UNTUK PAKET PRO / ENTERPRISE (Batch 23) */}
-        {((tenant?.tier || 'free').toLowerCase() !== 'free') && (tenant?.settings?.ads?.length > 0 || tenant?.settings?.promoBanners?.length > 0) && (
+        {/* PROMO BANNERS TOKO */}
+        {((tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
           <div style={{ marginBottom: '2.5rem' }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
               🔥 Promo & Penawaran Spesial Toko
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {(tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b.isActive !== false).map((banner, i) => (
+              {(tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && b.title && b.isActive !== false).map((banner, i) => (
                 <div 
                   key={banner.id || i}
                   style={{
