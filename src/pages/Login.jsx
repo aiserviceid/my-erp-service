@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
 import { Store, LogIn, Search, CheckCircle, CreditCard, ShieldCheck, ArrowRight, Flame } from 'lucide-react';

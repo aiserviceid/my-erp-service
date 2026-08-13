@@ -1,6 +1,7 @@
+import React, { useState, useEffect, Component, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { useEffect, Component, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { useStore } from './store/useStore';
 import PremiumFeedback from './components/PremiumFeedback';
 
@@ -14,9 +15,6 @@ const PublicCatalog = lazy(() => import('./pages/PublicCatalog'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const isNativeApp = Capacitor.isNativePlatform();
-
-import { useState } from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
 
 function PageLoader() {
   return (
