@@ -19,6 +19,7 @@ import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConfli
 import { isServiceItem } from '../utils/productCategory';
 import { getAppLanguage, setAppLanguage, t } from '../utils/i18n';
 import { fetchAppVersionInfo, isNewerVersion } from '../utils/versionUtils';
+import { formatAttendanceTime, formatWorkDuration, getAttendanceSchedule, getAttendanceStatus, getEmployeeAttendance, getLocalDateKey, getWorkDurationMinutes } from '../utils/attendanceUtils';
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -42,6 +43,13 @@ export default function EmployeePortal() {
   const [currentLang, setCurrentLang] = useState(getAppLanguage());
   const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
   const [latestVersionInfo, setLatestVersionInfo] = useState(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceNow, setAttendanceNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setAttendanceNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Modals
   const [showSelesaiModal, setShowSelesaiModal] = useState(false);
@@ -725,10 +733,14 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     return searchText.includes(cashierServiceSearch.trim().toLowerCase());
   });
 
-  const todayDateStr = new Date().toDateString();
-  const myAttendanceToday = transactions.filter(t => t.description === `ATTENDANCE_EMP_${employee.id}` && new Date(t.created_at).toDateString() === todayDateStr);
-  const hasCheckedIn = myAttendanceToday.some(t => t.type === 'ATTENDANCE_IN');
-  const hasCheckedOut = myAttendanceToday.some(t => t.type === 'ATTENDANCE_OUT');
+  const todayDateKey = getLocalDateKey();
+  const attendanceSchedule = getAttendanceSchedule(settings);
+  const myAttendanceToday = getEmployeeAttendance(transactions, employee.id, todayDateKey);
+  const hasCheckedIn = Boolean(myAttendanceToday.checkIn);
+  const hasCheckedOut = Boolean(myAttendanceToday.checkOut);
+  const attendanceStatus = getAttendanceStatus(myAttendanceToday, attendanceSchedule, todayDateKey);
+  const attendanceDuration = formatWorkDuration(getWorkDurationMinutes(myAttendanceToday, attendanceNow));
+
   const handleTeamScan = (decodedText) => {
     const value = String(decodedText || '').trim();
     setTeamScanResult(value);
@@ -786,6 +798,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
 
   const handleAttendance = async (type) => {
+    if (attendanceLoading) return;
+    if (type === 'ATTENDANCE_OUT' && !hasCheckedIn) return alert('Anda harus absen masuk terlebih dahulu.');
+    if ((type === 'ATTENDANCE_IN' && hasCheckedIn) || (type === 'ATTENDANCE_OUT' && hasCheckedOut)) return;
+    setAttendanceLoading(true);
     try {
       await apiService.post('/transactions', {
         tenant_code: employee.tenant_code || tenant.code,
@@ -793,9 +809,13 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         amount: 0,
         description: `ATTENDANCE_EMP_${employee.id}`
       });
-      alert(`Berhasil Absen ${type === 'ATTENDANCE_IN' ? 'Masuk' : 'Keluar'}!`);
-      fetchTransactions();
-    } catch(e) { alert('Gagal mencatat absensi'); }
+      await fetchTransactions();
+      alert(`Absensi ${type === 'ATTENDANCE_IN' ? 'masuk' : 'pulang'} berhasil dicatat.`);
+    } catch(e) {
+      alert('Gagal mencatat absensi. Periksa koneksi lalu coba kembali.');
+    } finally {
+      setAttendanceLoading(false);
+    }
   };
 
   return (
@@ -841,14 +861,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
           <div>
             <h2 style={{ margin: '0 0 10px 0' }}>Halo, {employee.name} <span className="badge badge-warning">{employee.role}</span></h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {!hasCheckedIn ? (
-                <button className="btn" style={{ background: '#059669', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_IN')}>✅ Absen Masuk</button>
-              ) : !hasCheckedOut ? (
-                <button className="btn" style={{ background: '#ef4444', color: 'white', fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => handleAttendance('ATTENDANCE_OUT')}>👋 Absen Keluar</button>
-              ) : (
-                <span className="badge badge-success" style={{ fontSize: '0.8rem' }}>Absensi Hari Ini Selesai</span>
-              )}
+            <div className="attendance-compact-status">
+              <span className={`attendance-status attendance-status--${attendanceStatus.key}`}>{attendanceStatus.label}</span>
+              <span>{formatAttendanceTime(myAttendanceToday.checkIn?.created_at)} – {formatAttendanceTime(myAttendanceToday.checkOut?.created_at)}</span>
             </div>
           </div>
           <button className="btn btn-danger hide-on-mobile" onClick={() => {
@@ -856,18 +871,31 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           }}><LogOut size={16} /> Keluar</button>
         </div>
 
-        {/* Mobile Quick Attendance Action */}
-        <div className="mobile-only-attendance" style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+        <section className="attendance-card" aria-label="Absensi hari ini">
+          <div className="attendance-card__header">
+            <div>
+              <span className="attendance-card__eyebrow">ABSENSI HARI INI</span>
+              <h3>{attendanceNow.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+            </div>
+            <span className={`attendance-status attendance-status--${attendanceStatus.key}`}>{attendanceStatus.label}</span>
+          </div>
+          <div className="attendance-card__metrics">
+            <div><span>Masuk</span><strong>{formatAttendanceTime(myAttendanceToday.checkIn?.created_at)}</strong></div>
+            <div><span>Pulang</span><strong>{formatAttendanceTime(myAttendanceToday.checkOut?.created_at)}</strong></div>
+            <div><span>Durasi</span><strong>{hasCheckedIn ? attendanceDuration : '-'}</strong></div>
+            <div><span>Jadwal</span><strong>{attendanceSchedule.start}–{attendanceSchedule.end}</strong></div>
+          </div>
+          <div className="attendance-card__action">
             {!hasCheckedIn ? (
-              <button className="btn" style={{ background: '#059669', color: 'white', fontSize: '0.85rem', padding: '10px', flex: 1 }} onClick={() => handleAttendance('ATTENDANCE_IN')}>✅ Absen Masuk</button>
+              <button className="btn attendance-button attendance-button--in" disabled={attendanceLoading} onClick={() => handleAttendance('ATTENDANCE_IN')}><LogIn size={18} /> {attendanceLoading ? 'Mencatat...' : 'Absen Masuk'}</button>
             ) : !hasCheckedOut ? (
-              <button className="btn" style={{ background: '#ef4444', color: 'white', fontSize: '0.85rem', padding: '10px', flex: 1 }} onClick={() => handleAttendance('ATTENDANCE_OUT')}>👋 Absen Keluar</button>
+              <button className="btn attendance-button attendance-button--out" disabled={attendanceLoading} onClick={() => handleAttendance('ATTENDANCE_OUT')}><LogOut size={18} /> {attendanceLoading ? 'Mencatat...' : 'Absen Pulang'}</button>
             ) : (
-              <span className="badge badge-success" style={{ fontSize: '0.85rem', padding: '8px', flex: 1, justifyContent: 'center' }}>Absensi Selesai</span>
+              <div className="attendance-complete"><CheckCircle size={18} /> Absensi hari ini lengkap</div>
             )}
           </div>
-        </div>
+          <p className="attendance-card__note">Toleransi keterlambatan {attendanceSchedule.toleranceMinutes} menit. Pastikan absensi dilakukan dari akun Anda sendiri.</p>
+        </section>
 
         <section className="employee-work-hero">
           <div className="employee-work-intro">

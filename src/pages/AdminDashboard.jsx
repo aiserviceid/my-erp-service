@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -36,6 +36,7 @@ import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
 import { fetchAppVersionInfo, isNewerVersion } from '../utils/versionUtils';
 import { parseKasbonDescription } from '../utils/financeUtils';
 import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
+import { formatAttendanceTime, formatWorkDuration, getAttendanceSchedule, getAttendanceStatus, getEmployeeAttendance, getLocalDateKey, getWorkDurationMinutes } from '../utils/attendanceUtils';
 
 const formatRupiahAxis = (value = 0) => {
   const amount = Number(value || 0);
@@ -117,6 +118,8 @@ export default function AdminDashboard() {
   };
   const [previewTab, setPreviewTab] = useState('servis');
   const [empTab, setEmpTab] = useState('daftar'); // 'daftar' | 'kasbon' | 'absensi'
+  const [attendanceDate, setAttendanceDate] = useState(getLocalDateKey());
+  const [attendanceSaving, setAttendanceSaving] = useState(false);
   const [masterTab, setMasterTab] = useState('stok'); // 'stok' | 'audit'
   const [auditLogs, setAuditLogs] = useState([]);
   const [serviceTechTab, setServiceTechTab] = useState('ALL');
@@ -797,6 +800,49 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       id: meta.employeeId,
       name: employeeMatch?.name || meta.employeeName || `Karyawan (${meta.employeeId || '-'})`,
     };
+  };
+
+  const attendanceSchedule = getAttendanceSchedule(settings);
+  const attendanceRows = users.map((user) => {
+    const attendance = getEmployeeAttendance(transactions, user.id, attendanceDate);
+    const status = getAttendanceStatus(attendance, attendanceSchedule, attendanceDate);
+    return { user, attendance, status, duration: getWorkDurationMinutes(attendance) };
+  });
+  const attendanceSummary = attendanceRows.reduce((summary, row) => {
+    if (row.attendance.checkIn) summary.present += 1;
+    if (row.status.key === 'late') summary.late += 1;
+    if (row.status.key === 'completed') summary.completed += 1;
+    return summary;
+  }, { present: 0, late: 0, completed: 0 });
+  const exportAttendanceCsv = () => {
+    const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Tanggal', 'Nama Karyawan', 'Peran', 'Status', 'Jam Masuk', 'Jam Pulang', 'Durasi'],
+      ...attendanceRows.map(({ user, attendance, status, duration }) => [attendanceDate, user.name, user.role, status.label, formatAttendanceTime(attendance.checkIn?.created_at), formatAttendanceTime(attendance.checkOut?.created_at), attendance.checkIn ? formatWorkDuration(duration) : '-']),
+    ];
+    const csv = `\uFEFF${rows.map((row) => row.map(escapeCsv).join(',')).join('\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `rekap-absensi-${attendanceDate}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+  const saveAttendanceSchedule = async () => {
+    const start = document.getElementById('attendanceStartTime')?.value || '08:00';
+    const end = document.getElementById('attendanceEndTime')?.value || '17:00';
+    const tolerance = Math.max(0, Number(document.getElementById('attendanceTolerance')?.value || 0));
+    setAttendanceSaving(true);
+    try {
+      const newSettings = { ...settings, attendance_start_time: start, attendance_end_time: end, attendance_late_tolerance: tolerance };
+      await apiService.updateTenantSettings(tenant.code, newSettings);
+      updateTenantSettings(newSettings);
+      alert('Jadwal absensi berhasil disimpan.');
+    } catch (error) {
+      alert('Gagal menyimpan jadwal absensi: ' + (error?.message || 'kesalahan jaringan'));
+    } finally {
+      setAttendanceSaving(false);
+    }
   };
 
   // Build tabs based on tier config — hide wallet/affiliate/multi-branch for Fase 1
@@ -2977,32 +3023,43 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
 
              {/* TAB CONTENT: ABSENSI */}
              {empTab === 'absensi' && (
-               <div className="animate-fade-in">
+               <div className="animate-fade-in attendance-admin">
+                 <div className="attendance-admin__toolbar">
+                   <div><span>REKAP KEHADIRAN TIM</span><h3>Absensi Karyawan</h3><p>Data masuk, pulang, keterlambatan, dan durasi kerja dalam satu tampilan.</p></div>
+                   <div className="attendance-admin__actions">
+                     <input type="date" className="input-field" value={attendanceDate} max={getLocalDateKey()} onChange={(event) => setAttendanceDate(event.target.value)} />
+                     <button className="btn btn-ghost" onClick={exportAttendanceCsv}><Download size={16} /> Export CSV</button>
+                   </div>
+                 </div>
+                 <div className="attendance-admin__summary">
+                   <div><span>Total Tim</span><strong>{users.length}</strong></div><div><span>Hadir</span><strong>{attendanceSummary.present}</strong></div><div><span>Terlambat</span><strong>{attendanceSummary.late}</strong></div><div><span>Selesai Shift</span><strong>{attendanceSummary.completed}</strong></div>
+                 </div>
+                 <div className="attendance-schedule">
+                   <div><Clock size={19} /><span><strong>Atur Jadwal Kerja</strong><small>Berlaku untuk seluruh tim</small></span></div>
+                   <label>Masuk<input id="attendanceStartTime" type="time" defaultValue={attendanceSchedule.start} /></label>
+                   <label>Pulang<input id="attendanceEndTime" type="time" defaultValue={attendanceSchedule.end} /></label>
+                   <label>Toleransi (menit)<input id="attendanceTolerance" type="number" min="0" max="120" defaultValue={attendanceSchedule.toleranceMinutes} /></label>
+                   <button className="btn btn-primary" disabled={attendanceSaving} onClick={saveAttendanceSchedule}>{attendanceSaving ? 'Menyimpan...' : 'Simpan Jadwal'}</button>
+                 </div>
+                 <div className="table-container">
                  <table className="table">
-                   <thead><tr><th>Nama Karyawan</th><th>Status Absen</th><th>Jam Masuk</th><th>Jam Pulang</th></tr></thead>
+                   <thead><tr><th>Karyawan</th><th>Status</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Durasi</th></tr></thead>
                    <tbody>
-                     {users.map(u => {
-                       const todayStr = new Date().toDateString();
-                       const absensi = transactions.filter(t => t.description === `ATTENDANCE_EMP_${u.id}` && new Date(t.created_at).toDateString() === todayStr);
-                       const masuk = absensi.find(t => t.type === 'ATTENDANCE_IN');
-                       const keluar = absensi.find(t => t.type === 'ATTENDANCE_OUT');
-                       
+                     {attendanceRows.map(({ user: u, attendance, status, duration }) => {
                        return (
                          <tr key={u.id}>
-                           <td>{u.name}</td>
-                           <td>
-                             {masuk && keluar ? <span className="badge badge-success">Selesai Shift</span> :
-                              masuk ? <span className="badge badge-warning" style={{ background: '#fef08a', color: '#854d0e' }}>Sedang Bekerja</span> : 
-                              <span className="badge" style={{ background: '#f1f5f9', color: '#64748b' }}>Belum Hadir</span>}
-                           </td>
-                           <td>{masuk ? new Date(masuk.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                           <td>{keluar ? new Date(keluar.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                           <td><strong>{u.name}</strong><small className="attendance-role">{u.role}</small></td>
+                           <td><span className={`attendance-status attendance-status--${status.key}`}>{status.label}</span></td>
+                           <td>{formatAttendanceTime(attendance.checkIn?.created_at)}</td>
+                           <td>{formatAttendanceTime(attendance.checkOut?.created_at)}</td>
+                           <td>{attendance.checkIn ? formatWorkDuration(duration) : '-'}</td>
                          </tr>
                        )
                      })}
-                     {users.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan.</td></tr>}
+                     {users.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada karyawan.</td></tr>}
                    </tbody>
                  </table>
+                 </div>
                </div>
              )}
           </div>
