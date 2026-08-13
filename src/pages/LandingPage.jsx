@@ -25,6 +25,7 @@ import {
   BellRing,
   ChevronDown,
   MonitorSmartphone,
+  TrendingUp,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { APP_VERSION, APK_DOWNLOAD_PATH, APK_FILE_NAME } from '../config/appInfo';
