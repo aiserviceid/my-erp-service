@@ -2115,138 +2115,147 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
                 {settingTab === 'promo' && (
                   <div style={{ maxWidth: '650px', animation: 'fadeIn 0.3s ease-out' }}>
-                    <h3 style={{ marginBottom: '0.5rem', color: '#0f172a' }}>Iklan & Banner Promo Publik</h3>
+                    <h3 style={{ marginBottom: '0.5rem', color: '#0f172a' }}>Iklan & Banner Promo Publik {(!((tenant?.tier && tenant.tier.toLowerCase() !== 'free') || tenant?.isTrial || tenant?.settings?.isTrial || String(tenant?.tier || '').toLowerCase().includes('promo') || String(tenant?.tier || '').toLowerCase().includes('trial'))) && <span className="badge badge-warning">Paket Pro & Trial</span>}</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
                       Kelola hingga 3 banner promo aktif yang akan tampil secara otomatis di Katalog Publik & Halaman Tracking Resi Pelanggan.
                     </p>
 
-                    <div>
-                      {((settings.promoBanners && settings.promoBanners.length > 0) ? settings.promoBanners : (settings.ads || [])).map((ad, index) => (
-                        <div key={ad.id || index} style={{ padding: '1.2rem', border: '1px solid #e2e8f0', borderRadius: '14px', marginBottom: '1rem', background: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <h4 style={{ margin: 0, color: '#0284c7', fontSize: '0.95rem' }}>Banner #{index + 1}</h4>
-                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: '700', color: ad.isActive !== false ? '#059669' : '#94a3b8', cursor: 'pointer', background: ad.isActive !== false ? '#dcfce7' : '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={ad.isActive !== false}
+                    {!((tenant?.tier && tenant.tier.toLowerCase() !== 'free') || tenant?.isTrial || tenant?.settings?.isTrial || String(tenant?.tier || '').toLowerCase().includes('promo') || String(tenant?.tier || '').toLowerCase().includes('trial')) ? (
+                      <UpgradePrompt
+                        mode="card"
+                        featureName="Kelola Banner Promo Publik (Paket Pro & Trial)"
+                        featureDescription="Tampilkan iklan banner promo interaktif di Katalog Publik & Halaman Tracking Resi Pelanggan. Fitur ini tersedia untuk Paket Pro ke atas dan Paket Promo / Trial!"
+                        usageLabel="Fitur Eksklusif Paket Pro, Trial, & Enterprise"
+                      />
+                    ) : (
+                      <div>
+                        {((settings.promoBanners && settings.promoBanners.length > 0) ? settings.promoBanners : (settings.ads || [])).map((ad, index) => (
+                          <div key={ad.id || index} style={{ padding: '1.2rem', border: '1px solid #e2e8f0', borderRadius: '14px', marginBottom: '1rem', background: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h4 style={{ margin: 0, color: '#0284c7', fontSize: '0.95rem' }}>Banner #{index + 1}</h4>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: '700', color: ad.isActive !== false ? '#059669' : '#94a3b8', cursor: 'pointer', background: ad.isActive !== false ? '#dcfce7' : '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={ad.isActive !== false}
+                                    onChange={(e) => {
+                                      const list = [...((settings.promoBanners || settings.ads || []))];
+                                      list[index] = { ...list[index], isActive: e.target.checked };
+                                      updateTenantSettings({ promoBanners: list, ads: list });
+                                    }}
+                                  />
+                                  {ad.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                                </label>
+                              </div>
+                              <button 
+                                type="button"
+                                className="btn"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                                onClick={() => {
+                                  const currentBanners = settings.promoBanners || settings.ads || [];
+                                  const filtered = currentBanners.filter((_, i) => i !== index);
+                                  updateTenantSettings({ promoBanners: filtered, ads: filtered });
+                                }}
+                              >
+                                Hapus Banner
+                              </button>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div>
+                                <label className="label">Judul Promo *</label>
+                                <input type="text" className="input-field" placeholder="Contoh: Diskon 20% Ganti LCD" value={ad.title || ''} 
                                   onChange={(e) => {
                                     const list = [...((settings.promoBanners || settings.ads || []))];
-                                    list[index] = { ...list[index], isActive: e.target.checked };
+                                    list[index] = { ...list[index], title: e.target.value };
                                     updateTenantSettings({ promoBanners: list, ads: list });
-                                  }}
+                                  }} 
                                 />
-                                {ad.isActive !== false ? 'Aktif' : 'Nonaktif'}
-                              </label>
-                            </div>
-                            <button 
-                              type="button"
-                              className="btn"
-                              style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
-                              onClick={() => {
-                                const currentBanners = settings.promoBanners || settings.ads || [];
-                                const filtered = currentBanners.filter((_, i) => i !== index);
-                                updateTenantSettings({ promoBanners: filtered, ads: filtered });
-                              }}
-                            >
-                              Hapus Banner
-                            </button>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                            <div>
-                              <label className="label">Judul Promo *</label>
-                              <input type="text" className="input-field" placeholder="Contoh: Diskon 20% Ganti LCD" value={ad.title || ''} 
-                                onChange={(e) => {
-                                  const list = [...((settings.promoBanners || settings.ads || []))];
-                                  list[index] = { ...list[index], title: e.target.value };
-                                  updateTenantSettings({ promoBanners: list, ads: list });
-                                }} 
-                              />
-                            </div>
-                            <div>
-                              <label className="label">Badge Tag (Opsional)</label>
-                              <input type="text" className="input-field" placeholder="Contoh: Terbatas / Populer" value={ad.badge || ''} 
-                                onChange={(e) => {
-                                  const list = [...((settings.promoBanners || settings.ads || []))];
-                                  list[index] = { ...list[index], badge: e.target.value };
-                                  updateTenantSettings({ promoBanners: list, ads: list });
-                                }} 
-                              />
-                            </div>
-                          </div>
-
-                          <div style={{ marginBottom: '10px' }}>
-                            <label className="label">Deskripsi Ringkas Promo</label>
-                            <input type="text" className="input-field" placeholder="Contoh: Khusus pengerjaan hari ini, garansi 30 hari original." value={ad.description || ''} 
-                              onChange={(e) => {
-                                const list = [...((settings.promoBanners || settings.ads || []))];
-                                list[index] = { ...list[index], description: e.target.value };
-                                updateTenantSettings({ promoBanners: list, ads: list });
-                              }} 
-                            />
-                          </div>
-
-                          <div>
-                            <label className="label">Gambar Banner Promo (Opsional)</label>
-                            <input type="file" accept="image/*" className="input-field" 
-                              onChange={(e) => {
-                                const file = e.target.files[0];
-                                if(file) {
-                                  handleImageUpload(file, (base64) => {
-                                    const list = [...((settings.promoBanners || settings.ads || []))];
-                                    list[index] = { ...list[index], imageUrl: base64 };
-                                    updateTenantSettings({ promoBanners: list, ads: list });
-                                  });
-                                }
-                              }} 
-                            />
-                            {ad.imageUrl && (
-                              <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
-                                <img src={ad.imageUrl} alt="Promo" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover' }} />
-                                <button type="button" onClick={() => {
-                                  const list = [...((settings.promoBanners || settings.ads || []))];
-                                  list[index] = { ...list[index], imageUrl: '' };
-                                  updateTenantSettings({ promoBanners: list, ads: list });
-                                }} style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '12px' }}>×</button>
                               </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                              <div>
+                                <label className="label">Badge Tag (Opsional)</label>
+                                <input type="text" className="input-field" placeholder="Contoh: Terbatas / Populer" value={ad.badge || ''} 
+                                  onChange={(e) => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], badge: e.target.value };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} 
+                                />
+                              </div>
+                            </div>
 
-                      {((settings.promoBanners || settings.ads || []).length < 3) && (
+                            <div style={{ marginBottom: '10px' }}>
+                              <label className="label">Deskripsi Ringkas Promo</label>
+                              <input type="text" className="input-field" placeholder="Contoh: Khusus pengerjaan hari ini, garansi 30 hari original." value={ad.description || ''} 
+                                onChange={(e) => {
+                                  const list = [...((settings.promoBanners || settings.ads || []))];
+                                  list[index] = { ...list[index], description: e.target.value };
+                                  updateTenantSettings({ promoBanners: list, ads: list });
+                                }} 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="label">Gambar Banner Promo (Opsional)</label>
+                              <input type="file" accept="image/*" className="input-field" 
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if(file) {
+                                    handleImageUpload(file, (base64) => {
+                                      const list = [...((settings.promoBanners || settings.ads || []))];
+                                      list[index] = { ...list[index], imageUrl: base64 };
+                                      updateTenantSettings({ promoBanners: list, ads: list });
+                                    });
+                                  }
+                                }} 
+                              />
+                              {ad.imageUrl && (
+                                <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
+                                  <img src={ad.imageUrl} alt="Promo" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover' }} />
+                                  <button type="button" onClick={() => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], imageUrl: '' };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '12px' }}>×</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {((settings.promoBanners || settings.ads || []).length < 3) && (
+                          <button 
+                            type="button"
+                            className="btn" 
+                            style={{ background: '#f59e0b', color: 'white', border: 'none', width: '100%', marginBottom: '1rem', padding: '10px' }} 
+                            onClick={() => {
+                              const list = [...((settings.promoBanners || settings.ads || []))];
+                              list.push({ id: Date.now().toString(), title: '', description: '', badge: 'PROMO', imageUrl: '', isActive: true });
+                              updateTenantSettings({ promoBanners: list, ads: list });
+                            }}
+                          >
+                            + Tambah Banner Promo Baru (Maks 3)
+                          </button>
+                        )}
+
                         <button 
                           type="button"
                           className="btn" 
-                          style={{ background: '#f59e0b', color: 'white', border: 'none', width: '100%', marginBottom: '1rem', padding: '10px' }} 
-                          onClick={() => {
-                            const list = [...((settings.promoBanners || settings.ads || []))];
-                            list.push({ id: Date.now().toString(), title: '', description: '', badge: 'PROMO', imageUrl: '', isActive: true });
-                            updateTenantSettings({ promoBanners: list, ads: list });
+                          style={{ background: '#059669', color: 'white', border: 'none', width: '100%', padding: '12px', fontWeight: '800' }}
+                          onClick={async () => {
+                            try {
+                              const banners = settings.promoBanners || settings.ads || [];
+                              const newSettings = { ...tenant?.settings, promoBanners: banners, ads: banners };
+                              await apiService.updateTenantSettings(tenant.code, newSettings);
+                              updateTenantSettings(newSettings);
+                              alert('📢 Banner promo publik berhasil disimpan!');
+                            } catch(e) { alert('Gagal menyimpan promo: ' + (e?.message || 'kesalahan jaringan')); }
                           }}
                         >
-                          + Tambah Banner Promo Baru (Maks 3)
+                          💾 Simpan Pengaturan Banner Promo
                         </button>
-                      )}
-
-                      <button 
-                        type="button"
-                        className="btn" 
-                        style={{ background: '#059669', color: 'white', border: 'none', width: '100%', padding: '12px', fontWeight: '800' }}
-                        onClick={async () => {
-                          try {
-                            const banners = settings.promoBanners || settings.ads || [];
-                            const newSettings = { ...tenant?.settings, promoBanners: banners, ads: banners };
-                            await apiService.updateTenantSettings(tenant.code, newSettings);
-                            updateTenantSettings(newSettings);
-                            alert('📢 Banner promo publik berhasil disimpan!');
-                          } catch(e) { alert('Gagal menyimpan promo: ' + (e?.message || 'kesalahan jaringan')); }
-                        }}
-                      >
-                        💾 Simpan Pengaturan Banner Promo
-                      </button>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -67,8 +67,8 @@ export default function PublicCatalog() {
           </div>
         </div>
 
-        {/* PROMO BANNERS TOKO */}
-        {((tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
+        {/* PROMO BANNERS TOKO (Paket Pro & Trial) */}
+        {tenant && ((tenant.tier && tenant.tier.toLowerCase() !== 'free') || tenant.isTrial || tenant.settings?.isTrial || String(tenant.tier || '').toLowerCase().includes('promo') || String(tenant.tier || '').toLowerCase().includes('trial')) && ((tenant?.settings?.promoBanners || tenant?.settings?.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
           <div style={{ marginBottom: '2.5rem' }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
               🔥 Promo & Penawaran Spesial Toko

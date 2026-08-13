@@ -409,8 +409,8 @@ export default function PublicTracking() {
               </div>
             )}
 
-            {/* ── PROMO BANNER TOKO ── */}
-            {tenantInfo && ((tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
+            {/* ── PROMO BANNER TOKO (Paket Pro & Trial) ── */}
+            {tenantInfo && ((tenantInfo.tier && tenantInfo.tier.toLowerCase() !== 'free') || tenantInfo.isTrial || tenantSettings.isTrial || String(tenantInfo.tier || '').toLowerCase().includes('promo') || String(tenantInfo.tier || '').toLowerCase().includes('trial')) && ((tenantSettings.promoBanners || tenantSettings.ads || []).filter(b => b && b.title && b.isActive !== false).length > 0) && (
               <div style={{
                 background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
                 borderRadius: '20px', padding: '20px', color: 'white',
