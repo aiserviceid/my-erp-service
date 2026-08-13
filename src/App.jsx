@@ -15,8 +15,49 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const isNativeApp = Capacitor.isNativePlatform();
 
+import { useState } from 'react';
+import { WifiOff, RefreshCw } from 'lucide-react';
+
 function PageLoader() {
-  return <div style={{ minHeight: '100vh', background: '#f7faf9' }} aria-label="Memuat halaman" />;
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#0f172a' }} aria-label="Memuat halaman">
+      <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ marginTop: '16px', fontSize: '0.9rem', fontWeight: '700', color: '#475569' }}>Memuat UnitPro...</p>
+    </div>
+  );
+}
+
+function OfflineNotice() {
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOffline) return null;
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: '#ef4444', color: '#ffffff', zIndex: 11000, padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', fontSize: '0.86rem', fontWeight: '700' }}>
+      <WifiOff size={18} />
+      <span>Koneksi Internet Lambat / Offline. Periksa sambungan jaringan Anda.</span>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        style={{ background: '#ffffff', color: '#dc2626', border: 'none', borderRadius: '6px', padding: '4px 10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+      >
+        <RefreshCw size={14} /> Coba Lagi
+      </button>
+    </div>
+  );
 }
 
 function TrackResiRedirect() {
@@ -130,6 +171,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <OfflineNotice />
       <PremiumFeedback />
       <Router>
         <Suspense fallback={<PageLoader />}>

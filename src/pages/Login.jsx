@@ -35,9 +35,42 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingReg, setPendingReg] = useState(null); // simpan data sementara
+  const [rememberStore, setRememberStore] = useState(true);
+  const [recentStores, setRecentStores] = useState([]);
 
   const setTenant = useStore(state => state.setTenant);
   const navigate = useNavigate();
+
+  // Load last logged-in store & recent stores list from localStorage
+  useEffect(() => {
+    try {
+      const lastCode = localStorage.getItem('unitpro_last_tenant_code') || '';
+      if (lastCode) {
+        setTenantCode(lastCode);
+      }
+      const rawStores = localStorage.getItem('unitpro_recent_stores');
+      if (rawStores) {
+        setRecentStores(JSON.parse(rawStores));
+      }
+    } catch (e) {
+      console.warn('Failed to load remembered stores', e);
+    }
+  }, []);
+
+  const saveRememberedStore = (code, name) => {
+    if (!rememberStore) return;
+    try {
+      localStorage.setItem('unitpro_last_tenant_code', code);
+      const existing = localStorage.getItem('unitpro_recent_stores');
+      let list = existing ? JSON.parse(existing) : [];
+      list = list.filter((s) => s.code !== code);
+      list.unshift({ code, name: name || code, time: Date.now() });
+      if (list.length > 5) list = list.slice(0, 5);
+      localStorage.setItem('unitpro_recent_stores', JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to save remembered store', e);
+    }
+  };
 
   // Handle Login
   const handleLogin = async (e) => {
@@ -65,6 +98,7 @@ export default function Login() {
     try {
       const res = await apiService.loginTenant(code, '', pin);
       const data = res.tenant || res;
+      saveRememberedStore(data.code, data.name);
       setTenant(data.code, data.name, '', data.tier, res.token || `tenant_${data.code}`, data.phone, data.settings);
       if (data.settings) {
         useStore.getState().updateTenantSettings(typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings);
@@ -248,9 +282,31 @@ export default function Login() {
                   border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
+              {recentStores.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Toko Terakhir:</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {recentStores.map((item) => (
+                      <button
+                        key={item.code}
+                        type="button"
+                        onClick={() => setTenantCode(item.code)}
+                        style={{
+                          fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '6px',
+                          border: tenantCode === item.code ? '1px solid #0284c7' : '1px solid #e2e8f0',
+                          background: tenantCode === item.code ? '#e0f2fe' : '#f1f5f9',
+                          color: tenantCode === item.code ? '#0369a1' : '#475569', cursor: 'pointer'
+                        }}
+                      >
+                        {item.name || item.code} ({item.code})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div style={{ marginBottom: '1.8rem' }}>
+            <div style={{ marginBottom: '1.2rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 PIN Keamanan Toko
               </label>
@@ -268,6 +324,19 @@ export default function Login() {
                   border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '0.95rem', boxSizing: 'border-box'
                 }}
               />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+              <input
+                type="checkbox"
+                id="rememberStoreCheck"
+                checked={rememberStore}
+                onChange={(e) => setRememberStore(e.target.checked)}
+                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+              />
+              <label htmlFor="rememberStoreCheck" style={{ fontSize: '0.82rem', color: '#475569', cursor: 'pointer', fontWeight: '600' }}>
+                Ingat Kode Toko ini di perangkat ini
+              </label>
             </div>
 
             <button 

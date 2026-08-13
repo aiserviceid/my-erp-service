@@ -33,6 +33,7 @@ import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit,
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
+import { fetchAppVersionInfo, isNewerVersion } from '../utils/versionUtils';
 import { parseKasbonDescription } from '../utils/financeUtils';
 import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
 
@@ -133,14 +134,15 @@ export default function AdminDashboard() {
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState(null);
   const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
+  const [latestVersionInfo, setLatestVersionInfo] = useState(null);
   const appVersion = APP_VERSION;
   const latestApkUrl = APK_PUBLIC_URL;
 
   useEffect(() => {
-    fetch('/version.json')
-      .then(res => res.json())
+    fetchAppVersionInfo()
       .then(data => {
-        if (data && data.version && data.version !== APP_VERSION) {
+        setLatestVersionInfo(data);
+        if (data && data.version && isNewerVersion(data.version, APP_VERSION)) {
           setAvailableUpdateInfo(data);
         }
       })
@@ -2094,7 +2096,12 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                       <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#0f766e', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Smartphone size={24} /></div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: '800', color: '#134e4a' }}>UnitPro Android</div>
-                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi terbaru: {appVersion}</div>
+                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi saat ini: {appVersion}</div>
+                        <div style={{ color: latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, appVersion) ? '#b45309' : '#047857', fontSize: '0.82rem', marginTop: '3px', fontWeight: '800' }}>
+                          {latestVersionInfo?.version
+                            ? (isNewerVersion(latestVersionInfo.version, appVersion) ? `Versi baru tersedia: ${latestVersionInfo.version}` : 'Aplikasi sudah versi terbaru')
+                            : 'Mengecek info versi...'}
+                        </div>
                       </div>
                     </div>
                     <button type="button" className="btn" onClick={openAppUpdate} style={{ width: '100%', justifyContent: 'center', background: '#0f766e', color: '#fff', border: 'none', padding: '12px 16px' }}>

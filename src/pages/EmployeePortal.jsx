@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch } from 'lucide-react';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
@@ -10,10 +10,15 @@ import MobileTabBar from '../components/MobileTabBar';
 import UnitProLogo from '../components/UnitProLogo';
 import IssueChips from '../components/IssueChips';
 import EmployeeFinanceInsights from '../components/EmployeeFinanceInsights';
+import AndroidUpdateModal from '../components/AndroidUpdateModal';
+import BarcodeScanner from '../components/BarcodeScanner';
+import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { SERVICE_STATUSES } from '../config/tierLimits';
 import { buildKasbonDescription, isPaidServiceStatus, normalizeKasbonAmount, parseKasbonDescription } from '../utils/financeUtils';
 import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
 import { isServiceItem } from '../utils/productCategory';
+import { getAppLanguage, setAppLanguage, t } from '../utils/i18n';
+import { fetchAppVersionInfo, isNewerVersion } from '../utils/versionUtils';
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -22,15 +27,21 @@ export default function EmployeePortal() {
   const [tenantCode, setTenantCode] = useState(tenant?.code || '');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [recentEmployeeLogin, setRecentEmployeeLogin] = useState(null);
   
   const [services, setServices] = useState([]);
   const [products, setProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [users, setUsers] = useState([]);
   
-  const [activeTab, setActiveTab] = useState('tugas');
-  const [kasirTab, setKasirTab] = useState('pos');
+  const [activeTab, setActiveTab] = useState('beranda');
+  const [kasirTab, setKasirTab] = useState('beranda');
   const [cashierServiceSearch, setCashierServiceSearch] = useState('');
+  const [showTeamScanner, setShowTeamScanner] = useState(false);
+  const [teamScanResult, setTeamScanResult] = useState('');
+  const [currentLang, setCurrentLang] = useState(getAppLanguage());
+  const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
+  const [latestVersionInfo, setLatestVersionInfo] = useState(null);
 
   // Modals
   const [showSelesaiModal, setShowSelesaiModal] = useState(false);
@@ -293,6 +304,27 @@ export default function EmployeePortal() {
   };
 
   useEffect(() => {
+    try {
+      const savedLogin = JSON.parse(localStorage.getItem('UNITPRO_LAST_EMPLOYEE_LOGIN') || 'null');
+      if (savedLogin) {
+        setRecentEmployeeLogin(savedLogin);
+        if (!tenant?.code && savedLogin.tenantCode) setTenantCode(savedLogin.tenantCode);
+      }
+    } catch (e) {}
+  }, [tenant?.code]);
+
+  useEffect(() => {
+    fetchAppVersionInfo()
+      .then((data) => {
+        setLatestVersionInfo(data);
+        if (data?.version && isNewerVersion(data.version, APP_VERSION)) {
+          setAvailableUpdateInfo(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (employee) {
       fetchServices();
       fetchTransactions();
@@ -342,6 +374,16 @@ export default function EmployeePortal() {
       const data = await apiService.loginEmployee(code, pin);
       const empData = { ...data.user, token: data.token };
       setEmployee(empData);
+      const loginMemory = {
+        tenantCode: code,
+        tenantName: tenant?.settings?.storeName || tenant?.name || empData.tenant_name || code,
+        employeeName: empData.name || '',
+        role: empData.role || '',
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('UNITPRO_LAST_EMPLOYEE_LOGIN', JSON.stringify(loginMemory));
+      localStorage.setItem('EMPLOYEE_NAME', empData.name || '');
+      setRecentEmployeeLogin(loginMemory);
       
       if (!tenant?.code || tenant.code !== code) {
         setTenant(code, empData.tenant_code || code, '', 'free', data.token);
@@ -584,6 +626,18 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           <h2 style={{ marginBottom: '0.35rem' }}>Portal Tim</h2>
           <p style={{ margin: 0, color: '#64748b' }}>Masuk dengan PIN yang diberikan admin</p>
           {tenant?.name && <small style={{ display: 'block', marginTop: '6px', color: '#94a3b8', fontWeight: '700' }}>{tenant.name}</small>}
+          {recentEmployeeLogin && (
+            <button
+              type="button"
+              className="employee-last-login"
+              onClick={() => {
+                if (recentEmployeeLogin.tenantCode) setTenantCode(recentEmployeeLogin.tenantCode);
+              }}
+            >
+              <span>Terakhir masuk</span>
+              <strong>{recentEmployeeLogin.employeeName || 'Tim'} - {recentEmployeeLogin.tenantName || recentEmployeeLogin.tenantCode}</strong>
+            </button>
+          )}
           {error && <div style={{ color: 'white', background: 'var(--danger)', padding: '10px', borderRadius: '8px', marginTop: '1rem' }}>{error}</div>}
           <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
             {!tenant?.code && (
@@ -653,6 +707,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const sisaBersih = mySalary + totalKomisi - totalBon;
 
   const isKasir = employee.role === 'Kasir' || employee.role === 'KASIR';
+  const myServices = services.filter(s => String(s.technician_id) === String(employee.id));
+  const activeMyServices = myServices.filter(s => !isPaidServiceStatus(s.status));
+  const finishedToday = myServices.filter(s => isPaidServiceStatus(s.status) && new Date(s.updated_at || s.created_at || Date.now()).toDateString() === new Date().toDateString());
+  const todayPosTransactions = transactions.filter(t => t.type === 'POS_SALES' && new Date(t.created_at).toDateString() === new Date().toDateString());
+  const todayPosTotal = todayPosTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
   const cashierServices = services.filter((service) => {
     const technician = technicianUsers.find((user) => String(user.id) === String(service.technician_id));
     const searchText = [service.resi, service.customer_name, service.device_name, technician?.name, service.status]
@@ -666,14 +725,59 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const myAttendanceToday = transactions.filter(t => t.description === `ATTENDANCE_EMP_${employee.id}` && new Date(t.created_at).toDateString() === todayDateStr);
   const hasCheckedIn = myAttendanceToday.some(t => t.type === 'ATTENDANCE_IN');
   const hasCheckedOut = myAttendanceToday.some(t => t.type === 'ATTENDANCE_OUT');
+  const handleTeamScan = (decodedText) => {
+    const value = String(decodedText || '').trim();
+    setTeamScanResult(value);
+    if (!value) return;
+
+    const matchedService = services.find((service) => String(service.resi || '').toLowerCase() === value.toLowerCase());
+    if (matchedService) {
+      setSelectedService(matchedService);
+      if (isKasir) {
+        setKasirTab('servis');
+        setCashierServiceSearch(matchedService.resi);
+      } else {
+        setActiveTab('tugas');
+      }
+      setShowTeamScanner(false);
+      return;
+    }
+
+    if (isKasir) {
+      const matchedProduct = products.find((product) => {
+        const haystack = [product.id, product.code, product.barcode, product.name].filter(Boolean).join(' ').toLowerCase();
+        return haystack.includes(value.toLowerCase());
+      });
+      if (matchedProduct) {
+        setKasirTab('pos');
+        setShowTeamScanner(false);
+        alert(`Produk ditemukan: ${matchedProduct.name}. Buka tab Kasir untuk memasukkan ke keranjang.`);
+        return;
+      }
+    }
+
+    alert(`Kode tidak ditemukan: ${value}`);
+  };
+
+  const openEmployeeUpdate = () => {
+    const targetUrl = latestVersionInfo?.apkUrl || APK_PUBLIC_URL;
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const employeeMobileTabs = isKasir
     ? [
+        { id: 'beranda', name: 'Beranda', icon: UserRound },
         { id: 'pos', name: 'Kasir', icon: ShoppingCart },
         { id: 'servis', name: 'Alur Servis', icon: Wrench },
+        { id: 'scan', name: 'Scan', icon: ScanLine },
+        { id: 'pengaturan', name: 'Pengaturan', icon: Settings },
       ]
     : [
+        { id: 'beranda', name: 'Beranda', icon: UserRound },
         { id: 'tugas', name: 'Servis', icon: Wrench },
+        { id: 'scan', name: 'Scan', icon: ScanLine },
         { id: 'keuangan', name: 'Komisi', icon: Wallet },
+        { id: 'pengaturan', name: 'Pengaturan', icon: Settings },
       ];
   const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
 
@@ -761,20 +865,77 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           </div>
         </div>
 
+        <section className="employee-work-hero">
+          <div className="employee-work-intro">
+            <p>{isKasir ? 'PORTAL KASIR' : 'PORTAL TEKNISI'}</p>
+            <h2>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+            <span>{employee.name} - {employee.role}</span>
+          </div>
+          <div className="employee-work-actions">
+            <button type="button" onClick={() => isKasir ? setKasirTab('pos') : setActiveTab('tugas')}>
+              {isKasir ? <ShoppingCart size={17} /> : <Wrench size={17} />}
+              {isKasir ? 'Buka Kasir' : 'Lihat Tugas'}
+            </button>
+            <button type="button" onClick={() => setShowTeamScanner(true)}>
+              <ScanLine size={17} /> Scan
+            </button>
+          </div>
+        </section>
+
+        <section className="employee-metric-grid">
+          <article>
+            <span>{isKasir ? 'Transaksi Hari Ini' : 'Tugas Aktif'}</span>
+            <strong>{isKasir ? todayPosTransactions.length : activeMyServices.length}</strong>
+            <small>{isKasir ? `Rp ${todayPosTotal.toLocaleString('id-ID')}` : 'Unit belum selesai'}</small>
+          </article>
+          <article>
+            <span>{isKasir ? 'Servis Aktif' : 'Selesai Hari Ini'}</span>
+            <strong>{isKasir ? services.filter(s => !isPaidServiceStatus(s.status)).length : finishedToday.length}</strong>
+            <small>{isKasir ? 'Masih berjalan' : 'Sudah lunas/diambil'}</small>
+          </article>
+          <article>
+            <span>Update APK</span>
+            <strong>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? 'Baru' : 'OK'}</strong>
+            <small>v{APP_VERSION}</small>
+          </article>
+        </section>
+
       {isKasir ? (
         <>
           <div className="employee-section-switcher" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <button className={`btn ${kasirTab === 'beranda' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('beranda')}>
+              Beranda
+            </button>
             <button className={`btn ${kasirTab === 'pos' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('pos')}>
               Kasir POS
             </button>
             <button className={`btn ${kasirTab === 'servis' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('servis')}>
               Servis & Teknisi
             </button>
+            <button className={`btn ${kasirTab === 'scan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('scan')}>
+              Scan
+            </button>
+            <button className={`btn ${kasirTab === 'pengaturan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setKasirTab('pengaturan')}>
+              Pengaturan
+            </button>
           </div>
 
-          {kasirTab === 'pos' ? (
+          {kasirTab === 'beranda' ? (
+            <div className="employee-pro-panel">
+              <div>
+                <h3>Ringkasan Kasir</h3>
+                <p>Mulai transaksi, scan produk, atau cek alur servis dari satu portal.</p>
+              </div>
+              <div className="employee-quick-grid">
+                <button type="button" onClick={() => setKasirTab('pos')}><ShoppingCart size={18} /> Kasir POS</button>
+                <button type="button" onClick={() => setShowTeamScanner(true)}><ScanLine size={18} /> Scan Produk/Resi</button>
+                <button type="button" onClick={() => setKasirTab('servis')}><PackageSearch size={18} /> Daftar Servis</button>
+                <button type="button" onClick={() => setKasirTab('pengaturan')}><Settings size={18} /> Pengaturan</button>
+              </div>
+            </div>
+          ) : kasirTab === 'pos' ? (
             <POSView products={products} transactions={transactions} onTransactionCreated={fetchTransactions} />
-          ) : (
+          ) : kasirTab === 'servis' ? (
             <>
               <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -856,18 +1017,80 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 )}
               </div>
             </>
+          ) : kasirTab === 'scan' ? (
+            <div className="employee-pro-panel">
+              <div>
+                <h3>Scan Produk atau Resi</h3>
+                <p>Gunakan kamera perangkat untuk membaca barcode produk atau QR/resi servis tanpa layanan eksternal.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowTeamScanner(true)}><ScanLine size={18} /> Buka Kamera Scan</button>
+              {teamScanResult && <p className="employee-scan-result">Hasil terakhir: <strong>{teamScanResult}</strong></p>}
+            </div>
+          ) : (
+            <div className="employee-settings-grid">
+              <div className="employee-setting-card">
+                <UserRound size={20} />
+                <div><strong>{employee.name}</strong><span>{employee.role} - {employee.phone || 'Nomor belum diisi'}</span></div>
+              </div>
+              <div className="employee-setting-card">
+                <Languages size={20} />
+                <div>
+                  <strong>Bahasa Aplikasi</strong>
+                  <select className="input-field" value={currentLang} onChange={(event) => { setAppLanguage(event.target.value); setCurrentLang(event.target.value); }}>
+                    <option value="id">{t('indonesian', 'Bahasa Indonesia', currentLang)}</option>
+                    <option value="en">{t('english', 'English', currentLang)}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="employee-setting-card">
+                <Download size={20} />
+                <div>
+                  <strong>Update Aplikasi</strong>
+                  <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru ${latestVersionInfo.version} tersedia` : `Versi saat ini ${APP_VERSION}`}</span>
+                  <button className="btn btn-primary" onClick={openEmployeeUpdate}>Update APK</button>
+                </div>
+              </div>
+              <div className="employee-setting-card">
+                <KeyRound size={20} />
+                <div><strong>Keamanan</strong><span>Ubah PIN login tim Anda.</span><button className="btn btn-ghost" onClick={() => setShowChangePinModal(true)}>Ubah PIN</button></div>
+              </div>
+            </div>
           )}
         </>
       ) : (
         <>
           <div className="employee-section-switcher" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
+            <button className={`btn ${activeTab === 'beranda' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('beranda')}>
+              Beranda
+            </button>
             <button className={`btn ${activeTab === 'tugas' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('tugas')}>
               Daftar Tugas
+            </button>
+            <button className={`btn ${activeTab === 'scan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('scan')}>
+              Scan
             </button>
             <button className={`btn ${activeTab === 'keuangan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('keuangan')}>
               Keuangan Saya
             </button>
+            <button className={`btn ${activeTab === 'pengaturan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('pengaturan')}>
+              Pengaturan
+            </button>
           </div>
+
+          {activeTab === 'beranda' && (
+            <div className="employee-pro-panel">
+              <div>
+                <h3>Ringkasan Tugas</h3>
+                <p>Lihat pekerjaan aktif, scan resi unit, dan update progres servis dari satu tempat.</p>
+              </div>
+              <div className="employee-quick-grid">
+                <button type="button" onClick={() => setActiveTab('tugas')}><Wrench size={18} /> Tugas Saya</button>
+                <button type="button" onClick={() => setShowTeamScanner(true)}><ScanLine size={18} /> Scan Resi</button>
+                <button type="button" onClick={() => setActiveTab('keuangan')}><Wallet size={18} /> Komisi</button>
+                <button type="button" onClick={() => setActiveTab('pengaturan')}><Settings size={18} /> Pengaturan</button>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'tugas' && (
             <>
@@ -1037,11 +1260,71 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               />
             </div>
           )}
+
+          {activeTab === 'scan' && (
+            <div className="employee-pro-panel">
+              <div>
+                <h3>Scan Resi Servis</h3>
+                <p>Arahkan kamera ke barcode/QR resi untuk menemukan tugas servis lebih cepat.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowTeamScanner(true)}><ScanLine size={18} /> Buka Kamera Scan</button>
+              {teamScanResult && <p className="employee-scan-result">Hasil terakhir: <strong>{teamScanResult}</strong></p>}
+            </div>
+          )}
+
+          {activeTab === 'pengaturan' && (
+            <div className="employee-settings-grid">
+              <div className="employee-setting-card">
+                <UserRound size={20} />
+                <div><strong>{employee.name}</strong><span>{employee.role} - {employee.phone || 'Nomor belum diisi'}</span></div>
+              </div>
+              <div className="employee-setting-card">
+                <StoreIcon size={20} />
+                <div><strong>{settings.storeName || tenant?.name || 'Toko Servis'}</strong><span>Kode toko: {tenant?.code || employee.tenant_code}</span></div>
+              </div>
+              <div className="employee-setting-card">
+                <Languages size={20} />
+                <div>
+                  <strong>Bahasa Aplikasi</strong>
+                  <select className="input-field" value={currentLang} onChange={(event) => { setAppLanguage(event.target.value); setCurrentLang(event.target.value); }}>
+                    <option value="id">{t('indonesian', 'Bahasa Indonesia', currentLang)}</option>
+                    <option value="en">{t('english', 'English', currentLang)}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="employee-setting-card">
+                <Download size={20} />
+                <div>
+                  <strong>Update Aplikasi</strong>
+                  <span>{latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, APP_VERSION) ? `Versi baru ${latestVersionInfo.version} tersedia` : `Versi saat ini ${APP_VERSION}`}</span>
+                  <button className="btn btn-primary" onClick={openEmployeeUpdate}>Update APK</button>
+                </div>
+              </div>
+              <div className="employee-setting-card">
+                <KeyRound size={20} />
+                <div><strong>Keamanan</strong><span>Ubah PIN login tim Anda.</span><button className="btn btn-ghost" onClick={() => setShowChangePinModal(true)}>Ubah PIN</button></div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* Hidden iframe for printing */}
       <iframe ref={printIframeRef} style={{ display: 'none' }} title="Receipt Printer" />
+
+      {availableUpdateInfo && (
+        <AndroidUpdateModal
+          updateInfo={availableUpdateInfo}
+          onClose={() => setAvailableUpdateInfo(null)}
+        />
+      )}
+
+      {showTeamScanner && (
+        <BarcodeScanner
+          onScan={handleTeamScan}
+          onClose={() => setShowTeamScanner(false)}
+        />
+      )}
 
       {/* Modals */}
       {showSelesaiModal && selectedService && (

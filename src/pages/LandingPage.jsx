@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -5,17 +6,24 @@ import {
   Check,
   CheckCircle2,
   ClipboardCheck,
+  Download,
+  FileText,
+  HelpCircle,
+  Lock,
   MessageCircle,
   ShieldCheck,
   ShoppingCart,
   Smartphone,
+  Sparkles,
   UsersRound,
   Wrench,
+  X,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { APP_VERSION, APK_DOWNLOAD_PATH, APK_FILE_NAME } from '../config/appInfo';
 import UnitProLogo from '../components/UnitProLogo';
 import { t, getAppLanguage } from '../utils/i18n';
+import { fetchAppVersionInfo } from '../utils/versionUtils';
 import './LandingPage.css';
 
 
@@ -107,7 +115,15 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const setTenant = useStore((state) => state.setTenant);
   const currentLang = getAppLanguage();
+  const [versionInfo, setVersionInfo] = useState(null);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
+  useEffect(() => {
+    fetchAppVersionInfo()
+      .then((data) => setVersionInfo(data))
+      .catch((err) => console.warn('Failed to load version info on landing:', err));
+  }, []);
 
   const startDemo = (role = 'owner') => {
     const demoSettings = {
@@ -117,7 +133,7 @@ export default function LandingPage() {
       bank_name: 'BCA',
       bank_account: '1234567890',
       bank_holder: 'UnitPro Demo Store',
-      receipt_note_service: 'Simpan nota ini sebagai bukti pengambilan.',
+      receipt_note_service: 'Simpan nota ini mebikin bukti pengambilan.',
       receipt_note_pos: 'Terima kasih sudah berbelanja.',
     };
 
@@ -176,6 +192,7 @@ export default function LandingPage() {
         <div className="simple-nav-links">
           <a href="#fitur">{t('nav_features', 'Fitur', currentLang)}</a>
           <a href="#harga">{t('nav_pricing', 'Harga', currentLang)}</a>
+          <a href="#download-apk">{t('nav_apk', 'Download APK', currentLang)}</a>
           <button type="button" onClick={login}>{t('login_btn', 'Masuk Toko', currentLang)}</button>
         </div>
       </nav>
@@ -199,7 +216,7 @@ export default function LandingPage() {
             </a>
           </div>
 
-          <p className="simple-note">Tidak perlu install server. Bisa dibuka dari browser dan Android.</p>
+          <p className="simple-note">Bisa dibuka langsung dari Browser (PC/HP) & Aplikasi Android APK resmi.</p>
         </div>
 
         <aside className="simple-hero-card" aria-label="Ringkasan manfaat UnitPro">
@@ -296,15 +313,83 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="simple-section simple-apk-box">
-        <div>
-          <p className="simple-kicker"><Smartphone size={15} /> Android</p>
-          <h2>Butuh aplikasi di HP?</h2>
-          <p>APK debug tersedia untuk tes internal. Untuk dibagikan ke pelanggan banyak, gunakan signed release APK/AAB.</p>
+      {/* REVAMPED PUBLIC APK DOWNLOAD SECTION & INSTALL GUIDE */}
+      <section id="download-apk" className="simple-section simple-apk-pro-section">
+        <div className="simple-apk-pro-card">
+          <div className="simple-apk-pro-header">
+            <div className="simple-apk-icon-badge">
+              <Smartphone size={32} />
+            </div>
+            <div>
+              <span className="simple-apk-status-tag"><Sparkles size={14} /> Aplikasi Android Resmi</span>
+              <h2>Unduh UnitPro untuk Android</h2>
+              <p>Kelola toko servis, kasir POS, dan tugas teknisi langsung dari perangkat Android Anda dengan integrasi auto update otomatis.</p>
+            </div>
+          </div>
+
+          <div className="simple-apk-meta-row">
+            <div className="simple-apk-meta-item">
+              <small>Versi Rilis Terbaru</small>
+              <strong>v{versionInfo?.version || APP_VERSION}</strong>
+            </div>
+            <div className="simple-apk-meta-item">
+              <small>Tanggal Pembaruan</small>
+              <strong>{versionInfo?.releaseDate || 'Agustus 2026'}</strong>
+            </div>
+            <div className="simple-apk-meta-item">
+              <small>Fitur Auto-Update</small>
+              <strong><CheckCircle2 size={16} color="#059669" /> Aktif di APK</strong>
+            </div>
+          </div>
+
+          <div className="simple-apk-action-area">
+            <a className="simple-btn primary large" href={APK_DOWNLOAD_PATH} download={APK_FILE_NAME}>
+              <Download size={20} /> Unduh APK Resmi (v{versionInfo?.version || APP_VERSION})
+            </a>
+            <p className="simple-apk-trust-text">
+              <ShieldCheck size={16} color="#0284c7" /> Bebas Malware & Virus • Aman Dipasang di Seluruh Perangkat Android
+            </p>
+          </div>
+
+          {/* Installation Steps Guide */}
+          <div className="simple-apk-install-steps">
+            <h3><HelpCircle size={18} /> Cara Menginstal APK di Android:</h3>
+            <div className="simple-steps-grid">
+              <div className="simple-step-box">
+                <span className="step-num">1</span>
+                <div>
+                  <strong>Unduh File APK</strong>
+                  <p>Tekan tombol unduh di atas untuk menyimpan file UnitPro.apk ke perangkat Anda.</p>
+                </div>
+              </div>
+              <div className="simple-step-box">
+                <span className="step-num">2</span>
+                <div>
+                  <strong>Izinkan Sumber Tak Dikenal</strong>
+                  <p>Jika Android menampilkan peringatan, buka Pengaturan → Izinkan Instalasi dari Sumber Ini.</p>
+                </div>
+              </div>
+              <div className="simple-step-box">
+                <span className="step-num">3</span>
+                <div>
+                  <strong>Klik Pasang / Perbarui</strong>
+                  <p>Buka file unduhan dan tekan Pasang. Data toko & akun Anda tetap aman tersimpan saat diperbarui.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {versionInfo?.changelog && versionInfo.changelog.length > 0 && (
+            <div className="simple-apk-changelog">
+              <h4>Catatan Pembaruan Rilis v{versionInfo.version}:</h4>
+              <ul>
+                {versionInfo.changelog.map((change, idx) => (
+                  <li key={`${change}-${idx}`}><CheckCircle2 size={15} color="#0284c7" /> {change}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-        <a className="simple-btn secondary" href={APK_DOWNLOAD_PATH} download={APK_FILE_NAME}>
-          Download APK v{APP_VERSION}
-        </a>
       </section>
 
       <section className="simple-final-cta">
@@ -317,10 +402,78 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="simple-footer">
-        <span>© {new Date().getFullYear()} UnitPro</span>
-        <span>Software operasional toko servis</span>
+      {/* FOOTER WITH TRUST, SAFETY & PRIVACY LINKS */}
+      <footer className="simple-footer-pro">
+        <div className="simple-footer-top">
+          <div className="simple-footer-brand">
+            <UnitProLogo variant="wordmark" size={40} width={180} />
+            <p>Sistem Operasional Toko Servis, Kasir POS, & Manajemen Tim Terpadu.</p>
+          </div>
+          <div className="simple-footer-links">
+            <div className="footer-col">
+              <strong>Produk & Aplikasi</strong>
+              <a href="#fitur">Fitur Utama</a>
+              <a href="#harga">Pilihan Paket</a>
+              <a href={APK_DOWNLOAD_PATH} download={APK_FILE_NAME}>Download APK Android</a>
+            </div>
+            <div className="footer-col">
+              <strong>Bantuan & Support</strong>
+              <a href={whatsappUrl} target="_blank" rel="noreferrer">WhatsApp Customer Support</a>
+              <a href="mailto:support@unitpro.id">Email Helpdesk</a>
+              <button type="button" className="link-btn" onClick={() => setShowTermsModal(true)}>Syarat Penggunaan</button>
+            </div>
+            <div className="footer-col">
+              <strong>Keamanan & Privasi</strong>
+              <button type="button" className="link-btn" onClick={() => setShowPrivacyModal(true)}>Kebijakan Privasi</button>
+              <span><Lock size={14} /> Encrypted Data Safety</span>
+              <span><ShieldCheck size={14} /> Certified Cloud Backup</span>
+            </div>
+          </div>
+        </div>
+        <div className="simple-footer-bottom">
+          <span>© {new Date().getFullYear()} UnitPro Indonesia. Hak Cipta Dilindungi.</span>
+          <span>Aplikasi Manajemen Servis HP, Laptop, & Elektronik No.1</span>
+        </div>
       </footer>
+
+      {/* PRIVACY POLICY MODAL */}
+      {showPrivacyModal && (
+        <div className="modal-backdrop-simple" onClick={() => setShowPrivacyModal(false)}>
+          <div className="modal-card-simple" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close-simple" onClick={() => setShowPrivacyModal(false)}><X size={20} /></button>
+            <h3><Lock size={20} color="#0284c7" /> Kebijakan Privasi UnitPro</h3>
+            <div className="modal-body-simple">
+              <p>UnitPro berkomitmen penuh untuk melindungi privasi dan keamanan data toko servis Anda.</p>
+              <h4>1. Pengumpulan Data</h4>
+              <p>Kami hanya mengumpulkan data yang diperlukan untuk operasional toko seperti nama toko, nomor telepon bisnis, catatan servis, dan data produk kasir.</p>
+              <h4>2. Keamanan Data</h4>
+              <p>Seluruh kata sandi/PIN disimpan menggunakan enkripsi hashing aman. Data toko Anda diisolasi per tenant dan tidak dibagikan ke pihak ketiga.</p>
+              <h4>3. Kamera & Izin Perangkat</h4>
+              <p>Penggunaan kamera di browser/APK hanya digunakan untuk scan barcode/QR resi secara lokal di perangkat Anda tanpa mengirim data gambar ke server luar.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TERMS OF SERVICE MODAL */}
+      {showTermsModal && (
+        <div className="modal-backdrop-simple" onClick={() => setShowTermsModal(false)}>
+          <div className="modal-card-simple" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close-simple" onClick={() => setShowTermsModal(false)}><X size={20} /></button>
+            <h3><FileText size={20} color="#0284c7" /> Syarat Penggunaan UnitPro</h3>
+            <div className="modal-body-simple">
+              <p>Dengan menggunakan UnitPro, Anda menyetujui ketentuan layanan berikut:</p>
+              <h4>1. Penggunaan Akun</h4>
+              <p>Pemilik toko bertanggung jawab menjaga kerahasiaan PIN/Password login owner dan akun karyawan.</p>
+              <h4>2. Layanan Software SaaS</h4>
+              <p>UnitPro menyediakan layanan manajemen servis dan kasir. Pembaruan fitur web dan APK dapat dilakukan secara berkala untuk menjaga kinerja sistem.</p>
+              <h4>3. Dukungan Teknis</h4>
+              <p>Tim support UnitPro siap membantu penanganan kendala penggunaan aplikasi melalui jalur resmi WhatsApp dan Email.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
+
