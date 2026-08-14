@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 const FONNTE_SEND_URL = 'https://api.fonnte.com/send';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 
@@ -29,6 +31,69 @@ const getApiAuthToken = (tenant) => {
   if (tenant?.token) return tenant.token;
   if (typeof window === 'undefined') return '';
   return localStorage.getItem('TENANT_TOKEN') || localStorage.getItem('EMPLOYEE_TOKEN') || '';
+};
+
+const parseCompletionMetaFromIssue = (issue = '') => {
+  const text = String(issue || '');
+  const warranty = text.match(/\[Garansi Servis:\s*([^\]|]+?)(?:\s*\|\s*berlaku sampai\s*([^\]]+))?\]/i);
+  const pickup = text.match(/\[Batas Pengambilan:\s*(\d+)\s*hari(?:\s*\|\s*maksimal\s*([^\]]+))?\]/i);
+  const warning = text.match(/\[Peringatan Pengambilan:\s*([^\]]+)\]/i);
+  return {
+    warrantyLabel: warranty ? String(warranty[1] || '').trim() : '',
+    warrantyEnd: warranty ? String(warranty[2] || '').trim() : '',
+    pickupDays: pickup ? Number(pickup[1]) : 0,
+    pickupEnd: pickup ? String(pickup[2] || '').trim() : '',
+    pickupMessage: warning ? String(warning[1] || '').trim() : '',
+  };
+};
+
+const metaFromRuntimeStore = (resi = '') => {
+  if (typeof window === 'undefined' || !resi) return null;
+  const raw = window.__UNITPRO_SERVICE_COMPLETION_META__?.[resi];
+  if (!raw) return null;
+  const warrantyMode = String(raw.warrantyMode || 'none');
+  let warrantyLabel = '';
+  if (warrantyMode !== 'none') warrantyLabel = warrantyMode === 'custom' ? 'Tanggal khusus' : `${warrantyMode} hari`;
+  let warrantyEnd = '';
+  if (warrantyMode === 'custom') warrantyEnd = raw.warrantyEnd || '';
+  return {
+    warrantyLabel,
+    warrantyEnd,
+    pickupDays: raw.pickupEnabled ? Math.max(1, Number(raw.pickupDays || 15)) : 0,
+    pickupEnd: '',
+    pickupMessage: raw.pickupEnabled ? String(raw.pickupMessage || '').trim() : '',
+  };
+};
+
+const enrichServiceCompletionMessage = async (message = '') => {
+  const text = String(message || '').trim();
+  if (!/\bSELESAI\b/i.test(text)) return text;
+  const resiMatch = text.match(/Resi\s*:?\s*\*?([A-Z0-9_-]+)/i);
+  const resi = resiMatch ? resiMatch[1].toUpperCase() : '';
+  if (!resi) return text;
+
+  let meta = metaFromRuntimeStore(resi);
+  if (!meta || (!meta.warrantyLabel && !meta.pickupMessage && !meta.pickupDays)) {
+    try {
+      const { data } = await supabase.from('services').select('issue').eq('resi', resi).maybeSingle();
+      if (data?.issue) meta = parseCompletionMetaFromIssue(data.issue);
+    } catch (error) {
+      console.warn('Metadata garansi WA tidak dapat dimuat:', error);
+    }
+  }
+  if (!meta) return text;
+
+  const extras = [];
+  if (meta.warrantyLabel && !/Garansi servis:/i.test(text)) {
+    extras.push(`Garansi servis: *${meta.warrantyLabel}*${meta.warrantyEnd ? ` (sampai ${meta.warrantyEnd})` : ''}.`);
+  }
+  if (meta.pickupMessage && !text.includes(meta.pickupMessage)) {
+    extras.push(`⚠️ ${meta.pickupMessage}`);
+  } else if (meta.pickupDays > 0 && !/batas pengambilan/i.test(text)) {
+    extras.push(`⚠️ Batas pengambilan barang: ${meta.pickupDays} hari setelah servis selesai.`);
+  }
+  if (!extras.length) return text;
+  return `${text}\n\n${extras.join('\n')}`;
 };
 
 const sendThroughBackendGateway = async ({ tenant, target, message, mode, token, urlMedia = '' }) => {
@@ -97,10 +162,11 @@ export const sendWhatsAppNotification = async ({
     return { status: 'skipped', reason: 'missing_target' };
   }
 
-  const cleanMessage = String(message || '').trim();
-  if (!cleanMessage) {
+  const baseMessage = String(message || '').trim();
+  if (!baseMessage) {
     return { status: 'skipped', reason: 'missing_message' };
   }
+  const cleanMessage = await enrichServiceCompletionMessage(baseMessage);
 
   const { mode, token } = getWhatsAppSenderConfig(tenant);
   let gatewayError = null;
