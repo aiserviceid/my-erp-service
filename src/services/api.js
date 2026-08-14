@@ -1279,7 +1279,19 @@ export const apiService = {
   },
 
   // 11. Super Admin
-  getAdminStats: async () => {
+  getAdminWhatsappConfig: async (adminToken = '') => {
+    const response = await fetch(`${API_BASE_URL}/admin/whatsapp/config`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Status WhatsApp Gateway gagal dimuat (${response.status}).`);
+    return payload;
+  },
+
+  getAdminStats: async (adminToken = '') => {
     try {
       let backendTenants = [];
       let backendWithdrawals = [];
@@ -1287,7 +1299,10 @@ export const apiService = {
 
       try {
         const res = await fetch(`${API_BASE_URL}/admin/stats`, {
-          headers: apiService.getHeaders()
+          headers: {
+            'Content-Type': 'application/json',
+            ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+          }
         });
         if (res.ok) {
           const statsRes = await res.json();
@@ -1347,15 +1362,31 @@ export const apiService = {
     }
   },
 
-  approveWithdrawal: async (id) => {
-    try {
-      const { data, error } = await supabase.from('withdrawals').update({ status: 'SUCCESS' }).eq('id', id).select().single();
-      if (error) throw error;
-      return { success: true, data };
-    } catch (e) {
-      console.error(e);
-      throw e;
-    }
+  approveWithdrawal: async (id, adminToken = '') => {
+    const response = await fetch(`${API_BASE_URL}/admin/withdrawals/${encodeURIComponent(id)}/approve`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Gagal menyetujui penarikan (${response.status}).`);
+    return payload;
+  },
+
+  withdrawPlatformBalance: async (adminToken = '', note = '') => {
+    const response = await fetch(`${API_BASE_URL}/admin/platform/withdraw`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      },
+      body: JSON.stringify({ note }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Penarikan saldo platform gagal (${response.status}).`);
+    return payload;
   },
 
   updateTenantTier: async (tenantCode, newTier) => {

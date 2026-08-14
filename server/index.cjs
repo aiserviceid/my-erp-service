@@ -22,7 +22,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -50,8 +49,9 @@ const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const FONNTE_SYSTEM_TOKEN = process.env.FONNTE_TOKEN || '';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const ADMIN_LOGIN_MAX_ATTEMPTS = 5;
+const ADMIN_LOGIN_LOCK_MS = 15 * 60 * 1000;
+const adminLoginAttempts = new Map();
 
 // Serve uploads folder statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -96,10 +96,33 @@ const getSupabaseAdmin = () => {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 };
 
-app.post('/api/verify-admin', (req, res) => {
-  if (!SUPER_ADMIN_PASSWORD) return res.status(503).json({ error: 'SUPER_ADMIN_PASSWORD belum diatur di server.' });
-  if (!passwordMatches(req.body?.password, SUPER_ADMIN_PASSWORD)) return res.status(401).json({ valid: false });
+app.post('/api/verify-admin', async (req, res) => {
+  const attemptKey = String(req.ip || req.socket?.remoteAddress || 'unknown');
+  const currentAttempt = adminLoginAttempts.get(attemptKey) || { count: 0, lockedUntil: 0 };
+  if (currentAttempt.lockedUntil > Date.now()) {
+    return res.status(429).json({ error: 'Terlalu banyak percobaan login. Coba kembali setelah 15 menit.' });
+  }
 
+  const inputPassword = String(req.body?.password || '');
+  let valid = SUPER_ADMIN_PASSWORD ? passwordMatches(inputPassword, SUPER_ADMIN_PASSWORD) : false;
+
+  if (!valid) {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.rpc('verify_super_admin', { input_password: inputPassword });
+      valid = !error && data === true;
+    }
+  }
+
+  if (!valid) {
+    const count = currentAttempt.count + 1;
+    adminLoginAttempts.set(attemptKey, {
+      count,
+      lockedUntil: count >= ADMIN_LOGIN_MAX_ATTEMPTS ? Date.now() + ADMIN_LOGIN_LOCK_MS : 0,
+    });
+    return res.status(401).json({ valid: false });
+  }
+  adminLoginAttempts.delete(attemptKey);
   const token = jwt.sign({ role: 'super_admin' }, JWT_SECRET, { expiresIn: '8h' });
   return res.json({ valid: true, token });
 });
@@ -142,6 +165,88 @@ const parseTenantSettings = (rawSettings) => {
   if (!rawSettings) return {};
   if (typeof rawSettings === 'object') return rawSettings;
   try { return JSON.parse(rawSettings); } catch { return {}; }
+};
+
+const WHATSAPP_CONFIG_KEY = 'whatsapp_system_config';
+
+const encryptServerSecret = (value) => {
+  if (!value) return '';
+  const key = crypto.createHash('sha256').update(JWT_SECRET).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:v1:${iv.toString('base64')}:${tag.toString('base64')}:${ciphertext.toString('base64')}`;
+};
+
+const decryptServerSecret = (value) => {
+  if (!value) return '';
+  const text = String(value);
+  if (!text.startsWith('enc:v1:')) return text;
+  try {
+    const [, , ivB64, tagB64, ciphertextB64] = text.split(':');
+    const key = crypto.createHash('sha256').update(JWT_SECRET).digest();
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(ciphertextB64, 'base64')), decipher.final()]).toString('utf8');
+  } catch {
+    return '';
+  }
+};
+
+const readStoredWhatsappConfig = async () => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return {};
+  const { data, error } = await supabaseAdmin.from('app_config').select('value').eq('key', WHATSAPP_CONFIG_KEY).maybeSingle();
+  if (error || !data?.value) return {};
+  try {
+    return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+  } catch {
+    return {};
+  }
+};
+
+const getSystemWhatsappConfig = async () => {
+  const stored = await readStoredWhatsappConfig();
+  const storedToken = decryptServerSecret(stored.token || '');
+  return {
+    provider: 'fonnte',
+    enabled: stored.enabled !== false,
+    token: storedToken || FONNTE_SYSTEM_TOKEN,
+    source: storedToken ? 'super_admin' : (FONNTE_SYSTEM_TOKEN ? 'environment' : 'none'),
+    updated_at: stored.updated_at || null,
+  };
+};
+
+const saveSystemWhatsappConfig = async ({ enabled, token }) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) throw new Error('Supabase service role belum dikonfigurasi di server.');
+  const existing = await readStoredWhatsappConfig();
+  const next = {
+    provider: 'fonnte',
+    enabled: enabled !== false,
+    token: token ? encryptServerSecret(token) : (existing.token || ''),
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseAdmin.from('app_config').upsert({ key: WHATSAPP_CONFIG_KEY, value: JSON.stringify(next) }, { onConflict: 'key' });
+  if (error) throw new Error(`Konfigurasi WhatsApp gagal disimpan: ${error.message}`);
+  return getSystemWhatsappConfig();
+};
+
+const fonnteRequest = async (pathName, token, body = null) => {
+  const response = await fetch(`https://api.fonnte.com/${pathName}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { Authorization: token },
+    ...(body ? { body: new URLSearchParams(body) } : {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.status === false) {
+    const reason = payload?.reason || payload?.detail || payload?.message || `HTTP ${response.status}`;
+    const error = new Error(reason);
+    error.statusCode = response.status;
+    throw error;
+  }
+  return payload;
 };
 
 const getTenantGatewayConfig = async (tenantCode) => {
@@ -188,7 +293,11 @@ app.post('/api/whatsapp/send', secureRoute, async (req, res) => {
   const savedConfig = await getTenantGatewayConfig(tenantCode);
   const requestedMode = String(req.body?.gateway_mode || savedConfig.mode || 'SYSTEM').toUpperCase();
   const customToken = String(req.body?.gateway_token || savedConfig.token || '').trim();
-  const gatewayToken = requestedMode === 'CUSTOM' ? customToken : (FONNTE_SYSTEM_TOKEN || customToken);
+  const systemConfig = requestedMode === 'SYSTEM' ? await getSystemWhatsappConfig() : null;
+  if (requestedMode === 'SYSTEM' && systemConfig?.enabled === false) {
+    return res.status(503).json({ error: 'Gateway WhatsApp sistem sedang dinonaktifkan oleh Super Admin.', code: 'WA_GATEWAY_DISABLED' });
+  }
+  const gatewayToken = requestedMode === 'CUSTOM' ? customToken : (systemConfig?.token || customToken);
 
   if (!gatewayToken) {
     return res.status(503).json({
@@ -200,20 +309,93 @@ app.post('/api/whatsapp/send', secureRoute, async (req, res) => {
   }
 
   try {
-    const providerResponse = await fetch('https://api.fonnte.com/send', {
-      method: 'POST',
-      headers: { Authorization: gatewayToken },
-      body: new URLSearchParams({ target, message }),
-    });
-    const providerPayload = await providerResponse.json().catch(() => ({}));
-    if (!providerResponse.ok || providerPayload?.status === false) {
-      const reason = providerPayload?.reason || providerPayload?.detail || providerPayload?.message || `HTTP ${providerResponse.status}`;
-      return res.status(502).json({ error: `WhatsApp Gateway menolak pengiriman: ${reason}` });
-    }
+    await fonnteRequest('send', gatewayToken, { target, message, ...(req.body?.url ? { url: String(req.body.url) } : {}) });
     return res.json({ status: 'sent', provider: 'fonnte', target });
   } catch (error) {
     console.error('WhatsApp gateway proxy error:', error.message);
-    return res.status(502).json({ error: 'Tidak dapat terhubung ke WhatsApp Gateway.' });
+    return res.status(502).json({ error: `Tidak dapat mengirim melalui WhatsApp Gateway: ${error.message}` });
+  }
+});
+
+app.get('/api/admin/whatsapp/config', requireSuperAdmin, async (req, res) => {
+  try {
+    const config = await getSystemWhatsappConfig();
+    if (!config.token) {
+      return res.json({
+        provider: config.provider,
+        enabled: config.enabled,
+        configured: false,
+        status: 'not_configured',
+        source: config.source,
+        updated_at: config.updated_at,
+      });
+    }
+
+    try {
+      const deviceResult = await fonnteRequest('device', config.token);
+      return res.json({
+        provider: config.provider,
+        enabled: config.enabled,
+        configured: true,
+        status: config.enabled ? 'connected' : 'disabled',
+        source: config.source,
+        masked_token: `${config.token.slice(0, 4)}••••${config.token.slice(-4)}`,
+        device: deviceResult?.device || deviceResult?.data?.device || deviceResult?.name || '',
+        device_status: deviceResult?.device_status || deviceResult?.data?.status || 'connected',
+        updated_at: config.updated_at,
+        checked_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      return res.json({
+        provider: config.provider,
+        enabled: config.enabled,
+        configured: true,
+        status: 'error',
+        source: config.source,
+        masked_token: `${config.token.slice(0, 4)}••••${config.token.slice(-4)}`,
+        error: error.message,
+        updated_at: config.updated_at,
+        checked_at: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/admin/whatsapp/config', requireSuperAdmin, async (req, res) => {
+  try {
+    const token = String(req.body?.token || '').trim();
+    if (token && (token.length < 8 || token.length > 500)) return res.status(400).json({ error: 'Format token Fonnte tidak valid.' });
+    const config = await saveSystemWhatsappConfig({ enabled: req.body?.enabled !== false, token });
+    return res.json({
+      success: true,
+      provider: config.provider,
+      enabled: config.enabled,
+      configured: Boolean(config.token),
+      source: config.source,
+      masked_token: config.token ? `${config.token.slice(0, 4)}••••${config.token.slice(-4)}` : '',
+      updated_at: config.updated_at,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/whatsapp/test', requireSuperAdmin, async (req, res) => {
+  const target = normalizeGatewayPhone(req.body?.target);
+  const message = String(req.body?.message || 'Tes koneksi WhatsApp Gateway UnitPro dari Super Admin.').trim();
+  if (!/^[0-9]{9,15}$/.test(target)) return res.status(400).json({ error: 'Nomor WhatsApp tujuan tidak valid.' });
+  if (!message || message.length > 5000) return res.status(400).json({ error: 'Pesan tes wajib diisi dan maksimal 5000 karakter.' });
+
+  try {
+    const config = await getSystemWhatsappConfig();
+    if (!config.enabled) return res.status(503).json({ error: 'Gateway sistem sedang dinonaktifkan.' });
+    if (!config.token) return res.status(503).json({ error: 'Token Fonnte sistem belum dikonfigurasi.' });
+    await fonnteRequest('send', config.token, { target, message });
+    return res.json({ success: true, status: 'sent', provider: config.provider, target, sent_at: new Date().toISOString() });
+  } catch (error) {
+    return res.status(502).json({ error: `Tes pengiriman gagal: ${error.message}` });
   }
 });
 
@@ -625,7 +807,7 @@ app.get('/api/platform/balance', (req, res) => {
   });
 });
 
-app.get('/api/admin/stats', (req, res) => {
+app.get('/api/admin/stats', requireSuperAdmin, (req, res) => {
   db.all('SELECT * FROM tenants', (err, tenants) => {
     if (err) return res.status(500).json({ error: err.message });
     
@@ -645,10 +827,59 @@ app.get('/api/admin/stats', (req, res) => {
   });
 });
 
-app.put('/api/admin/withdrawals/:id/approve', (req, res) => {
+app.put('/api/admin/withdrawals/:id/approve', requireSuperAdmin, async (req, res) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('withdrawals').update({ status: 'SUCCESS' }).eq('id', req.params.id).select().maybeSingle();
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data) return res.status(404).json({ error: 'Permintaan penarikan tidak ditemukan.' });
+    return res.json({ success: true, data });
+  }
+
   db.run('UPDATE withdrawals SET status = ? WHERE id = ?', ['SUCCESS', req.params.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
+    if (this.changes === 0) return res.status(404).json({ error: 'Permintaan penarikan tidak ditemukan.' });
+    return res.json({ success: true });
+  });
+});
+
+app.post('/api/admin/platform/withdraw', requireSuperAdmin, async (req, res) => {
+  const note = String(req.body?.note || 'Penarikan saldo komisi platform').trim().slice(0, 500);
+  const supabaseAdmin = getSupabaseAdmin();
+
+  if (supabaseAdmin) {
+    try {
+      const { data: wallet, error: walletError } = await supabaseAdmin.from('platform_wallet').select('balance').eq('id', 1).maybeSingle();
+      if (walletError) throw walletError;
+      const amount = Number(wallet?.balance || 0);
+      if (amount <= 0) return res.status(400).json({ error: 'Saldo komisi platform kosong.' });
+
+      const { error: updateError } = await supabaseAdmin.from('platform_wallet').update({ balance: 0 }).eq('id', 1);
+      if (updateError) throw updateError;
+
+      await supabaseAdmin.from('saas_admin_logs').insert({
+        id: `LOG_${Date.now()}_PLATFORM`,
+        tenant_code: 'SYSTEM',
+        action_type: 'WITHDRAW_PLATFORM_BALANCE',
+        details: `${note}. Nominal: Rp ${amount}`,
+        operator: 'Super Admin',
+        created_at: new Date().toISOString(),
+      }).then(() => null).catch(() => null);
+
+      return res.json({ success: true, amount, remaining_balance: 0, recorded_at: new Date().toISOString() });
+    } catch (error) {
+      return res.status(500).json({ error: `Penarikan saldo platform gagal: ${error.message}` });
+    }
+  }
+
+  db.get('SELECT balance FROM platform_wallet WHERE id = 1', (readError, row) => {
+    if (readError) return res.status(500).json({ error: readError.message });
+    const amount = Number(row?.balance || 0);
+    if (amount <= 0) return res.status(400).json({ error: 'Saldo komisi platform kosong.' });
+    db.run('UPDATE platform_wallet SET balance = 0 WHERE id = 1', (updateError) => {
+      if (updateError) return res.status(500).json({ error: updateError.message });
+      return res.json({ success: true, amount, remaining_balance: 0, recorded_at: new Date().toISOString() });
+    });
   });
 });
 
