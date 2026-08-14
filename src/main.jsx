@@ -8,6 +8,7 @@ import './services/customerDataEnhancer.js'
 import './services/customerDeleteEnhancer.js'
 import './services/unifiedServiceEditEnhancer.js'
 import './services/adminOnlyCustomerDeleteGuard.js'
+import './services/adminServiceWhatsAppEnhancer.js'
 import './index.css'
 import './unitpro-ui-polish.css'
 
