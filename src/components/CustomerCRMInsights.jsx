@@ -112,10 +112,17 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
     }
   });
 
-  const handleSaveCurrentTemplate = () => {
+  const handleSaveCurrentTemplate = async () => {
     if (!campaignMessage.trim()) return alert('Tulis pesan draf terlebih dahulu sebelum menyimpan.');
-    const title = window.prompt('Masukkan Nama/Judul Template Toko Anda:', `Template Promo ${new Date().toLocaleDateString('id-ID')}`);
-    if (!title) return;
+    const title = await window.UnitProPrompt({
+      title: 'Simpan template promosi',
+      message: 'Masukkan nama template agar mudah ditemukan kembali.',
+      inputLabel: 'Nama template',
+      initialValue: `Template Promo ${new Date().toLocaleDateString('id-ID')}`,
+      confirmText: 'Simpan template',
+      cancelText: 'Batal',
+    });
+    if (!title?.trim()) return;
     const newTpl = { id: Date.now(), title, message: campaignMessage, imageUrl: campaignImageUrl };
     const updated = [newTpl, ...savedTemplates];
     setSavedTemplates(updated);
