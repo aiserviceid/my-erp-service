@@ -904,6 +904,13 @@ html.native-app .mobile-bottom-nav {
   box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.1);
 }
 
+html.native-app .mobile-top-bar,
+html.native-app .mobile-bottom-nav,
+html.native-app .glass-panel {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 html.native-app .mobile-nav-item {
   min-height: 54px;
   border-radius: 13px;
@@ -947,6 +954,13 @@ html.native-app .glass-panel {
 
 html.native-app .glass-panel:hover {
   transform: none;
+}
+
+html.native-app .cashier-recent-service,
+html.native-app .technician-task-card,
+html.native-app .service-active-mobile-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 132px;
 }
 
 html.native-app .btn {

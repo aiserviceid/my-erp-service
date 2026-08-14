@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch, MessageSquareHeart, Copy } from 'lucide-react';
+import { LogIn, CheckCircle, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch, MessageSquareHeart, Copy } from 'lucide-react';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
@@ -59,9 +59,21 @@ export default function EmployeePortal() {
   const [attendanceNow, setAttendanceNow] = useState(new Date());
 
   useEffect(() => {
-    const timer = window.setInterval(() => setAttendanceNow(new Date()), 30000);
-    return () => window.clearInterval(timer);
-  }, []);
+    const isKasirAccount = employee?.role === 'Kasir' || employee?.role === 'KASIR';
+    const isOverviewVisible = isKasirAccount ? kasirTab === 'beranda' : activeTab === 'beranda';
+    if (!employee?.id || !isOverviewVisible) return undefined;
+
+    const refreshAttendanceClock = () => {
+      if (!document.hidden) setAttendanceNow(new Date());
+    };
+    refreshAttendanceClock();
+    const timer = window.setInterval(refreshAttendanceClock, 60000);
+    document.addEventListener('visibilitychange', refreshAttendanceClock);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshAttendanceClock);
+    };
+  }, [activeTab, employee?.id, employee?.role, kasirTab]);
 
   // Modals
   const [showSelesaiModal, setShowSelesaiModal] = useState(false);
@@ -128,15 +140,33 @@ export default function EmployeePortal() {
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
 
-  const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
+  const technicianUsers = useMemo(() => users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi'), [users]);
+  const technicianById = useMemo(() => new Map(technicianUsers.map((user) => [String(user.id), user])), [technicianUsers]);
+  const transferTechnicians = useMemo(() => technicianUsers.filter((technician) => String(technician.id) !== String(employee?.id)), [employee?.id, technicianUsers]);
   const customerDirectory = useMemo(() => buildCustomerDirectory(services), [services]);
   const customerSuggestions = useMemo(() => {
     const query = customerLookupField === 'phone' ? serviceForm.phone : serviceForm.name;
     return findCustomerSuggestions(customerDirectory, query);
   }, [customerDirectory, customerLookupField, serviceForm.name, serviceForm.phone]);
-  const isJasaProduct = isServiceItem;
-  const sparepartCatalog = products.filter(p => !isJasaProduct(p));
-  const jasaCatalog = products.filter(p => isJasaProduct(p));
+  const sparepartCatalog = useMemo(() => products.filter(p => !isServiceItem(p)), [products]);
+  const jasaCatalog = useMemo(() => products.filter(p => isServiceItem(p)), [products]);
+  const myServices = useMemo(() => services.filter(s => String(s.technician_id) === String(employee?.id)), [employee?.id, services]);
+  const activeMyServices = useMemo(() => myServices.filter(s => !isPaidServiceStatus(s.status)), [myServices]);
+  const myCompletedServices = useMemo(() => myServices.filter(s => isPaidServiceStatus(s.status)), [myServices]);
+  const currentDateKey = getLocalDateKey();
+  const finishedToday = useMemo(() => myCompletedServices.filter(s => getLocalDateKey(new Date(s.updated_at || s.created_at || Date.now())) === currentDateKey), [currentDateKey, myCompletedServices]);
+  const todayPosTransactions = useMemo(() => transactions.filter(t => t.type === 'POS_SALES' && getLocalDateKey(new Date(t.created_at)) === currentDateKey), [currentDateKey, transactions]);
+  const cashierServices = useMemo(() => {
+    const query = cashierServiceSearch.trim().toLowerCase();
+    return services.filter((service) => {
+      const technician = technicianById.get(String(service.technician_id));
+      const searchText = [service.resi, service.customer_name, service.device_name, technician?.name, service.status]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return searchText.includes(query);
+    });
+  }, [cashierServiceSearch, services, technicianById]);
   const settings = tenant?.settings || {};
   const paymentInfoText = (() => {
     const bankName = settings.bank_name || '';
@@ -149,15 +179,6 @@ export default function EmployeePortal() {
     return settings.store_bank || '';
   })();
   const qrisImageUrl = settings.qrisUrl || settings.qris_image_url || '';
-
-  const normalizePhone = (phone) => {
-    const cleaned = (phone || '').replace(/\D/g, '');
-    if (!cleaned) return '';
-    if (cleaned.startsWith('62')) return cleaned;
-    if (cleaned.startsWith('0')) return cleaned.replace(/^0/, '62');
-    if (cleaned.startsWith('8')) return `62${cleaned}`;
-    return cleaned;
-  };
 
   const syncCatalogSelection = (productId, nameFieldId, feeFieldId) => {
     const product = products.find(p => String(p.id) === String(productId));
@@ -831,7 +852,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   // calculations for finances
   const myCommissionRate = tenant?.settings?.employee_commissions?.[employee.id] || 0;
   const mySalary = tenant?.settings?.employee_salaries?.[employee.id] || 0;
-  const myCompletedServices = services.filter(s => isPaidServiceStatus(s.status) && String(s.technician_id) === String(employee.id));
   const totalJasaFee = myCompletedServices.reduce((sum, s) => sum + Number(s.jasa_fee || 0), 0);
   const totalKomisi = Math.floor(totalJasaFee * (myCommissionRate / 100));
 
@@ -842,21 +862,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const totalBon = myBonTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const sisaBersih = mySalary + totalKomisi - totalBon;
 
-  const myServices = services.filter(s => String(s.technician_id) === String(employee.id));
-  const activeMyServices = myServices.filter(s => !isPaidServiceStatus(s.status));
-  const finishedToday = myServices.filter(s => isPaidServiceStatus(s.status) && new Date(s.updated_at || s.created_at || Date.now()).toDateString() === new Date().toDateString());
-  const todayPosTransactions = transactions.filter(t => t.type === 'POS_SALES' && new Date(t.created_at).toDateString() === new Date().toDateString());
   const todayPosTotal = todayPosTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const cashierServices = services.filter((service) => {
-    const technician = technicianUsers.find((user) => String(user.id) === String(service.technician_id));
-    const searchText = [service.resi, service.customer_name, service.device_name, technician?.name, service.status]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-    return searchText.includes(cashierServiceSearch.trim().toLowerCase());
-  });
 
-  const todayDateKey = getLocalDateKey();
+  const todayDateKey = currentDateKey;
   const attendanceSchedule = getAttendanceSchedule(settings);
   const myAttendanceToday = getEmployeeAttendance(transactions, employee.id, todayDateKey);
   const hasCheckedIn = Boolean(myAttendanceToday.checkIn);
@@ -1281,15 +1289,15 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <div className="glass-panel technician-task-list">
                 <div className="technician-task-list-header">
                   <div><h3>Daftar Tugas Servis</h3><p>Unit yang ditugaskan kepada Anda.</p></div>
-                  <span>{services.filter(s => String(s.technician_id) === String(employee.id) && !isPaidServiceStatus(s.status)).length} aktif</span>
+                  <span>{activeMyServices.length} aktif</span>
                 </div>
                 {services.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada antrian servis.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {services.filter(s => String(s.technician_id) === String(employee.id)).length === 0 ? (
+                    {myServices.length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Anda belum memiliki tugas servis aktif.</p>
-                    ) : services.filter(s => String(s.technician_id) === String(employee.id)).map(s => (
+                    ) : myServices.map(s => (
                       <div key={s.resi} className="technician-task-card" style={{ padding: '16px', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#ffffff', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div className="technician-task-detail" style={{ flex: 1, minWidth: '240px' }}>
                           <div className="technician-task-title" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
@@ -1301,7 +1309,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                           {s.customer_phone && <div className="copy-value" style={{ marginTop: '7px' }}><span className="copyable-text">{s.customer_phone}</span><button type="button" className="copy-value__button" onClick={() => handleCopyValue(s.customer_phone, 'Nomor pelanggan')} aria-label={`Salin nomor ${s.customer_name}`}><Copy size={14} /></button></div>}
                         </div>
                         <div className="technician-task-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-                          {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).length > 0 && (
+                          {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && transferTechnicians.length > 0 && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => openTransferModal(s)}>
                               <ArrowRightLeft size={14} style={{ marginRight: '5px', display: 'inline' }} /> Alihkan Tugas
                             </button>
@@ -1889,7 +1897,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <label className="service-transfer-label">Teknisi pengganti</label>
             <select className="input-field" value={transferTechnicianId} onChange={(event) => { setTransferTechnicianId(event.target.value); setTransferError(''); }} required>
               <option value="">Pilih teknisi</option>
-              {technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.phone ? ` - ${technician.phone}` : ''}</option>)}
+              {transferTechnicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.phone ? ` - ${technician.phone}` : ''}</option>)}
             </select>
             <label className="service-transfer-label">Alasan pengalihan <span>(opsional)</span></label>
             <textarea className="input-field" rows="3" placeholder="Contoh: sedang sakit atau pekerjaan di luar keahlian" value={transferReason} onChange={(event) => setTransferReason(event.target.value)} />
