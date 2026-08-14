@@ -160,7 +160,7 @@ export default function PremiumFeedback() {
             padding: 18,
           }}
         >
-          <div
+          <form
             role="dialog"
             aria-modal="true"
             aria-label={dialog.title}
