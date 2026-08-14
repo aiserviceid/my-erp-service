@@ -36,6 +36,22 @@ const cleanIssue = (issue = '') => String(issue || '')
   .replace(/\n?\[Peringatan Pengambilan:[^\]]*\]/gi, '')
   .trim();
 
+const decodePayload = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const hash = String(window.location.hash || '').replace(/^#/, '');
+    const encoded = new URLSearchParams(hash).get('payload') || '';
+    if (!encoded) return null;
+    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
+};
+
 export default function PublicPrintReceipt() {
   const [params] = useSearchParams();
   const resi = String(params.get('resi') || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 50);
@@ -51,6 +67,13 @@ export default function PublicPrintReceipt() {
     let active = true;
     if (!resi) {
       setError('Nomor nota tidak ditemukan.');
+      return () => { active = false; };
+    }
+
+    const localPayload = decodePayload();
+    if (localPayload?.service?.resi && String(localPayload.service.resi).toUpperCase() === resi) {
+      setService(localPayload.service);
+      setTenant(localPayload.tenant || null);
       return () => { active = false; };
     }
 
