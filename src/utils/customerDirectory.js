@@ -1,4 +1,4 @@
-const normalizeName = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+export const normalizeCustomerName = (value) => String(value || '').trim().replace(/\s+/g, ' ');
 
 export const normalizeCustomerPhone = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -9,34 +9,66 @@ export const normalizeCustomerPhone = (value) => {
   return digits;
 };
 
+const normalizedNameKey = (value) => normalizeCustomerName(value).toLocaleLowerCase('id-ID');
+
 export const buildCustomerDirectory = (services = []) => {
+  const sorted = [...services].sort(
+    (a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0),
+  );
+
+  // Nama yang hanya pernah memakai satu nomor diperlakukan sebagai pelanggan
+  // yang sama. Bila satu nama punya beberapa nomor berbeda, nomor tetap menjadi
+  // identitas utama agar dua orang dengan nama sama tidak ikut tergabung.
+  const phonesByName = new Map();
+  sorted.forEach((service) => {
+    const nameKey = normalizedNameKey(service.customer_name);
+    const phone = normalizeCustomerPhone(service.customer_phone);
+    if (!nameKey || !phone) return;
+    if (!phonesByName.has(nameKey)) phonesByName.set(nameKey, new Set());
+    phonesByName.get(nameKey).add(phone);
+  });
+
   const customers = new Map();
+  sorted.forEach((service) => {
+    const name = normalizeCustomerName(service.customer_name);
+    const nameKey = normalizedNameKey(name);
+    const phone = normalizeCustomerPhone(service.customer_phone);
+    if (!name && !phone) return;
 
-  [...services]
-    .sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))
-    .forEach((service) => {
-      const name = normalizeName(service.customer_name);
-      const phone = normalizeCustomerPhone(service.customer_phone);
-      if (!name && !phone) return;
+    const knownPhones = nameKey ? [...(phonesByName.get(nameKey) || [])] : [];
+    const inferredPhone = !phone && knownPhones.length === 1 ? knownPhones[0] : '';
+    const canonicalPhone = phone || inferredPhone;
+    const key = canonicalPhone ? `phone:${canonicalPhone}` : `name:${nameKey}`;
 
-      const key = phone ? `phone:${phone}` : `name:${name.toLocaleLowerCase('id-ID')}`;
-      const existing = customers.get(key);
-      if (existing) {
-        existing.serviceCount += 1;
-        return;
-      }
+    const existing = customers.get(key);
+    if (existing) {
+      existing.serviceCount += 1;
+      if (name) existing.aliases.add(name);
+      if (!existing.phone && canonicalPhone) existing.phone = canonicalPhone;
+      if (!existing.name && name) existing.name = name;
+      return;
+    }
 
-      customers.set(key, {
-        key,
-        name: name || 'Pelanggan',
-        phone,
-        serviceCount: 1,
-        lastServiceAt: service.updated_at || service.created_at || '',
-        searchText: `${name} ${phone} ${phone.replace(/^62/, '0')}`.toLocaleLowerCase('id-ID'),
-      });
+    customers.set(key, {
+      key,
+      name: name || 'Pelanggan',
+      normalizedName: nameKey,
+      phone: canonicalPhone,
+      serviceCount: 1,
+      lastServiceAt: service.updated_at || service.created_at || '',
+      aliases: new Set(name ? [name] : []),
     });
+  });
 
-  return [...customers.values()];
+  return [...customers.values()].map((customer) => {
+    const aliases = [...customer.aliases];
+    const localPhone = customer.phone.replace(/^62/, '0');
+    return {
+      ...customer,
+      aliases,
+      searchText: `${aliases.join(' ')} ${customer.name} ${customer.phone} ${localPhone}`.toLocaleLowerCase('id-ID'),
+    };
+  });
 };
 
 export const findCustomerSuggestions = (customers, query, limit = 5) => {
