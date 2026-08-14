@@ -7,6 +7,7 @@ import SuperAdminAISettings from '../components/SuperAdminAISettings';
 import SuperAdminWhatsAppSettings from '../components/SuperAdminWhatsAppSettings';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { fetchAppVersionInfo } from '../utils/versionUtils';
+import { copyText } from '../utils/clipboard';
 import './SuperAdmin.css';
 
 // ============================================================
@@ -712,10 +713,9 @@ export default function SuperAdmin() {
   };
 
   const copyTenantCode = async (tenantCode) => {
-    try {
-      await navigator.clipboard.writeText(tenantCode);
+    if (await copyText(tenantCode)) {
       alert(`Kode toko ${tenantCode} berhasil disalin.`);
-    } catch {
+    } else {
       alert(`Kode toko: ${tenantCode}`);
     }
   };
