@@ -1,18 +1,18 @@
 {
-  "version": "1.2.4",
-  "buildNumber": 16,
-  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.4/UnitPro-Android-v1.2.4.apk",
-  "apkFileName": "UnitPro-Android-v1.2.4.apk",
-  "releaseTitle": "UnitPro Android v1.2.4",
-  "description": "Pembaruan pengalaman mobile untuk mencegah servis ganda dan merapikan navigasi serta tampilan pelanggan.",
+  "version": "1.2.5",
+  "buildNumber": 17,
+  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.5/UnitPro-Android-v1.2.5.apk",
+  "apkFileName": "UnitPro-Android-v1.2.5.apk",
+  "releaseTitle": "UnitPro Android v1.2.5",
+  "description": "Pembaruan navigasi Pengaturan dan Portal Tim agar isi setiap tab langsung terlihat dan lebih rapi di HP.",
   "minRequiredVersion": "1.0.0",
   "releaseDate": "14 Agustus 2026",
   "changelog": [
-    "Tombol cepat Pelanggan dan WA di beranda diganti menjadi Laporan",
-    "Pencegahan klik ganda saat menyimpan servis pada dashboard dan portal kasir",
-    "Peringatan ditampilkan bila servis yang sama baru saja tercatat",
-    "Tampilan Pelanggan dan WhatsApp tidak lagi terpotong pada layar HP",
-    "Tab Pengaturan APK disusun vertikal agar lebih rapi dan mudah dipilih"
+    "Isi Pengaturan tampil langsung di bawah tab yang dipilih",
+    "Tab Daftar Karyawan, Kasbon, dan Absensi pada Manajemen Tim dirapikan",
+    "Portal Tim langsung menampilkan isi tab tanpa ringkasan panjang di atasnya",
+    "Judul Portal Tim mengikuti menu yang sedang dibuka",
+    "Perpindahan tab APK otomatis kembali ke bagian atas halaman"
   ],
   "forceUpdate": false
 }

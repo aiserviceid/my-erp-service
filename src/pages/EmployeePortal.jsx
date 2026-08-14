@@ -642,6 +642,33 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     setShowBarcodeModal(false);
   };
 
+  const isKasir = employee?.role === 'Kasir' || employee?.role === 'KASIR';
+  const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
+  const employeeScreenTitle = isKasir
+    ? ({
+        beranda: 'Ringkasan Kasir',
+        pos: 'Kasir POS',
+        servis: 'Servis & Teknisi',
+        scan: 'Scan Produk / Resi',
+        pengaturan: 'Pengaturan Tim',
+      }[employeeMobileActiveTab] || 'Portal Kasir')
+    : ({
+        beranda: 'Ringkasan Hari Ini',
+        tugas: 'Daftar Tugas Servis',
+        scan: 'Scan Resi Servis',
+        keuangan: 'Gaji & Komisi',
+        pengaturan: 'Pengaturan Tim',
+      }[employeeMobileActiveTab] || 'Portal Tim');
+
+  useEffect(() => {
+    const isCompactView = document.documentElement.classList.contains('native-app') || window.innerWidth <= 768;
+    if (!isCompactView) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById('root')?.scrollTo({ top: 0, behavior: 'auto' });
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    });
+  }, [employeeMobileActiveTab]);
+
   if (!employee) {
     return (
       <div className="login-container native-employee-login animate-fade-in" style={{ padding: '2rem' }}>
@@ -730,7 +757,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const totalBon = myBonTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   const sisaBersih = mySalary + totalKomisi - totalBon;
 
-  const isKasir = employee.role === 'Kasir' || employee.role === 'KASIR';
   const myServices = services.filter(s => String(s.technician_id) === String(employee.id));
   const activeMyServices = myServices.filter(s => !isPaidServiceStatus(s.status));
   const finishedToday = myServices.filter(s => isPaidServiceStatus(s.status) && new Date(s.updated_at || s.created_at || Date.now()).toDateString() === new Date().toDateString());
@@ -807,8 +833,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         { id: 'keuangan', name: 'Komisi', icon: Wallet },
         { id: 'pengaturan', name: 'Pengaturan', icon: Settings },
       ];
-  const employeeMobileActiveTab = isKasir ? kasirTab : activeTab;
-
   const handleAttendance = async (type) => {
     if (attendanceLoading) return;
     if (type === 'ATTENDANCE_OUT' && !hasCheckedIn) return alert('Anda harus absen masuk terlebih dahulu.');
@@ -869,7 +893,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       <div className="main-content employee-portal-content" style={{ maxWidth: '1000px', margin: '0 auto', background: 'transparent' }}>
         <div className="native-screen-heading native-employee-heading">
           <p>{isKasir ? 'AREA KASIR' : 'AREA TIM'}</p>
-          <h2>{isKasir ? 'Kasir & Alur Servis' : 'Servis Hari Ini'}</h2>
+          <h2>{employeeScreenTitle}</h2>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }} className="desktop-only-header">
           <div>
@@ -884,6 +908,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           }}><LogOut size={16} /> Keluar</button>
         </div>
 
+        {employeeMobileActiveTab === 'beranda' && (
+        <div className="employee-home-overview">
         <section className="attendance-card" aria-label="Absensi hari ini">
           <div className="attendance-card__header">
             <div>
@@ -948,6 +974,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             </small>
           </article>
         </section>
+        </div>
+        )}
 
       {isKasir ? (
         <>

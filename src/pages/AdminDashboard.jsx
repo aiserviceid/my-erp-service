@@ -157,6 +157,13 @@ export default function AdminDashboard() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById('root')?.scrollTo({ top: 0, behavior: 'auto' });
+    });
+  }, [activeTab]);
+
   const openAppUpdate = async () => {
     if (Capacitor.isNativePlatform()) {
       await Browser.open({ url: latestApkUrl });
@@ -1800,21 +1807,21 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <div className="store-settings-nav" style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
                 <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Pengaturan Toko</h3>
                 <div className="store-settings-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setSettingTab('umum')} className={`btn ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>Tampilan & Branding</button>
-                  <button onClick={() => setSettingTab('wa')} className={`btn ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? 'var(--primary)' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>Koneksi WhatsApp</button>
-                  <button onClick={() => setSettingTab('rekening')} className={`btn ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
-                  <button onClick={() => setSettingTab('nota')} className={`btn ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
-                  <button onClick={() => setSettingTab('promo')} className={`btn ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? 'var(--primary)' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>Iklan & Promo</button>
-                  <button onClick={() => setSettingTab('aplikasi')} className={`btn ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
-                  <button onClick={() => setSettingTab('bantuan')} className={`btn ${settingTab === 'bantuan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'bantuan' ? '#0284c7' : 'transparent', color: settingTab === 'bantuan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'bantuan' ? '800' : '600' }}><MessageSquareHeart size={17} /> Bantuan & Masukan</button>
-                  <button onClick={() => setSettingTab('keamanan')} className={`btn ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
-                  <div style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
-                  <button onClick={() => setSettingTab('danger')} className={`btn ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#dc2626', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>Zona Berbahaya</button>
+                  <button data-setting-tab="umum" aria-expanded={settingTab === 'umum'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('umum')} className={`btn store-settings-tab ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>Tampilan & Branding</button>
+                  <button data-setting-tab="wa" aria-expanded={settingTab === 'wa'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('wa')} className={`btn store-settings-tab ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? 'var(--primary)' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>Koneksi WhatsApp</button>
+                  <button data-setting-tab="rekening" aria-expanded={settingTab === 'rekening'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('rekening')} className={`btn store-settings-tab ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
+                  <button data-setting-tab="nota" aria-expanded={settingTab === 'nota'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('nota')} className={`btn store-settings-tab ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
+                  <button data-setting-tab="promo" aria-expanded={settingTab === 'promo'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('promo')} className={`btn store-settings-tab ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? 'var(--primary)' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>Iklan & Promo</button>
+                  <button data-setting-tab="aplikasi" aria-expanded={settingTab === 'aplikasi'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('aplikasi')} className={`btn store-settings-tab ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
+                  <button data-setting-tab="bantuan" aria-expanded={settingTab === 'bantuan'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('bantuan')} className={`btn store-settings-tab ${settingTab === 'bantuan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'bantuan' ? '#0284c7' : 'transparent', color: settingTab === 'bantuan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'bantuan' ? '800' : '600' }}><MessageSquareHeart size={17} /> Bantuan & Masukan</button>
+                  <button data-setting-tab="keamanan" aria-expanded={settingTab === 'keamanan'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('keamanan')} className={`btn store-settings-tab ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
+                  <div className="store-settings-divider" style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
+                  <button data-setting-tab="danger" aria-expanded={settingTab === 'danger'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('danger')} className={`btn store-settings-tab ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#dc2626', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>Zona Berbahaya</button>
                 </div>
               </div>
 
               {/* Content Area */}
-              <div className="store-settings-content" style={{ flex: 1, padding: '2rem' }}>
+              <div id="store-settings-active-panel" data-active-setting={settingTab} className="store-settings-content" style={{ flex: 1, padding: '2rem' }}>
                 
                 {settingTab === 'umum' && (
                   <div style={{ maxWidth: '500px', animation: 'fadeIn 0.3s ease-out' }}>
@@ -2937,18 +2944,18 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
 
              {/* TABS HEADER */}
              <div className="employee-management-tabs" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '10px', overflowX: 'auto' }}>
-               <button onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>Daftar Karyawan</button>
-               <button onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>
+               <button data-employee-tab="daftar" aria-expanded={empTab === 'daftar'} aria-controls="employee-management-active-panel" onClick={() => setEmpTab('daftar')} className={`btn ${empTab === 'daftar' ? 'btn-primary' : 'btn-ghost'}`}>Daftar Karyawan</button>
+               <button data-employee-tab="kasbon" aria-expanded={empTab === 'kasbon'} aria-controls="employee-management-active-panel" onClick={() => setEmpTab('kasbon')} className={`btn ${empTab === 'kasbon' ? 'btn-primary' : 'btn-ghost'}`}>
                  Permintaan Kasbon {pendingKasbonCount > 0 && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{pendingKasbonCount}</span>}
                </button>
-               <button onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>
+               <button data-employee-tab="absensi" aria-expanded={empTab === 'absensi'} aria-controls="employee-management-active-panel" onClick={() => setEmpTab('absensi')} className={`btn ${empTab === 'absensi' ? 'btn-primary' : 'btn-ghost'}`}>
                  Laporan Absensi {newAttendanceCount > 0 && <span className="badge badge-success" style={{ marginLeft: '6px', fontSize: '0.7rem' }}>{newAttendanceCount}</span>}
                </button>
              </div>
 
              {/* TAB CONTENT: DAFTAR KARYAWAN */}
              {empTab === 'daftar' && (
-               <div className="animate-fade-in">
+               <div id="employee-management-active-panel" data-active-employee-tab="daftar" className="animate-fade-in employee-management-content">
                  <details className="management-action-disclosure employee-action-disclosure">
                    <summary><Plus size={18} /> Tambah karyawan</summary>
                  <div className="employee-add-form" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -3055,7 +3062,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
 
              {/* TAB CONTENT: KASBON */}
              {empTab === 'kasbon' && (
-               <div className="animate-fade-in">
+               <div id="employee-management-active-panel" data-active-employee-tab="kasbon" className="animate-fade-in employee-management-content">
                  <table className="table">
                    <thead><tr><th>Nama Karyawan</th><th>Nominal (Rp)</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
                    <tbody>
@@ -3109,7 +3116,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
 
              {/* TAB CONTENT: ABSENSI */}
              {empTab === 'absensi' && (
-               <div className="animate-fade-in attendance-admin">
+               <div id="employee-management-active-panel" data-active-employee-tab="absensi" className="animate-fade-in attendance-admin employee-management-content">
                  <div className="attendance-admin__toolbar">
                    <div><span>REKAP KEHADIRAN TIM</span><h3>Absensi Karyawan</h3><p>Data masuk, pulang, keterlambatan, dan durasi kerja dalam satu tampilan.</p></div>
                    <div className="attendance-admin__actions">
