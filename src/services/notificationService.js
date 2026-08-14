@@ -65,11 +65,82 @@ const metaFromRuntimeStore = (resi = '') => {
   };
 };
 
+const extractResiFromMessage = (message = '') => {
+  const text = String(message || '');
+  const direct = text.match(/Resi\s*:?\s*\*?([A-Z0-9_-]+)/i);
+  if (direct) return direct[1].toUpperCase();
+  const tracking = text.match(/[?&]resi=([A-Z0-9_-]+)/i);
+  return tracking ? tracking[1].toUpperCase() : '';
+};
+
+const isPickupMessage = (message = '') => {
+  const text = String(message || '');
+  return /\bDI\s*AMBIL\b/i.test(text) || /\bDIAMBIL\b/i.test(text) || /status[^\n]*\bDiambil\b/i.test(text) || /\bSudah Diambil\b/i.test(text);
+};
+
+const getServiceDiscount = (issue = '') => {
+  const match = String(issue || '').match(/\[Diskon:\s*Rp\s*([^\]]+)\]/i);
+  return match ? Number(String(match[1] || '').replace(/\D/g, '')) || 0 : 0;
+};
+
+const buildPickupReceiptDelivery = async ({ tenant, message, urlMedia = '' }) => {
+  if (!isPickupMessage(message)) return { message, urlMedia, resi: '' };
+  const resi = extractResiFromMessage(message);
+  if (!resi) return { message, urlMedia, resi: '' };
+
+  try {
+    let query = supabase.from('services').select('*').eq('resi', resi);
+    const tenantCode = tenant?.code || tenant?.tenant_code || '';
+    if (tenantCode) query = query.eq('tenant_code', tenantCode);
+    const { data: service } = await query.maybeSingle();
+    if (!service) return { message, urlMedia, resi };
+
+    const settings = tenant?.settings || {};
+    const storeName = settings.storeName || tenant?.name || 'Toko Servis';
+    const discount = getServiceDiscount(service.issue || '');
+    const subtotal = Number(service.part_fee || 0) + Number(service.jasa_fee || 0);
+    const total = Math.max(0, subtotal - discount);
+    const meta = parseCompletionMetaFromIssue(service.issue || '');
+    const trackingUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/tracking?resi=${encodeURIComponent(service.resi)}`
+      : '';
+    const qrUrl = trackingUrl
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=16&data=${encodeURIComponent(trackingUrl)}`
+      : '';
+
+    const lines = [
+      '🧾 *NOTA PELUNASAN SERVIS (GARANSI)*',
+      `*${storeName}*`,
+      '',
+      `Pelanggan: ${service.customer_name || '-'}`,
+      `Perangkat: ${service.device_name || '-'}`,
+      `Biaya Sparepart: Rp ${Number(service.part_fee || 0).toLocaleString('id-ID')}`,
+      `Biaya Jasa: Rp ${Number(service.jasa_fee || 0).toLocaleString('id-ID')}`,
+      discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
+      `*TOTAL LUNAS: Rp ${total.toLocaleString('id-ID')}*`,
+      '',
+      meta.warrantyLabel ? `Garansi Servis: *${meta.warrantyLabel}*${meta.warrantyEnd ? ` — sampai ${meta.warrantyEnd}` : ''}` : 'Garansi Servis: Tanpa garansi tambahan',
+      '*Status: SUDAH DIAMBIL / LUNAS*',
+      '',
+      'Barcode/QR garansi terlampir. Simpan nota ini sebagai bukti servis dan garansi.',
+    ].filter(Boolean);
+
+    return {
+      message: lines.join('\n'),
+      urlMedia: urlMedia || qrUrl,
+      resi,
+      qrUrl,
+    };
+  } catch (error) {
+    console.warn('Nota pengambilan WA tidak dapat dibentuk:', error);
+    return { message, urlMedia, resi };
+  }
+};
+
 const enrichServiceCompletionMessage = async (message = '') => {
   const text = String(message || '').trim();
   if (!/\bSELESAI\b/i.test(text)) return text;
-  const resiMatch = text.match(/Resi\s*:?\s*\*?([A-Z0-9_-]+)/i);
-  const resi = resiMatch ? resiMatch[1].toUpperCase() : '';
+  const resi = extractResiFromMessage(text);
   if (!resi) return text;
 
   let meta = metaFromRuntimeStore(resi);
@@ -166,43 +237,64 @@ export const sendWhatsAppNotification = async ({
   if (!baseMessage) {
     return { status: 'skipped', reason: 'missing_message' };
   }
-  const cleanMessage = await enrichServiceCompletionMessage(baseMessage);
+
+  const pickupDelivery = await buildPickupReceiptDelivery({ tenant, message: baseMessage, urlMedia });
+  const isPickup = Boolean(pickupDelivery.resi && isPickupMessage(baseMessage));
+  const cleanMessage = isPickup
+    ? pickupDelivery.message
+    : await enrichServiceCompletionMessage(baseMessage);
+  const mediaUrl = pickupDelivery.urlMedia || urlMedia;
 
   const { mode, token } = getWhatsAppSenderConfig(tenant);
   let gatewayError = null;
 
   try {
-    return await sendThroughBackendGateway({
+    const result = await sendThroughBackendGateway({
       tenant,
       target: normalizedTarget,
       message: cleanMessage,
       mode,
       token,
-      urlMedia,
+      urlMedia: mediaUrl,
     });
+    if (isPickup && typeof window !== 'undefined') {
+      window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
+      window.__UNITPRO_PICKUP_RECEIPT_SENT__[pickupDelivery.resi] = Date.now();
+    }
+    return result;
   } catch (error) {
     gatewayError = error;
   }
 
-  // Compatibility fallback for existing CUSTOM-token installations. The
-  // backend proxy is preferred because it avoids provider CORS differences.
   if (mode === 'CUSTOM' && token) {
     try {
-      return await sendDirectCustomGatewayFallback({
+      const result = await sendDirectCustomGatewayFallback({
         target: normalizedTarget,
         message: cleanMessage,
         token,
-        urlMedia,
+        urlMedia: mediaUrl,
       });
+      if (isPickup && typeof window !== 'undefined') {
+        window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
+        window.__UNITPRO_PICKUP_RECEIPT_SENT__[pickupDelivery.resi] = Date.now();
+      }
+      return result;
     } catch (error) {
       gatewayError = error;
     }
   }
 
   if (openManual && typeof window !== 'undefined') {
-    const url = buildManualWhatsAppUrl(normalizedTarget, cleanMessage);
+    const manualMessage = isPickup && pickupDelivery.qrUrl
+      ? `${cleanMessage}\n\nBarcode/QR garansi:\n${pickupDelivery.qrUrl}`
+      : cleanMessage;
+    const url = buildManualWhatsAppUrl(normalizedTarget, manualMessage);
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
+      if (isPickup) {
+        window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
+        window.__UNITPRO_PICKUP_RECEIPT_SENT__[pickupDelivery.resi] = Date.now();
+      }
       return {
         status: 'manual',
         provider: 'wa.me',
