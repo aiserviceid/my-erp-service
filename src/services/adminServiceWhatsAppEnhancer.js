@@ -47,6 +47,17 @@ const parseWhatsAppHref = (href = '') => {
   }
 };
 
+const addPrintablePickupReceipt = (message, resi) => {
+  const printUrl = `${window.location.origin}/print-nota?resi=${encodeURIComponent(resi)}&format=a4&type=pickup`;
+  const printLine = `🖨 *Nota Fisik / Cetak:* ${printUrl}`;
+  const warrantyMarker = /\n(🔗\s*\*Link Garansi:\*)/i;
+
+  if (warrantyMarker.test(message)) {
+    return message.replace(warrantyMarker, `\n${printLine}\n\n$1`);
+  }
+  return `${message}\n\n${printLine}`;
+};
+
 const enhanceWhatsAppButtons = () => {
   if (!isAdminPage()) return;
 
@@ -81,6 +92,9 @@ const enhanceWhatsAppButtons = () => {
         let finalMessage = prepared.message || fallbackMessage;
         if (prepared.type === 'completion' && prepared.urlMedia && !finalMessage.includes(prepared.urlMedia)) {
           finalMessage = `${finalMessage}\n\nQRIS Pembayaran: ${prepared.urlMedia}`;
+        }
+        if (prepared.type === 'pickup') {
+          finalMessage = addPrintablePickupReceipt(finalMessage, prepared.resi || resi);
         }
 
         const waUrl = buildManualWhatsAppUrl(parsed.phone, finalMessage);
