@@ -33,6 +33,26 @@ const getApiAuthToken = (tenant) => {
   return localStorage.getItem('TENANT_TOKEN') || localStorage.getItem('EMPLOYEE_TOKEN') || '';
 };
 
+const extractResiFromMessage = (message = '') => {
+  const text = String(message || '');
+  const direct = text.match(/Resi\s*:?\s*\*?([A-Z0-9_-]+)/i);
+  if (direct) return direct[1].toUpperCase();
+  const tracking = text.match(/[?&]resi=([A-Z0-9_-]+)/i);
+  return tracking ? tracking[1].toUpperCase() : '';
+};
+
+const isPickupMessage = (message = '') => {
+  const text = String(message || '');
+  return /\bDI\s*AMBIL\b/i.test(text) || /\bDIAMBIL\b/i.test(text) || /status[^\n]*\bDiambil\b/i.test(text) || /\bSudah Diambil\b/i.test(text);
+};
+
+const isCompletionMessage = (message = '') => !isPickupMessage(message) && /\bSELESAI\b/i.test(String(message || ''));
+
+const getServiceDiscount = (issue = '') => {
+  const match = String(issue || '').match(/\[Diskon:\s*Rp\s*([^\]]+)\]/i);
+  return match ? Number(String(match[1] || '').replace(/\D/g, '')) || 0 : 0;
+};
+
 const parseCompletionMetaFromIssue = (issue = '') => {
   const text = String(issue || '');
   const warranty = text.match(/\[Garansi Servis:\s*([^\]|]+?)(?:\s*\|\s*berlaku sampai\s*([^\]]+))?\]/i);
@@ -47,53 +67,96 @@ const parseCompletionMetaFromIssue = (issue = '') => {
   };
 };
 
-const metaFromRuntimeStore = (resi = '') => {
-  if (typeof window === 'undefined' || !resi) return null;
-  const raw = window.__UNITPRO_SERVICE_COMPLETION_META__?.[resi];
-  if (!raw) return null;
-  const warrantyMode = String(raw.warrantyMode || 'none');
-  let warrantyLabel = '';
-  if (warrantyMode !== 'none') warrantyLabel = warrantyMode === 'custom' ? 'Tanggal khusus' : `${warrantyMode} hari`;
-  let warrantyEnd = '';
-  if (warrantyMode === 'custom') warrantyEnd = raw.warrantyEnd || '';
-  return {
-    warrantyLabel,
-    warrantyEnd,
-    pickupDays: raw.pickupEnabled ? Math.max(1, Number(raw.pickupDays || 15)) : 0,
-    pickupEnd: '',
-    pickupMessage: raw.pickupEnabled ? String(raw.pickupMessage || '').trim() : '',
-  };
+const extractRepairDetails = (issue = '') => {
+  const text = String(issue || '');
+  const part = text.match(/\[Sparepart diganti:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  const service = text.match(/\[Jasa Servis:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  const result = text.match(/\[Hasil Perbaikan:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  return { part, service, result };
 };
 
-const extractResiFromMessage = (message = '') => {
-  const text = String(message || '');
-  const direct = text.match(/Resi\s*:?\s*\*?([A-Z0-9_-]+)/i);
-  if (direct) return direct[1].toUpperCase();
-  const tracking = text.match(/[?&]resi=([A-Z0-9_-]+)/i);
-  return tracking ? tracking[1].toUpperCase() : '';
+const paymentInfoText = (settings = {}) => {
+  const bankName = settings.bank_name || '';
+  const account = settings.bank_account || '';
+  const holder = settings.bank_holder || '';
+  if (bankName || account || holder) {
+    const main = [bankName, account].filter(Boolean).join(' ').trim();
+    return holder ? `${main}${main ? ' ' : ''}a/n ${holder}`.trim() : main;
+  }
+  return String(settings.store_bank || '').trim();
 };
 
-const isPickupMessage = (message = '') => {
-  const text = String(message || '');
-  return /\bDI\s*AMBIL\b/i.test(text) || /\bDIAMBIL\b/i.test(text) || /status[^\n]*\bDiambil\b/i.test(text) || /\bSudah Diambil\b/i.test(text);
+const isPublicHttpUrl = (value = '') => /^https?:\/\//i.test(String(value || '').trim());
+
+const fetchServiceForMessage = async (tenant, message) => {
+  const resi = extractResiFromMessage(message);
+  if (!resi) return { resi: '', service: null };
+  let query = supabase.from('services').select('*').eq('resi', resi);
+  const tenantCode = tenant?.code || tenant?.tenant_code || '';
+  if (tenantCode) query = query.eq('tenant_code', tenantCode);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return { resi, service: data || null };
 };
 
-const getServiceDiscount = (issue = '') => {
-  const match = String(issue || '').match(/\[Diskon:\s*Rp\s*([^\]]+)\]/i);
-  return match ? Number(String(match[1] || '').replace(/\D/g, '')) || 0 : 0;
+const buildCompletionInvoiceDelivery = async ({ tenant, message, urlMedia = '' }) => {
+  if (!isCompletionMessage(message)) return { message, urlMedia, resi: '', mediaLabel: '' };
+  try {
+    const { resi, service } = await fetchServiceForMessage(tenant, message);
+    if (!resi || !service) return { message, urlMedia, resi: '', mediaLabel: '' };
+
+    const settings = tenant?.settings || {};
+    const storeName = settings.storeName || tenant?.name || 'Toko Servis';
+    const discount = getServiceDiscount(service.issue || '');
+    const partFee = Number(service.part_fee || 0);
+    const jasaFee = Number(service.jasa_fee || 0);
+    const total = Math.max(0, partFee + jasaFee - discount);
+    const details = extractRepairDetails(service.issue || '');
+    const meta = parseCompletionMetaFromIssue(service.issue || '');
+    const paymentInfo = paymentInfoText(settings);
+    const qrisUrl = settings.qrisUrl || settings.qris_image_url || '';
+
+    const lines = [
+      '🧾 *NOTA TAGIHAN SERVIS*',
+      `*${storeName}*`,
+      '',
+      `No. Nota: ${service.resi}`,
+      `Pelanggan: ${service.customer_name || '-'}`,
+      `Perangkat: ${service.device_name || '-'}`,
+      details.part ? `Sparepart: ${details.part}` : '',
+      details.service ? `Jasa: ${details.service}` : '',
+      details.result ? `Hasil Perbaikan: ${details.result}` : '',
+      '',
+      `Biaya Sparepart: Rp ${partFee.toLocaleString('id-ID')}`,
+      `Biaya Jasa: Rp ${jasaFee.toLocaleString('id-ID')}`,
+      discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
+      `*TOTAL YANG HARUS DIBAYAR: Rp ${total.toLocaleString('id-ID')}*`,
+      '',
+      '*Status: SERVIS SELESAI — MENUNGGU PEMBAYARAN / PENGAMBILAN*',
+      paymentInfo ? `Pembayaran: ${paymentInfo}` : '',
+      meta.warrantyLabel ? `Garansi Servis: ${meta.warrantyLabel}${meta.warrantyEnd ? ` — sampai ${meta.warrantyEnd}` : ''}` : '',
+      meta.pickupMessage ? `⚠️ ${meta.pickupMessage}` : (meta.pickupDays > 0 ? `⚠️ Batas pengambilan: ${meta.pickupDays} hari.` : ''),
+      '',
+      'Setelah pembayaran dan barang diambil, nota pelunasan beserta barcode/QR garansi akan dikirim.',
+    ].filter(Boolean);
+
+    return {
+      message: lines.join('\n'),
+      urlMedia: urlMedia || (isPublicHttpUrl(qrisUrl) ? qrisUrl : ''),
+      resi,
+      mediaLabel: isPublicHttpUrl(qrisUrl) ? 'QRIS pembayaran' : '',
+    };
+  } catch (error) {
+    console.warn('Nota tagihan servis tidak dapat dibentuk:', error);
+    return { message, urlMedia, resi: '', mediaLabel: '' };
+  }
 };
 
 const buildPickupReceiptDelivery = async ({ tenant, message, urlMedia = '' }) => {
-  if (!isPickupMessage(message)) return { message, urlMedia, resi: '' };
-  const resi = extractResiFromMessage(message);
-  if (!resi) return { message, urlMedia, resi: '' };
-
+  if (!isPickupMessage(message)) return { message, urlMedia, resi: '', qrUrl: '' };
   try {
-    let query = supabase.from('services').select('*').eq('resi', resi);
-    const tenantCode = tenant?.code || tenant?.tenant_code || '';
-    if (tenantCode) query = query.eq('tenant_code', tenantCode);
-    const { data: service } = await query.maybeSingle();
-    if (!service) return { message, urlMedia, resi };
+    const { resi, service } = await fetchServiceForMessage(tenant, message);
+    if (!resi || !service) return { message, urlMedia, resi: '', qrUrl: '' };
 
     const settings = tenant?.settings || {};
     const storeName = settings.storeName || tenant?.name || 'Toko Servis';
@@ -112,6 +175,7 @@ const buildPickupReceiptDelivery = async ({ tenant, message, urlMedia = '' }) =>
       '🧾 *NOTA PELUNASAN SERVIS (GARANSI)*',
       `*${storeName}*`,
       '',
+      `No. Nota: ${service.resi}`,
       `Pelanggan: ${service.customer_name || '-'}`,
       `Perangkat: ${service.device_name || '-'}`,
       `Biaya Sparepart: Rp ${Number(service.part_fee || 0).toLocaleString('id-ID')}`,
@@ -125,61 +189,21 @@ const buildPickupReceiptDelivery = async ({ tenant, message, urlMedia = '' }) =>
       'Barcode/QR garansi terlampir. Simpan nota ini sebagai bukti servis dan garansi.',
     ].filter(Boolean);
 
-    return {
-      message: lines.join('\n'),
-      urlMedia: urlMedia || qrUrl,
-      resi,
-      qrUrl,
-    };
+    return { message: lines.join('\n'), urlMedia: urlMedia || qrUrl, resi, qrUrl };
   } catch (error) {
     console.warn('Nota pengambilan WA tidak dapat dibentuk:', error);
-    return { message, urlMedia, resi };
+    return { message, urlMedia, resi: '', qrUrl: '' };
   }
-};
-
-const enrichServiceCompletionMessage = async (message = '') => {
-  const text = String(message || '').trim();
-  if (!/\bSELESAI\b/i.test(text)) return text;
-  const resi = extractResiFromMessage(text);
-  if (!resi) return text;
-
-  let meta = metaFromRuntimeStore(resi);
-  if (!meta || (!meta.warrantyLabel && !meta.pickupMessage && !meta.pickupDays)) {
-    try {
-      const { data } = await supabase.from('services').select('issue').eq('resi', resi).maybeSingle();
-      if (data?.issue) meta = parseCompletionMetaFromIssue(data.issue);
-    } catch (error) {
-      console.warn('Metadata garansi WA tidak dapat dimuat:', error);
-    }
-  }
-  if (!meta) return text;
-
-  const extras = [];
-  if (meta.warrantyLabel && !/Garansi servis:/i.test(text)) {
-    extras.push(`Garansi servis: *${meta.warrantyLabel}*${meta.warrantyEnd ? ` (sampai ${meta.warrantyEnd})` : ''}.`);
-  }
-  if (meta.pickupMessage && !text.includes(meta.pickupMessage)) {
-    extras.push(`⚠️ ${meta.pickupMessage}`);
-  } else if (meta.pickupDays > 0 && !/batas pengambilan/i.test(text)) {
-    extras.push(`⚠️ Batas pengambilan barang: ${meta.pickupDays} hari setelah servis selesai.`);
-  }
-  if (!extras.length) return text;
-  return `${text}\n\n${extras.join('\n')}`;
 };
 
 const sendThroughBackendGateway = async ({ tenant, target, message, mode, token, urlMedia = '' }) => {
   const tenantCode = tenant?.code || tenant?.tenant_code || '';
   const authToken = getApiAuthToken(tenant);
-  if (!tenantCode || !authToken) {
-    throw new Error('Sesi toko tidak tersedia untuk mengakses WhatsApp Gateway.');
-  }
+  if (!tenantCode || !authToken) throw new Error('Sesi toko tidak tersedia untuk mengakses WhatsApp Gateway.');
 
   const response = await fetch(`${API_BASE_URL}/whatsapp/send`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${authToken}`,
-    },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
     body: JSON.stringify({
       tenant_code: tenantCode,
       target,
@@ -189,78 +213,50 @@ const sendThroughBackendGateway = async ({ tenant, target, message, mode, token,
       ...(mode === 'CUSTOM' && token ? { gateway_token: token } : {}),
     }),
   });
-
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || `WhatsApp Gateway gagal (${response.status}).`);
-  }
-  return {
-    status: payload.status || 'sent',
-    provider: payload.provider || 'fonnte',
-    target: payload.target || target,
-  };
+  if (!response.ok) throw new Error(payload.error || `WhatsApp Gateway gagal (${response.status}).`);
+  return { status: payload.status || 'sent', provider: payload.provider || 'fonnte', target: payload.target || target };
 };
 
 const sendDirectCustomGatewayFallback = async ({ target, message, token, urlMedia = '' }) => {
   const params = new URLSearchParams({ target, message });
   if (urlMedia) params.append('url', urlMedia);
-  const response = await fetch(FONNTE_SEND_URL, {
-    method: 'POST',
-    headers: { Authorization: token },
-    body: params,
-  }).catch(() => {
+  const response = await fetch(FONNTE_SEND_URL, { method: 'POST', headers: { Authorization: token }, body: params }).catch(() => {
     throw new Error('WhatsApp Gateway tidak dapat dihubungi. Periksa koneksi internet lalu coba lagi.');
   });
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('Token Fonnte tidak valid atau kadaluarsa. Periksa kembali token di Pengaturan WhatsApp Gateway.');
-  }
+  if (response.status === 401 || response.status === 403) throw new Error('Token Fonnte tidak valid atau kadaluarsa. Periksa kembali token di Pengaturan WhatsApp Gateway.');
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload?.status === false) {
-    throw new Error(payload?.reason || payload?.detail || payload?.message || `WhatsApp Gateway Fonnte gagal (Status ${response.status}).`);
-  }
+  if (!response.ok || payload?.status === false) throw new Error(payload?.reason || payload?.detail || payload?.message || `WhatsApp Gateway Fonnte gagal (Status ${response.status}).`);
   return { status: 'sent', provider: 'fonnte', target };
 };
 
-export const sendWhatsAppNotification = async ({
-  tenant,
-  target,
-  message,
-  urlMedia = '',
-  openManual = true,
-} = {}) => {
+const markPickupReceiptSent = (resi) => {
+  if (!resi || typeof window === 'undefined') return;
+  window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
+  window.__UNITPRO_PICKUP_RECEIPT_SENT__[resi] = Date.now();
+};
+
+export const sendWhatsAppNotification = async ({ tenant, target, message, urlMedia = '', openManual = true } = {}) => {
   const normalizedTarget = normalizeWhatsAppNumber(target);
-  if (!normalizedTarget) {
-    return { status: 'skipped', reason: 'missing_target' };
-  }
+  if (!normalizedTarget) return { status: 'skipped', reason: 'missing_target' };
 
   const baseMessage = String(message || '').trim();
-  if (!baseMessage) {
-    return { status: 'skipped', reason: 'missing_message' };
-  }
+  if (!baseMessage) return { status: 'skipped', reason: 'missing_message' };
 
   const pickupDelivery = await buildPickupReceiptDelivery({ tenant, message: baseMessage, urlMedia });
-  const isPickup = Boolean(pickupDelivery.resi && isPickupMessage(baseMessage));
-  const cleanMessage = isPickup
-    ? pickupDelivery.message
-    : await enrichServiceCompletionMessage(baseMessage);
-  const mediaUrl = pickupDelivery.urlMedia || urlMedia;
+  const isPickup = Boolean(pickupDelivery.resi);
+  const completionDelivery = isPickup
+    ? { message: baseMessage, urlMedia, resi: '', mediaLabel: '' }
+    : await buildCompletionInvoiceDelivery({ tenant, message: baseMessage, urlMedia });
+  const isCompletion = Boolean(completionDelivery.resi);
+  const cleanMessage = isPickup ? pickupDelivery.message : (isCompletion ? completionDelivery.message : baseMessage);
+  const mediaUrl = isPickup ? pickupDelivery.urlMedia : (isCompletion ? completionDelivery.urlMedia : urlMedia);
 
   const { mode, token } = getWhatsAppSenderConfig(tenant);
   let gatewayError = null;
-
   try {
-    const result = await sendThroughBackendGateway({
-      tenant,
-      target: normalizedTarget,
-      message: cleanMessage,
-      mode,
-      token,
-      urlMedia: mediaUrl,
-    });
-    if (isPickup && typeof window !== 'undefined') {
-      window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
-      window.__UNITPRO_PICKUP_RECEIPT_SENT__[pickupDelivery.resi] = Date.now();
-    }
+    const result = await sendThroughBackendGateway({ tenant, target: normalizedTarget, message: cleanMessage, mode, token, urlMedia: mediaUrl });
+    if (isPickup) markPickupReceiptSent(pickupDelivery.resi);
     return result;
   } catch (error) {
     gatewayError = error;
@@ -268,16 +264,8 @@ export const sendWhatsAppNotification = async ({
 
   if (mode === 'CUSTOM' && token) {
     try {
-      const result = await sendDirectCustomGatewayFallback({
-        target: normalizedTarget,
-        message: cleanMessage,
-        token,
-        urlMedia: mediaUrl,
-      });
-      if (isPickup && typeof window !== 'undefined') {
-        window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
-        window.__UNITPRO_PICKUP_RECEIPT_SENT__[pickupDelivery.resi] = Date.now();
-      }
+      const result = await sendDirectCustomGatewayFallback({ target: normalizedTarget, message: cleanMessage, token, urlMedia: mediaUrl });
+      if (isPickup) markPickupReceiptSent(pickupDelivery.resi);
       return result;
     } catch (error) {
       gatewayError = error;
@@ -285,22 +273,14 @@ export const sendWhatsAppNotification = async ({
   }
 
   if (openManual && typeof window !== 'undefined') {
-    const manualMessage = isPickup && pickupDelivery.qrUrl
-      ? `${cleanMessage}\n\nBarcode/QR garansi:\n${pickupDelivery.qrUrl}`
-      : cleanMessage;
+    let manualMessage = cleanMessage;
+    if (isPickup && pickupDelivery.qrUrl) manualMessage += `\n\nBarcode/QR garansi:\n${pickupDelivery.qrUrl}`;
+    else if (isCompletion && mediaUrl && completionDelivery.mediaLabel) manualMessage += `\n\n${completionDelivery.mediaLabel}:\n${mediaUrl}`;
     const url = buildManualWhatsAppUrl(normalizedTarget, manualMessage);
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
-      if (isPickup) {
-        window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
-        window.__UNITPRO_PICKUP_RECEIPT_SENT__[pickupDelivery.resi] = Date.now();
-      }
-      return {
-        status: 'manual',
-        provider: 'wa.me',
-        target: normalizedTarget,
-        gatewayError,
-      };
+      if (isPickup) markPickupReceiptSent(pickupDelivery.resi);
+      return { status: 'manual', provider: 'wa.me', target: normalizedTarget, gatewayError };
     }
   }
 
