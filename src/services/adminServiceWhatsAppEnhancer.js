@@ -47,15 +47,120 @@ const parseWhatsAppHref = (href = '') => {
   }
 };
 
-const addPrintablePickupReceipt = (message, resi) => {
-  const printUrl = `${window.location.origin}/print-nota?resi=${encodeURIComponent(resi)}&format=a4&type=pickup`;
-  const printLine = `🖨 *Nota Fisik / Cetak:* ${printUrl}`;
-  const warrantyMarker = /\n(🔗\s*\*Link Garansi:\*)/i;
+const stripMarkdown = (value = '') => String(value || '').replace(/^\*+|\*+$/g, '').trim();
+const lineValue = (message = '', label = '') => {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = String(message || '').match(new RegExp(`^\\*?${escaped}\\*?\\s*:\\s*(.*?)$`, 'mi'));
+  return match ? stripMarkdown(match[1]) : '';
+};
+const findValue = (message = '', pattern) => stripMarkdown(String(message || '').match(pattern)?.[1] || '');
+const receiptLine = '━━━━━━━━━━━━━━━━━━━━';
 
-  if (warrantyMarker.test(message)) {
-    return message.replace(warrantyMarker, `\n${printLine}\n\n$1`);
-  }
-  return `${message}\n\n${printLine}`;
+const getStoreNameFromPrepared = (message, tenant) => {
+  const lines = String(message || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  const candidate = lines.find((line, index) => index > 0 && /^\*.+\*$/.test(line) && !/TOTAL|Status/i.test(line));
+  return stripMarkdown(candidate) || tenant?.settings?.storeName || tenant?.name || 'UnitPro';
+};
+
+const buildPrintUrl = (resi, tenantCode, type = 'pickup') => {
+  const query = new URLSearchParams({ resi, format: 'a4', type });
+  if (tenantCode) query.set('tenant_code', tenantCode);
+  return `${window.location.origin}/print-nota?${query.toString()}`;
+};
+
+const formatCompletionReceipt = (message, prepared, tenant, resi) => {
+  const storeName = getStoreNameFromPrepared(message, tenant);
+  const noteNo = lineValue(message, 'No. Nota') || resi;
+  const customer = lineValue(message, 'Pelanggan') || '-';
+  const device = lineValue(message, 'Perangkat') || '-';
+  const partName = lineValue(message, 'Sparepart');
+  const serviceName = lineValue(message, 'Jasa');
+  const result = lineValue(message, 'Hasil Perbaikan');
+  const partFee = lineValue(message, 'Biaya Sparepart') || 'Rp 0';
+  const serviceFee = lineValue(message, 'Biaya Jasa') || 'Rp 0';
+  const discount = lineValue(message, 'Diskon');
+  const total = findValue(message, /TOTAL YANG HARUS DIBAYAR:\s*([^\n*]+(?:\.[0-9]{3})*)/i) || 'Rp 0';
+  const payment = lineValue(message, 'Pembayaran');
+  const warranty = lineValue(message, 'Garansi Servis');
+  const warning = findValue(message, /^⚠️\s*(.+)$/mi);
+  const qris = prepared?.urlMedia || '';
+
+  const details = [
+    partName ? `Sparepart : ${partName}` : '',
+    serviceName ? `Jasa      : ${serviceName}` : '',
+    result ? `Hasil     : ${result}` : '',
+  ].filter(Boolean);
+
+  return [
+    '🧾 *NOTA TAGIHAN SERVIS*',
+    `*${storeName}*`,
+    receiptLine,
+    `No. Nota  : ${noteNo}`,
+    `Pelanggan : ${customer}`,
+    `Perangkat : ${device}`,
+    ...(details.length ? [receiptLine, '*RINCIAN PERBAIKAN*', ...details] : []),
+    receiptLine,
+    '*RINCIAN BIAYA*',
+    `Sparepart : ${partFee}`,
+    `Jasa      : ${serviceFee}`,
+    ...(discount ? [`Diskon    : ${discount}`] : []),
+    receiptLine,
+    '*TOTAL TAGIHAN*',
+    `*${total}*`,
+    receiptLine,
+    'Status: *SELESAI • BELUM LUNAS*',
+    '',
+    ...(payment || qris ? ['*PEMBAYARAN*'] : []),
+    ...(payment ? [payment] : []),
+    ...(qris ? [`QRIS: ${qris}`] : []),
+    ...(warranty ? ['', `Garansi: ${warranty}`] : []),
+    ...(warning ? ['', `⚠️ ${warning}`] : []),
+    '',
+    'Silakan lakukan pembayaran atau pengambilan sesuai total tagihan di atas.',
+    'Setelah lunas dan barang diambil, UnitPro akan mengirim Nota Pelunasan serta Link Garansi.',
+  ].filter((line, index, array) => line !== '' || (index > 0 && array[index - 1] !== '')).join('\n').trim();
+};
+
+const formatPickupReceipt = (message, tenant, resi) => {
+  const storeName = getStoreNameFromPrepared(message, tenant);
+  const noteNo = lineValue(message, 'No. Nota') || resi;
+  const customer = lineValue(message, 'Pelanggan') || '-';
+  const device = lineValue(message, 'Perangkat') || '-';
+  const partFee = lineValue(message, 'Biaya Sparepart') || 'Rp 0';
+  const serviceFee = lineValue(message, 'Biaya Jasa') || 'Rp 0';
+  const discount = lineValue(message, 'Diskon');
+  const total = findValue(message, /TOTAL LUNAS:\s*([^\n*]+(?:\.[0-9]{3})*)/i) || 'Rp 0';
+  const warranty = lineValue(message, 'Garansi Servis') || 'Sesuai ketentuan toko';
+  const warrantyUrl = findValue(message, /Link Garansi:\*?\s*(https?:\/\/\S+)/i) || `${window.location.origin}/garansi?resi=${encodeURIComponent(noteNo)}`;
+  const tenantCode = tenant?.code || tenant?.tenant_code || '';
+  const printUrl = buildPrintUrl(noteNo, tenantCode, 'pickup');
+
+  return [
+    '🧾 *NOTA PELUNASAN SERVIS*',
+    `*${storeName}*`,
+    receiptLine,
+    `No. Nota  : ${noteNo}`,
+    `Pelanggan : ${customer}`,
+    `Perangkat : ${device}`,
+    receiptLine,
+    '*RINCIAN BIAYA*',
+    `Sparepart : ${partFee}`,
+    `Jasa      : ${serviceFee}`,
+    ...(discount ? [`Diskon    : ${discount}`] : []),
+    receiptLine,
+    '*TOTAL LUNAS*',
+    `*${total}*`,
+    receiptLine,
+    '✅ *LUNAS • BARANG SUDAH DIAMBIL*',
+    '',
+    `Garansi Servis: ${warranty}`,
+    '',
+    `🖨 *Nota Cetak:*\n${printUrl}`,
+    '',
+    `🔗 *Garansi Digital:*\n${warrantyUrl}`,
+    '',
+    'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
+  ].join('\n').trim();
 };
 
 const enhanceWhatsAppButtons = () => {
@@ -84,17 +189,13 @@ const enhanceWhatsAppButtons = () => {
       try {
         const tenant = getRuntimeTenant();
         const fallbackMessage = parsed.message || `Resi: ${resi}`;
-        const prepared = await prepareServiceWhatsAppDelivery({
-          tenant,
-          message: fallbackMessage,
-        });
+        const prepared = await prepareServiceWhatsAppDelivery({ tenant, message: fallbackMessage });
 
         let finalMessage = prepared.message || fallbackMessage;
-        if (prepared.type === 'completion' && prepared.urlMedia && !finalMessage.includes(prepared.urlMedia)) {
-          finalMessage = `${finalMessage}\n\nQRIS Pembayaran: ${prepared.urlMedia}`;
-        }
-        if (prepared.type === 'pickup') {
-          finalMessage = addPrintablePickupReceipt(finalMessage, prepared.resi || resi);
+        if (prepared.type === 'completion') {
+          finalMessage = formatCompletionReceipt(finalMessage, prepared, tenant, prepared.resi || resi);
+        } else if (prepared.type === 'pickup') {
+          finalMessage = formatPickupReceipt(finalMessage, tenant, prepared.resi || resi);
         }
 
         const waUrl = buildManualWhatsAppUrl(parsed.phone, finalMessage);
