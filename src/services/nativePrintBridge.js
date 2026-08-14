@@ -59,7 +59,10 @@ const openNativePrintPage = (button) => {
   else if (status === 'SELESAI') type = 'completion';
   else if (/Pengambilan|Pelunasan/i.test(modalText)) type = 'pickup';
 
-  const url = `${window.location.origin}/print-nota?resi=${encodeURIComponent(resi)}&format=${format}&type=${type}&autoprint=1`;
+  const tenantCode = String(localStorage.getItem('TENANT_CODE') || '').trim().toUpperCase();
+  const query = new URLSearchParams({ resi, format, type, autoprint: '1' });
+  if (tenantCode) query.set('tenant_code', tenantCode);
+  const url = `${window.location.origin}/print-nota?${query.toString()}`;
 
   Browser.open({ url }).catch((error) => {
     console.warn('Native print browser gagal dibuka:', error);
