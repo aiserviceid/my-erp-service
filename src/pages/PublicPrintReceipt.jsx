@@ -39,7 +39,7 @@ export default function PublicPrintReceipt() {
   const [params] = useSearchParams();
   const resi = String(params.get('resi') || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 50);
   const format = params.get('format') === 'thermal' ? 'thermal' : 'a4';
-  const requestedType = params.get('type') || '';
+  const requestedType = String(params.get('type') || '').toLowerCase();
   const autoPrint = params.get('autoprint') === '1';
   const [service, setService] = useState(null);
   const [tenant, setTenant] = useState(null);
@@ -76,6 +76,7 @@ export default function PublicPrintReceipt() {
 
   const status = cleanStatus(service?.status);
   const isPaid = requestedType === 'pickup' || status === 'DIAMBIL';
+  const isInvoice = !isPaid && (requestedType === 'completion' || status === 'SELESAI');
   const discount = getDiscount(service?.issue || '');
   const partFee = Number(service?.part_fee || 0);
   const jasaFee = Number(service?.jasa_fee || 0);
@@ -88,6 +89,9 @@ export default function PublicPrintReceipt() {
   const warrantyUrl = typeof window !== 'undefined' && service?.resi
     ? `${window.location.origin}/garansi?resi=${encodeURIComponent(service.resi)}`
     : '';
+
+  const receiptTitle = isPaid ? 'NOTA PELUNASAN SERVIS' : isInvoice ? 'NOTA TAGIHAN SERVIS' : 'NOTA PENDAFTARAN SERVIS';
+  const totalLabel = isPaid ? 'TOTAL LUNAS' : isInvoice ? 'TOTAL TAGIHAN' : 'TOTAL';
 
   useEffect(() => {
     if (!autoPrint || !service) return undefined;
@@ -108,7 +112,7 @@ export default function PublicPrintReceipt() {
         .print-toolbar button{border:0;border-radius:8px;padding:10px 16px;background:#fff;color:#0f172a;font-weight:800;cursor:pointer}
         .receipt{background:#fff;margin:18px auto;padding:${format === 'thermal' ? '8mm 4mm' : '16mm'};width:${format === 'thermal' ? '80mm' : '210mm'};max-width:100%;min-height:${format === 'thermal' ? 'auto' : '297mm'};box-shadow:0 8px 28px rgba(15,23,42,.12)}
         .center{text-align:center}.store{font-size:${format === 'thermal' ? '18px' : '28px'};font-weight:900;margin:0}.muted{color:#64748b}.title{font-weight:900;letter-spacing:.08em;margin:5px 0 0;font-size:${format === 'thermal' ? '11px' : '14px'}}
-        .dash{border-top:1.5px dashed #64748b;margin:12px 0}.row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:${format === 'thermal' ? '11px' : '13px'}}.row span:last-child{text-align:right;font-weight:700}.section-title{font-size:${format === 'thermal' ? '11px' : '13px'};font-weight:900;margin:10px 0 5px}.note{font-size:${format === 'thermal' ? '10px' : '12px'};line-height:1.5;white-space:pre-wrap}.amount{font-size:${format === 'thermal' ? '14px' : '18px'};font-weight:900}.paid{padding:8px;border:1px solid #111827;text-align:center;font-weight:900;margin:10px 0}.warranty{margin-top:16px;padding-top:12px;border-top:1.5px dashed #64748b;text-align:center;font-size:${format === 'thermal' ? '10px' : '12px'};line-height:1.45}.warranty a{display:block;margin-top:6px;color:#111827;font-weight:800;word-break:break-all}.thanks{text-align:center;font-size:${format === 'thermal' ? '10px' : '12px'};margin-top:12px}
+        .dash{border-top:1.5px dashed #64748b;margin:12px 0}.row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:${format === 'thermal' ? '11px' : '13px'}}.row span:last-child{text-align:right;font-weight:700}.section-title{font-size:${format === 'thermal' ? '11px' : '13px'};font-weight:900;margin:10px 0 5px}.note{font-size:${format === 'thermal' ? '10px' : '12px'};line-height:1.5;white-space:pre-wrap}.amount{font-size:${format === 'thermal' ? '14px' : '18px'};font-weight:900}.paid,.invoice{padding:8px;border:1px solid #111827;text-align:center;font-weight:900;margin:10px 0}.warranty{margin-top:16px;padding-top:12px;border-top:1.5px dashed #64748b;text-align:center;font-size:${format === 'thermal' ? '10px' : '12px'};line-height:1.45}.warranty a{display:block;margin-top:6px;color:#111827;font-weight:800;word-break:break-all}.thanks{text-align:center;font-size:${format === 'thermal' ? '10px' : '12px'};margin-top:12px}
         @media print{body{background:#fff}.print-toolbar{display:none}.receipt{margin:0;box-shadow:none;max-width:none}${format === 'thermal' ? '@page{size:80mm auto;margin:0}' : '@page{size:A4;margin:0}'}}
       `}</style>
 
@@ -122,7 +126,7 @@ export default function PublicPrintReceipt() {
           <h1 className="store">{storeName}</h1>
           {storeAddress && <div className="muted" style={{ fontSize: format === 'thermal' ? 9 : 11, marginTop: 3 }}>{storeAddress}</div>}
           {storePhone && <div className="muted" style={{ fontSize: format === 'thermal' ? 9 : 11 }}>{storePhone}</div>}
-          <div className="title">{isPaid ? 'NOTA PELUNASAN SERVIS' : 'NOTA SERVIS'}</div>
+          <div className="title">{receiptTitle}</div>
         </header>
 
         <div className="dash" />
@@ -140,15 +144,19 @@ export default function PublicPrintReceipt() {
           {cleanIssue(service.issue) && <div className="note">{cleanIssue(service.issue)}</div>}
         </>}
 
-        <div className="dash" />
-        <div className="row"><span>Biaya Sparepart</span><span>Rp {rupiah(partFee)}</span></div>
-        <div className="row"><span>Biaya Jasa</span><span>Rp {rupiah(jasaFee)}</span></div>
-        {discount > 0 && <>
-          <div className="row"><span>Subtotal</span><span>Rp {rupiah(subtotal)}</span></div>
-          <div className="row"><span>Diskon</span><span>- Rp {rupiah(discount)}</span></div>
+        {(isInvoice || isPaid) && <>
+          <div className="dash" />
+          <div className="row"><span>Biaya Sparepart</span><span>Rp {rupiah(partFee)}</span></div>
+          <div className="row"><span>Biaya Jasa</span><span>Rp {rupiah(jasaFee)}</span></div>
+          {discount > 0 && <>
+            <div className="row"><span>Subtotal</span><span>Rp {rupiah(subtotal)}</span></div>
+            <div className="row"><span>Diskon</span><span>- Rp {rupiah(discount)}</span></div>
+          </>}
+          <div className="dash" />
+          <div className="row amount"><span>{totalLabel}</span><span>Rp {rupiah(total)}</span></div>
         </>}
-        <div className="dash" />
-        <div className="row amount"><span>{isPaid ? 'TOTAL LUNAS' : 'TOTAL'}</span><span>Rp {rupiah(total)}</span></div>
+
+        {isInvoice && <div className="invoice">SERVIS SELESAI • MENUNGGU PEMBAYARAN / PENGAMBILAN</div>}
         {isPaid && <div className="paid">LUNAS • BARANG SUDAH DIAMBIL</div>}
 
         {isPaid && <div className="warranty">
