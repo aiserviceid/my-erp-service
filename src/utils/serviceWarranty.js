@@ -44,11 +44,14 @@ export const parseIndonesianDateLabel = (label = '') => {
 };
 
 export const calculateServiceAmounts = (service = {}) => {
-  const partFee = Number(service.part_fee || 0);
-  const jasaFee = Number(service.jasa_fee || 0);
-  const discount = parseServiceDiscount(service.issue || '');
+  const hasPublicGross = service.public_gross_part_fee !== undefined || service.public_gross_jasa_fee !== undefined;
+  const partFee = Number(hasPublicGross ? service.public_gross_part_fee || 0 : service.part_fee || 0);
+  const jasaFee = Number(hasPublicGross ? service.public_gross_jasa_fee || 0 : service.jasa_fee || 0);
+  const discount = Number(hasPublicGross ? service.public_discount || 0 : parseServiceDiscount(service.issue || ''));
   const subtotal = Math.max(0, partFee + jasaFee);
-  const total = Math.max(0, subtotal - discount);
+  const total = hasPublicGross && service.public_total_fee !== undefined
+    ? Math.max(0, Number(service.public_total_fee || 0))
+    : Math.max(0, subtotal - discount);
   return { partFee, jasaFee, discount, subtotal, total };
 };
 
