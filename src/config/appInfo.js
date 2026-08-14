@@ -1,5 +1,6 @@
 import packageJson from '../../package.json';
 import { supabase } from '../services/supabase';
+import { apiService } from '../services/api';
 import { sendWhatsAppNotification } from '../services/notificationService';
 
 export const APP_VERSION = packageJson.version;
@@ -68,6 +69,7 @@ const buildCompletionIssue = (issue = '', meta = {}) => {
 
 if (typeof window !== 'undefined') {
   window.__UNITPRO_SERVICE_COMPLETION_META__ = window.__UNITPRO_SERVICE_COMPLETION_META__ || {};
+  window.__UNITPRO_PICKUP_RECEIPT_SENT__ = window.__UNITPRO_PICKUP_RECEIPT_SENT__ || {};
 }
 
 // Admin service modal enhancement: one customer can register up to 10 units at once.
@@ -216,11 +218,27 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_COMPLETION_ENHANCER__) {
   window.__UNITPRO_COMPLETION_ENHANCER__ = true;
   const completionMetaStore = window.__UNITPRO_SERVICE_COMPLETION_META__;
   const promptGuard = new Map();
+  const pickupPromptGuard = new Map();
 
   const extractResi = (root) => {
     const text = root?.textContent || '';
     const match = text.match(/(?:Resi\s*:?\s*)?(TRX-[A-Z0-9_-]+)/i);
     return match ? match[1].toUpperCase() : '';
+  };
+
+  const runtimeTenant = (service) => {
+    let settings = {};
+    try { settings = JSON.parse(localStorage.getItem('TENANT_SETTINGS') || '{}'); } catch {}
+    return {
+      code: service?.tenant_code || localStorage.getItem('TENANT_CODE') || '',
+      settings,
+      token: localStorage.getItem('EMPLOYEE_TOKEN') || localStorage.getItem('TENANT_TOKEN') || '',
+    };
+  };
+
+  const serviceDiscount = (issue = '') => {
+    const match = String(issue || '').match(/\[Diskon:\s*Rp\s*([^\]]+)\]/i);
+    return match ? Number(String(match[1] || '').replace(/\D/g, '')) || 0 : 0;
   };
 
   const makeCompletionFields = (initialMeta = {}) => {
@@ -342,12 +360,88 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_COMPLETION_ENHANCER__) {
         : window.confirm('Kirim status Selesai ke WhatsApp pelanggan sekarang?');
       if (!confirmed) return;
       await sendWhatsAppNotification({
-        tenant: { code: service.tenant_code, settings: JSON.parse(localStorage.getItem('TENANT_SETTINGS') || '{}'), token: localStorage.getItem('TENANT_TOKEN') || '' },
+        tenant: runtimeTenant(service),
         target: service.customer_phone,
         message: completionMessage(service, meta),
         openManual: true,
       });
     }, 900);
+  };
+
+  const sendPickupReceipt = async (service, ask = true) => {
+    if (!service?.resi || !service?.customer_phone) return;
+    const sentAt = window.__UNITPRO_PICKUP_RECEIPT_SENT__?.[service.resi] || 0;
+    if (Date.now() - sentAt < 15000) return;
+    const promptedAt = pickupPromptGuard.get(service.resi) || 0;
+    if (Date.now() - promptedAt < 8000) return;
+    pickupPromptGuard.set(service.resi, Date.now());
+
+    if (ask) {
+      const confirmed = window.UnitProConfirm
+        ? await window.UnitProConfirm({
+            title: 'Kirim Nota Garansi?',
+            message: 'Barang sudah Diambil/Lunas. Kirim NOTA PELUNASAN beserta barcode/QR garansi ke WhatsApp pelanggan? Resi tracking tidak akan dikirim ulang sebagai pesan utama.',
+            confirmText: 'Kirim Nota WA',
+            tone: 'success',
+          })
+        : window.confirm('Barang sudah Diambil/Lunas. Kirim Nota Pelunasan + Barcode/QR Garansi ke WhatsApp pelanggan?');
+      if (!confirmed) return;
+    }
+
+    await sendWhatsAppNotification({
+      tenant: runtimeTenant(service),
+      target: service.customer_phone,
+      message: `Status DIAMBIL. Resi: ${service.resi}`,
+      openManual: true,
+    });
+  };
+
+  const settlePickupFromCashier = async (resi, button) => {
+    if (!resi) return;
+    const { data: service, error } = await supabase.from('services').select('*').eq('resi', resi).maybeSingle();
+    if (error || !service) return window.alert('Data servis tidak ditemukan. Muat ulang lalu coba lagi.');
+    if (String(service.status || '').toUpperCase() === 'DIAMBIL') {
+      await sendPickupReceipt(service, true);
+      return;
+    }
+    if (!Number(service.part_fee || 0) && !Number(service.jasa_fee || 0)) {
+      return window.alert('Isi rincian biaya lewat status Selesai terlebih dahulu sebelum menandai Diambil.');
+    }
+    const confirmed = window.UnitProConfirm
+      ? await window.UnitProConfirm({
+          title: 'Tandai barang Diambil?',
+          message: 'Status menjadi Diambil/Lunas dan pembayaran masuk ke laporan. Setelah itu UnitPro dapat mengirim Nota Pelunasan + barcode/QR garansi ke pelanggan.',
+          confirmText: 'Tandai Diambil',
+          tone: 'info',
+        })
+      : window.confirm('Tandai barang Diambil/Lunas?');
+    if (!confirmed) return;
+
+    const oldText = button?.textContent || '';
+    if (button) { button.disabled = true; button.textContent = 'Memproses...'; }
+    try {
+      const discount = serviceDiscount(service.issue || '');
+      const result = await apiService.settleServicePickup({
+        tenant_code: service.tenant_code,
+        resi: service.resi,
+        part_fee: service.part_fee,
+        jasa_fee: service.jasa_fee,
+        discount,
+        technician_id: service.technician_id,
+        issue: service.issue,
+        customer_name: service.customer_name,
+      });
+      const settledService = { ...service, ...(result?.service || {}), status: 'DIAMBIL' };
+      await sendPickupReceipt(settledService, true);
+      window.alert(result?.alreadySettled
+        ? 'Servis sudah lunas sebelumnya. Nota garansi dapat dikirim tanpa membuat omzet dobel.'
+        : 'Barang berhasil ditandai Diambil/Lunas. Nota garansi sudah diproses.');
+      window.location.reload();
+    } catch (pickupError) {
+      console.error('Pickup kasir gagal:', pickupError);
+      window.alert(`Gagal menandai Diambil: ${pickupError?.message || 'periksa koneksi lalu coba lagi.'}`);
+      if (button) { button.disabled = false; button.textContent = oldText || 'Diambil + Nota WA'; }
+    }
   };
 
   const enhanceCompletionForm = async (form) => {
@@ -459,7 +553,7 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_COMPLETION_ENHANCER__) {
           : window.confirm('Servis selesai. Kirim WhatsApp pelanggan sekarang?');
         if (shouldSend && updated?.customer_phone) {
           await sendWhatsAppNotification({
-            tenant: { code: updated.tenant_code, settings: JSON.parse(localStorage.getItem('TENANT_SETTINGS') || '{}'), token: localStorage.getItem('EMPLOYEE_TOKEN') || localStorage.getItem('TENANT_TOKEN') || '' },
+            tenant: runtimeTenant(updated),
             target: updated.customer_phone,
             message: completionMessage(updated, meta),
             openManual: true,
@@ -482,10 +576,22 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_COMPLETION_ENHANCER__) {
       if (card.dataset.completionCashierReady === '1') return;
       card.dataset.completionCashierReady = '1';
       const status = String(card.querySelector('.badge')?.textContent || '').trim().toUpperCase();
-      if (['SELESAI', 'DIAMBIL', 'DI AMBIL', 'DIBATALKAN', 'BATAL'].includes(status)) return;
       const resi = String(card.querySelector('.cashier-service-title span')?.textContent || '').trim().toUpperCase();
       const actions = card.querySelector('.cashier-service-actions');
       if (!resi || !actions) return;
+
+      if (status === 'SELESAI') {
+        const pickupButton = document.createElement('button');
+        pickupButton.type = 'button';
+        pickupButton.className = 'btn btn-primary unitpro-cashier-pickup';
+        pickupButton.style.cssText = 'font-size:12px;padding:7px 10px;font-weight:850;background:#059669;border-color:#059669;color:#fff;';
+        pickupButton.textContent = '✓ Diambil + Nota WA';
+        pickupButton.addEventListener('click', () => settlePickupFromCashier(resi, pickupButton));
+        actions.prepend(pickupButton);
+        return;
+      }
+      if (['DIAMBIL', 'DI AMBIL', 'DIBATALKAN', 'BATAL'].includes(status)) return;
+
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'btn btn-primary unitpro-cashier-finish';
@@ -496,10 +602,79 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_COMPLETION_ENHANCER__) {
     });
   };
 
+  const enhancePrintDialogs = () => {
+    document.querySelectorAll('.modal-backdrop').forEach((backdrop) => {
+      const panel = backdrop.querySelector('.glass-panel');
+      const heading = panel?.querySelector('h3');
+      if (!panel || !heading || !/^Cetak\s+Nota/i.test(String(heading.textContent || '').trim()) || panel.dataset.printClarityReady === '1') return;
+      panel.dataset.printClarityReady = '1';
+      backdrop.style.background = 'rgba(15,23,42,.78)';
+      backdrop.style.padding = '16px';
+      panel.style.width = '100%';
+      panel.style.maxWidth = '430px';
+      panel.style.background = '#ffffff';
+      panel.style.color = '#0f172a';
+      panel.style.border = '1px solid #e2e8f0';
+      panel.style.borderRadius = '18px';
+      panel.style.padding = '20px';
+      panel.style.boxShadow = '0 24px 60px rgba(15,23,42,.35)';
+      heading.style.color = '#0f172a';
+      heading.style.fontSize = '1.15rem';
+      heading.style.fontWeight = '900';
+      const description = panel.querySelector('p');
+      if (description) {
+        description.style.color = '#475569';
+        description.style.lineHeight = '1.55';
+        description.style.fontWeight = '600';
+        description.textContent = /Pengambilan/i.test(heading.textContent || '')
+          ? 'Pilih ukuran kertas untuk Nota Pelunasan/Pengambilan. Nota garansi yang dikirim ke WhatsApp akan disertai barcode/QR.'
+          : 'Pilih ukuran kertas sesuai printer yang digunakan.';
+      }
+      const actionRow = [...panel.querySelectorAll('div')].find((node) => node.children.length >= 2 && [...node.children].every((child) => child.tagName === 'BUTTON'));
+      if (actionRow) {
+        actionRow.style.display = 'flex';
+        actionRow.style.gap = '10px';
+        actionRow.style.flexDirection = window.innerWidth <= 520 ? 'column' : 'row';
+        actionRow.querySelectorAll('button').forEach((button) => {
+          button.style.minHeight = '46px';
+          button.style.fontWeight = '800';
+          button.style.width = '100%';
+          button.style.color = button.classList.contains('btn-primary') ? '#fff' : '#0f172a';
+          if (!button.classList.contains('btn-primary')) {
+            button.style.background = '#f8fafc';
+            button.style.border = '1px solid #cbd5e1';
+          }
+        });
+      }
+    });
+  };
+
   const scanCompletionUi = () => {
     document.querySelectorAll('form').forEach((form) => enhanceCompletionForm(form));
     enhanceCashierCards();
+    enhancePrintDialogs();
   };
+
+  document.addEventListener('change', (event) => {
+    const select = event.target;
+    if (!(select instanceof HTMLSelectElement)) return;
+    const selectedStatus = String(select.value || '').toUpperCase().replace(/\s+/g, '');
+    if (selectedStatus !== 'DIAMBIL') return;
+    const taskCard = select.closest('.technician-task-card');
+    if (!taskCard) return;
+    const resi = extractResi(taskCard);
+    if (!resi) return;
+    window.setTimeout(async () => {
+      try {
+        const { data: service } = await supabase.from('services').select('*').eq('resi', resi).maybeSingle();
+        if (!service || String(service.status || '').toUpperCase().replace(/\s+/g, '') !== 'DIAMBIL') return;
+        await sendPickupReceipt(service, true);
+      } catch (error) {
+        console.warn('Nota pengambilan teknisi gagal diproses:', error);
+      }
+    }, 1800);
+  }, true);
+
   const completionObserver = new MutationObserver(scanCompletionUi);
   const startCompletionEnhancer = () => {
     completionObserver.observe(document.documentElement, { childList: true, subtree: true });
