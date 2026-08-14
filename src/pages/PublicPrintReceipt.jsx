@@ -4,6 +4,7 @@ import { apiService } from '../services/api';
 
 const rupiah = (value = 0) => Number(value || 0).toLocaleString('id-ID');
 const cleanStatus = (value = '') => String(value || '').toUpperCase().replace(/[\s_]+/g, '');
+const cleanCode = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 60);
 
 const getDiscount = (issue = '') => {
   const match = String(issue || '').match(/\[Diskon:\s*Rp\s*([^\]]+)\]/i);
@@ -38,6 +39,7 @@ const cleanIssue = (issue = '') => String(issue || '')
 export default function PublicPrintReceipt() {
   const [params] = useSearchParams();
   const resi = String(params.get('resi') || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 50);
+  const tenantCode = cleanCode(params.get('tenant_code') || params.get('tenant') || '');
   const format = params.get('format') === 'thermal' ? 'thermal' : 'a4';
   const requestedType = String(params.get('type') || '').toLowerCase();
   const autoPrint = params.get('autoprint') === '1';
@@ -51,20 +53,38 @@ export default function PublicPrintReceipt() {
       setError('Nomor nota tidak ditemukan.');
       return () => { active = false; };
     }
-    apiService.trackService(resi)
-      .then(async (data) => {
+
+    const loadReceipt = async () => {
+      setError('');
+      try {
+        const query = new URLSearchParams({ resi });
+        if (tenantCode) query.set('tenant_code', tenantCode);
+        const response = await fetch(`/api/public-service?${query.toString()}`, { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.service) throw new Error(payload?.error || 'Nota tidak ditemukan.');
         if (!active) return;
-        setService(data);
-        if (data?.tenant_code) {
-          try {
-            const info = await apiService.getTenantPublic(data.tenant_code);
+        setService(payload.service);
+        setTenant(payload.tenant || null);
+        return;
+      } catch (serverError) {
+        try {
+          const data = await apiService.trackService(resi);
+          if (!active) return;
+          setService(data);
+          if (data?.tenant_code) {
+            const info = await apiService.getTenantPublic(data.tenant_code).catch(() => null);
             if (active) setTenant(info || null);
-          } catch {}
+          }
+          return;
+        } catch {
+          if (active) setError(serverError?.message || 'Nota tidak ditemukan atau tidak dapat dimuat.');
         }
-      })
-      .catch(() => active && setError('Nota tidak ditemukan atau tidak dapat dimuat.'));
+      }
+    };
+
+    loadReceipt();
     return () => { active = false; };
-  }, [resi]);
+  }, [resi, tenantCode]);
 
   const settings = useMemo(() => {
     if (!tenant?.settings) return {};
@@ -101,7 +121,18 @@ export default function PublicPrintReceipt() {
     return () => window.clearTimeout(timer);
   }, [autoPrint, service]);
 
-  if (error) return <div style={{ padding: 24, fontFamily: 'Arial, sans-serif', color: '#b91c1c' }}>{error}</div>;
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', padding: 24, display: 'grid', placeItems: 'center', fontFamily: 'Arial, sans-serif', background: '#f8fafc' }}>
+        <div style={{ maxWidth: 460, background: '#fff', padding: 22, borderRadius: 14, border: '1px solid #fecaca', color: '#991b1b', textAlign: 'center' }}>
+          <strong style={{ display: 'block', fontSize: 18, marginBottom: 8 }}>Nota tidak dapat dimuat</strong>
+          <span>{error}</span>
+          <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>Resi: {resi || '-'}</div>
+          <button type="button" onClick={() => window.location.reload()} style={{ marginTop: 14, border: 0, borderRadius: 9, padding: '10px 14px', background: '#0f172a', color: '#fff', fontWeight: 800 }}>Coba Lagi</button>
+        </div>
+      </div>
+    );
+  }
   if (!service) return <div style={{ padding: 24, fontFamily: 'Arial, sans-serif' }}>Memuat nota...</div>;
 
   return (
@@ -146,6 +177,7 @@ export default function PublicPrintReceipt() {
 
         {(isInvoice || isPaid) && <>
           <div className="dash" />
+          <div className="section-title">RINCIAN BIAYA</div>
           <div className="row"><span>Biaya Sparepart</span><span>Rp {rupiah(partFee)}</span></div>
           <div className="row"><span>Biaya Jasa</span><span>Rp {rupiah(jasaFee)}</span></div>
           {discount > 0 && <>
@@ -156,7 +188,7 @@ export default function PublicPrintReceipt() {
           <div className="row amount"><span>{totalLabel}</span><span>Rp {rupiah(total)}</span></div>
         </>}
 
-        {isInvoice && <div className="invoice">SERVIS SELESAI • MENUNGGU PEMBAYARAN / PENGAMBILAN</div>}
+        {isInvoice && <div className="invoice">SERVIS SELESAI • BELUM LUNAS</div>}
         {isPaid && <div className="paid">LUNAS • BARANG SUDAH DIAMBIL</div>}
 
         {isPaid && <div className="warranty">
