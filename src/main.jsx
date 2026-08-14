@@ -6,6 +6,7 @@ import './services/publicTrackingSync.js'
 import './services/adminCustomerLookupHotfix.js'
 import './services/customerDataEnhancer.js'
 import './services/customerDeleteEnhancer.js'
+import './services/unifiedServiceEditEnhancer.js'
 import './index.css'
 import './unitpro-ui-polish.css'
 
