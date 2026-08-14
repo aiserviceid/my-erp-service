@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { supabase } from './supabase';
 
 let lastServiceResi = '';
 let lastServiceStatus = '';
@@ -35,7 +36,43 @@ const rememberContext = (event) => {
   if (context.status) lastServiceStatus = context.status;
 };
 
-const openNativePrintPage = (button) => {
+const toBase64Url = (value) => {
+  try {
+    const bytes = new TextEncoder().encode(JSON.stringify(value));
+    let binary = '';
+    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  } catch {
+    return '';
+  }
+};
+
+const getReceiptPayload = async (resi, tenantCode) => {
+  if (!resi || !tenantCode) return null;
+  try {
+    const { data: service, error } = await supabase
+      .from('services')
+      .select('resi,tenant_code,customer_name,device_name,issue,status,jasa_fee,part_fee,technician_id,created_at,updated_at')
+      .eq('tenant_code', tenantCode)
+      .eq('resi', resi)
+      .maybeSingle();
+    if (error || !service) return null;
+
+    let settings = {};
+    try { settings = JSON.parse(localStorage.getItem('TENANT_SETTINGS') || '{}'); } catch {}
+    const tenant = {
+      code: tenantCode,
+      name: localStorage.getItem('TENANT_NAME') || settings.storeName || 'UnitPro',
+      settings,
+    };
+    return { service, tenant };
+  } catch (error) {
+    console.warn('Data nota lokal tidak dapat dimuat:', error);
+    return null;
+  }
+};
+
+const openNativePrintPage = async (button) => {
   if (!Capacitor.isNativePlatform()) return false;
   const modal = button.closest('.modal-backdrop');
   if (!modal) return false;
@@ -62,12 +99,17 @@ const openNativePrintPage = (button) => {
   const tenantCode = String(localStorage.getItem('TENANT_CODE') || '').trim().toUpperCase();
   const query = new URLSearchParams({ resi, format, type, autoprint: '1' });
   if (tenantCode) query.set('tenant_code', tenantCode);
-  const url = `${window.location.origin}/print-nota?${query.toString()}`;
 
-  Browser.open({ url }).catch((error) => {
+  const payload = await getReceiptPayload(resi, tenantCode);
+  const encodedPayload = payload ? toBase64Url(payload) : '';
+  const url = `${window.location.origin}/print-nota?${query.toString()}${encodedPayload ? `#payload=${encodedPayload}` : ''}`;
+
+  try {
+    await Browser.open({ url });
+  } catch (error) {
     console.warn('Native print browser gagal dibuka:', error);
     window.open(url, '_blank', 'noopener,noreferrer');
-  });
+  }
   return true;
 };
 
@@ -78,7 +120,16 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_NATIVE_PRINT_BRIDGE__) {
     rememberContext(event);
     const button = event.target instanceof Element ? event.target.closest('button') : null;
     if (!button) return;
-    openNativePrintPage(button);
+
+    if (Capacitor.isNativePlatform() && button.closest('.modal-backdrop') && /Thermal|A4/i.test(button.textContent || '')) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      openNativePrintPage(button).catch((error) => {
+        console.error('Gagal membuka nota cetak:', error);
+        window.alert('Nota gagal dibuka. Silakan tutup popup lalu coba lagi.');
+      });
+    }
   }, true);
 
   document.addEventListener('change', rememberContext, true);
