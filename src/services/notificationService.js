@@ -161,7 +161,7 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
   const total = Math.max(0, subtotal - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const warrantyUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/tracking?resi=${encodeURIComponent(service.resi)}&view=garansi`
+    ? `${window.location.origin}/garansi?resi=${encodeURIComponent(service.resi)}`
     : '';
   const qrUrl = warrantyUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=16&data=${encodeURIComponent(warrantyUrl)}`

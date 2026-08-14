@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Component, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { useStore } from './store/useStore';
@@ -9,6 +9,7 @@ const Login = lazy(() => import('./pages/Login'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const EmployeePortal = lazy(() => import('./pages/EmployeePortal'));
 const PublicTracking = lazy(() => import('./pages/PublicTracking'));
+const PublicWarranty = lazy(() => import('./pages/PublicWarranty'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const PublicCatalog = lazy(() => import('./pages/PublicCatalog'));
@@ -63,6 +64,19 @@ function TrackResiRedirect() {
   return <Navigate to={`/tracking?resi=${encodeURIComponent(resi || '')}`} replace />;
 }
 
+function WarrantyResiRedirect() {
+  const { resi } = useParams();
+  return <Navigate to={`/garansi?resi=${encodeURIComponent(resi || '')}`} replace />;
+}
+
+function PublicTrackingRoute() {
+  const [params] = useSearchParams();
+  const resi = params.get('resi') || '';
+  const warrantyMode = String(params.get('view') || params.get('mode') || '').toLowerCase() === 'garansi';
+  if (warrantyMode && resi) return <Navigate to={`/garansi?resi=${encodeURIComponent(resi)}`} replace />;
+  return <PublicTracking />;
+}
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -93,7 +107,7 @@ class ErrorBoundary extends Component {
               </pre>
             </details>
           )}
-          <button 
+          <button
             onClick={() => {
               localStorage.clear();
               sessionStorage.clear();
@@ -111,7 +125,6 @@ class ErrorBoundary extends Component {
     }
     return this.props.children;
   }
-
 }
 
 const themeColors = {
@@ -135,7 +148,6 @@ function App() {
   const tenant = useStore((state) => state.tenant);
   const settings = tenant?.settings || { theme: 'default' };
 
-  // Apply Theme CSS Variables dynamically
   useEffect(() => {
     try {
       const currentTheme = settings?.theme || 'default';
@@ -147,7 +159,6 @@ function App() {
       root.style.setProperty('--accent', colors.accent);
       root.style.setProperty('--accent-hover', colors.accentHover);
 
-      // Apply true dark mode via data attribute
       if (currentTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       } else {
@@ -158,8 +169,6 @@ function App() {
     }
   }, [settings?.theme]);
 
-  // The Android build has its own compact, task-focused shell. Keeping this
-  // marker on the document lets the public web site retain its desktop layout.
   useEffect(() => {
     document.documentElement.classList.toggle('native-app', isNativeApp);
     return () => document.documentElement.classList.remove('native-app');
@@ -179,8 +188,10 @@ function App() {
             <Route path="/admin" element={hasTenantCode ? <AdminDashboard /> : <Navigate to="/login" />} />
             <Route path="/employee" element={<EmployeePortal />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
-            <Route path="/tracking" element={<PublicTracking />} />
+            <Route path="/tracking" element={<PublicTrackingRoute />} />
             <Route path="/track/:resi" element={<TrackResiRedirect />} />
+            <Route path="/garansi" element={<PublicWarranty />} />
+            <Route path="/garansi/:resi" element={<WarrantyResiRedirect />} />
             <Route path="/katalog/:tenantCode" element={<PublicCatalog />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
