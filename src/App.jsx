@@ -10,6 +10,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const EmployeePortal = lazy(() => import('./pages/EmployeePortal'));
 const PublicTracking = lazy(() => import('./pages/PublicTracking'));
 const PublicWarranty = lazy(() => import('./pages/PublicWarranty'));
+const PublicPrintReceipt = lazy(() => import('./pages/PublicPrintReceipt'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const PublicCatalog = lazy(() => import('./pages/PublicCatalog'));
@@ -192,6 +193,7 @@ function App() {
             <Route path="/track/:resi" element={<TrackResiRedirect />} />
             <Route path="/garansi" element={<PublicWarranty />} />
             <Route path="/garansi/:resi" element={<WarrantyResiRedirect />} />
+            <Route path="/print-nota" element={<PublicPrintReceipt />} />
             <Route path="/katalog/:tenantCode" element={<PublicCatalog />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
