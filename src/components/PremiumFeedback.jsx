@@ -38,6 +38,7 @@ export default function PremiumFeedback() {
         ? { title: 'Konfirmasi tindakan', message: options }
         : (options || {});
       setDialog({
+        kind: 'confirm',
         title: payload.title || 'Konfirmasi tindakan',
         message: payload.message || payload.description || 'Lanjutkan tindakan ini?',
         tone: payload.tone || inferTone(`${payload.title || ''} ${payload.message || ''}`),
@@ -47,8 +48,28 @@ export default function PremiumFeedback() {
       });
     });
 
+    const askPrompt = (options, initialValue = '') => new Promise((resolve) => {
+      const payload = typeof options === 'string'
+        ? { title: 'Masukkan data', message: options, initialValue }
+        : (options || {});
+      setDialog({
+        kind: 'prompt',
+        title: payload.title || 'Masukkan data',
+        message: payload.message || payload.description || 'Isi kolom berikut untuk melanjutkan.',
+        tone: payload.tone || inferTone(`${payload.title || ''} ${payload.message || ''}`),
+        confirmText: payload.confirmText || 'Simpan',
+        cancelText: payload.cancelText || 'Batal',
+        inputLabel: payload.inputLabel || 'Isian',
+        inputPlaceholder: payload.inputPlaceholder || '',
+        inputType: payload.inputType || 'text',
+        value: payload.initialValue ?? initialValue ?? '',
+        resolve,
+      });
+    });
+
     window.UnitProToast = pushToast;
     window.UnitProConfirm = askConfirm;
+    window.UnitProPrompt = askPrompt;
     window.alert = (message) => pushToast({ message, type: inferTone(message) });
 
     const listener = (event) => pushToast(event.detail);
@@ -59,12 +80,17 @@ export default function PremiumFeedback() {
       window.removeEventListener('unitpro:toast', listener);
       delete window.UnitProToast;
       delete window.UnitProConfirm;
+      delete window.UnitProPrompt;
     };
   }, []);
 
   const closeDialog = (value) => {
     if (dialog?.resolve) dialog.resolve(value);
     setDialog(null);
+  };
+
+  const submitDialog = () => {
+    closeDialog(dialog?.kind === 'prompt' ? (dialog.value ?? '') : true);
   };
 
   const dialogTone = tones[dialog?.tone] || tones.info;
@@ -120,7 +146,7 @@ export default function PremiumFeedback() {
         <div
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeDialog(false);
+            if (event.target === event.currentTarget) closeDialog(dialog?.kind === 'prompt' ? null : false);
           }}
           style={{
             position: 'fixed',
@@ -144,8 +170,13 @@ export default function PremiumFeedback() {
               borderRadius: 24,
               boxShadow: '0 35px 90px rgba(2, 6, 23, .35)',
               border: '1px solid rgba(226, 232, 240, .9)',
-              overflow: 'hidden',
+              overflow: 'auto',
+              maxHeight: 'min(640px, calc(100dvh - 36px))',
               animation: 'unitproModalIn 180ms ease-out',
+            }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitDialog();
             }}
           >
             <div style={{ padding: '22px 22px 12px 22px', display: 'flex', gap: 14 }}>
@@ -155,17 +186,30 @@ export default function PremiumFeedback() {
               <div>
                 <h3 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', color: '#0f172a', fontWeight: 900 }}>{dialog.title}</h3>
                 <p style={{ margin: 0, color: '#475569', fontSize: '.9rem', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{dialog.message}</p>
+                {dialog.kind === 'prompt' && (
+                  <label style={{ display: 'grid', gap: 7, marginTop: 16, color: '#334155', fontSize: '.82rem', fontWeight: 800 }}>
+                    {dialog.inputLabel}
+                    <input
+                      autoFocus
+                      type={dialog.inputType}
+                      value={dialog.value}
+                      placeholder={dialog.inputPlaceholder}
+                      onChange={(event) => setDialog((current) => ({ ...current, value: event.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box', border: `1px solid ${dialogTone.accent}66`, borderRadius: 12, padding: '12px 13px', color: '#0f172a', fontSize: '1rem', outline: 'none' }}
+                    />
+                  </label>
+                )}
               </div>
             </div>
-            <div style={{ padding: '14px 22px 22px 22px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button type="button" onClick={() => closeDialog(false)} style={{ border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155', borderRadius: 12, padding: '10px 16px', fontWeight: 800, cursor: 'pointer' }}>
+            <div style={{ padding: '14px 22px 22px 22px', display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => closeDialog(dialog.kind === 'prompt' ? null : false)} style={{ border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155', borderRadius: 12, padding: '10px 16px', fontWeight: 800, cursor: 'pointer' }}>
                 {dialog.cancelText}
               </button>
-              <button type="button" onClick={() => closeDialog(true)} style={{ border: 0, background: dialogTone.accent, color: 'white', borderRadius: 12, padding: '10px 16px', fontWeight: 900, cursor: 'pointer', boxShadow: `0 10px 22px ${dialogTone.accent}35` }}>
+              <button type="submit" style={{ border: 0, background: dialogTone.accent, color: 'white', borderRadius: 12, padding: '10px 16px', fontWeight: 900, cursor: 'pointer', boxShadow: `0 10px 22px ${dialogTone.accent}35` }}>
                 {dialog.confirmText}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </>
