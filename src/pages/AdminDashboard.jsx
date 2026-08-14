@@ -2465,10 +2465,27 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                       <button 
                         className="btn btn-danger"
                         onClick={async () => {
-                          const confirm1 = window.confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA DATA (Transaksi, Servis, Produk)?');
+                          const confirm1 = await window.UnitProConfirm({
+                            title: 'Reset seluruh data?',
+                            message: 'Seluruh transaksi, servis, dan produk akan dihapus. Tindakan ini permanen dan tidak dapat dikembalikan.',
+                            tone: 'warning',
+                            confirmText: 'Lanjut',
+                            cancelText: 'Batal',
+                          });
                           if (!confirm1) return;
-                          const confirm2 = window.prompt('Peringatan Terakhir! Aksi ini permanen dan tidak bisa dikembalikan.\n\nKetik "RESET" untuk melanjutkan:');
-                          if (confirm2 !== 'RESET') return alert('Batal mereset data.');
+                          const confirm2 = await window.UnitProPrompt({
+                            title: 'Konfirmasi reset data',
+                            message: 'Ketik RESET untuk melanjutkan.',
+                            tone: 'warning',
+                            inputLabel: 'Konfirmasi',
+                            inputPlaceholder: 'RESET',
+                            confirmText: 'Reset data',
+                            cancelText: 'Batal',
+                          });
+                          if (confirm2 !== 'RESET') {
+                            if (confirm2 !== null) alert('Kode RESET tidak cocok. Data tidak jadi dihapus.');
+                            return;
+                          }
                           try {
                             await apiService.resetTenantData(tenant.code, { keepUsers: true });
                             alert('Berhasil! Seluruh data transaksi, servis, dan produk telah dihapus.');

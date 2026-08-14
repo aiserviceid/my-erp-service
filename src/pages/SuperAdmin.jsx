@@ -712,7 +712,15 @@ export default function SuperAdmin() {
   };
 
   const handleSetTrial = async (tenantCode) => {
-    const daysStr = window.prompt(`Berapa Hari Masa Trial untuk ${tenantCode}? (Contoh: 7 atau 14)\nKetik 0 untuk menghapus trial.`);
+    const daysStr = await window.UnitProPrompt({
+      title: 'Atur masa trial',
+      message: `Masukkan jumlah hari trial untuk ${tenantCode}. Isi 0 untuk menghapus trial.`,
+      inputLabel: 'Jumlah hari',
+      inputType: 'number',
+      inputPlaceholder: 'Contoh: 7 atau 14',
+      confirmText: 'Lanjut',
+      cancelText: 'Batal',
+    });
     if (daysStr === null) return;
     const days = parseInt(daysStr, 10);
     if (isNaN(days) || days < 0) return alert('Jumlah hari tidak valid!');
@@ -721,7 +729,15 @@ export default function SuperAdmin() {
     let trialEndsAtMs = null;
 
     if (days > 0) {
-      const tierInput = window.prompt(`Pilih Paket Trial:\n1. Pro (Ketik "pro")\n2. Enterprise (Ketik "enterprise")`, "enterprise");
+      const tierInput = await window.UnitProPrompt({
+        title: 'Pilih paket trial',
+        message: 'Ketik pro atau enterprise.',
+        inputLabel: 'Paket trial',
+        inputPlaceholder: 'pro / enterprise',
+        initialValue: 'enterprise',
+        confirmText: 'Simpan pilihan',
+        cancelText: 'Batal',
+      });
       if (!tierInput) return;
       if (tierInput.toLowerCase() === 'pro') targetTier = 'pro';
       else if (tierInput.toLowerCase() === 'enterprise') targetTier = 'enterprise';
@@ -743,7 +759,15 @@ export default function SuperAdmin() {
   };
 
   const handleAdjustWallet = async (tenantCode) => {
-    const amountStr = window.prompt(`Masukkan jumlah penyesuaian saldo dompet untuk toko ${tenantCode} (contoh: 50000 atau -20000):`);
+    const amountStr = await window.UnitProPrompt({
+      title: 'Sesuaikan saldo dompet',
+      message: `Masukkan nominal untuk toko ${tenantCode}. Gunakan angka negatif untuk mengurangi saldo.`,
+      inputLabel: 'Nominal penyesuaian',
+      inputType: 'number',
+      inputPlaceholder: 'Contoh: 50000 atau -20000',
+      confirmText: 'Simpan saldo',
+      cancelText: 'Batal',
+    });
     if (!amountStr) return;
     const delta = parseInt(amountStr, 10);
     if (isNaN(delta)) return alert('Nominal harus angka!');
@@ -758,7 +782,15 @@ export default function SuperAdmin() {
   };
 
   const handleResetPin = async (tenantCode) => {
-    const newPin = window.prompt(`Masukkan PIN baru untuk toko ${tenantCode}:`);
+    const newPin = await window.UnitProPrompt({
+      title: 'Reset PIN toko',
+      message: `Masukkan PIN baru untuk ${tenantCode}.`,
+      inputLabel: 'PIN baru',
+      inputType: 'password',
+      inputPlaceholder: 'Masukkan PIN baru',
+      confirmText: 'Simpan PIN',
+      cancelText: 'Batal',
+    });
     if (!newPin) return;
     try {
       await apiService.resetTenantPin(tenantCode, newPin);
@@ -782,7 +814,15 @@ export default function SuperAdmin() {
   };
 
   const handleDeleteTenant = async (tenantCode) => {
-    const confirmText = window.prompt(`Ketik "${tenantCode}" untuk menghapus toko ini secara PERMANEN beserta data servisnya:`);
+    const confirmText = await window.UnitProPrompt({
+      title: 'Hapus toko permanen',
+      message: `Ketik ${tenantCode} untuk menghapus toko beserta seluruh data servisnya. Tindakan ini tidak dapat dibatalkan.`,
+      tone: 'warning',
+      inputLabel: 'Kode toko',
+      inputPlaceholder: tenantCode,
+      confirmText: 'Hapus permanen',
+      cancelText: 'Batal',
+    });
     if (confirmText !== tenantCode) {
       if (confirmText !== null) alert('Kode toko tidak cocok, batal menghapus.');
       return;
