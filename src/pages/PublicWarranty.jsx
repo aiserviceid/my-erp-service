@@ -132,12 +132,25 @@ export default function PublicWarranty() {
                 )}
               </div>
 
-              <div style={{ padding: '18px 20px', textAlign: 'center' }}>
-                <div style={{ color: '#64748b', fontSize: 11, fontWeight: 800, marginBottom: 7 }}>KODE GARANSI / NO. NOTA</div>
-                <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
-                  <Barcode value={service.resi} height={54} width={1.35} fontSize={12} margin={0} displayValue />
+              <div style={{ padding: '18px 20px 20px', textAlign: 'center' }}>
+                <div style={{ color: '#64748b', fontSize: 11, fontWeight: 800, marginBottom: 10 }}>KODE GARANSI / NO. NOTA</div>
+                <div style={{
+                  width: '100%',
+                  maxWidth: 360,
+                  margin: '0 auto',
+                  padding: '12px 8px 8px',
+                  boxSizing: 'border-box',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  background: '#fff',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                }}>
+                  <Barcode value={service.resi} height={52} width={1.05} fontSize={11} margin={0} displayValue />
                 </div>
-                <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>Barcode dan link ini mengacu pada data servis yang sama di UnitPro.</div>
+                <div style={{ marginTop: 10, fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>Barcode dan link ini mengacu pada data servis yang sama di UnitPro.</div>
               </div>
             </section>
 
@@ -167,15 +180,6 @@ export default function PublicWarranty() {
               <div style={{ fontWeight: 900, marginBottom: 10 }}>🛠️ Informasi Perbaikan</div>
               <div style={{ color: '#475569', lineHeight: 1.6, fontSize: 13 }}>{cleanPublicServiceIssue(service.issue) || 'Rincian perbaikan tersimpan di toko.'}</div>
             </section>
-
-            {(warranty.pickupMessage || warranty.pickupDays > 0) && (
-              <section style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 18, padding: 16, marginBottom: 14 }}>
-                <div style={{ color: '#92400e', fontWeight: 900, fontSize: 13 }}>Aturan Pengambilan</div>
-                <div style={{ color: '#a16207', marginTop: 5, fontSize: 12.5, lineHeight: 1.55 }}>
-                  {warranty.pickupMessage || `Batas pengambilan barang ${warranty.pickupDays} hari setelah servis selesai.`}
-                </div>
-              </section>
-            )}
 
             <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, lineHeight: 1.5, paddingTop: 8 }}>
               Data garansi, status, biaya, diskon, dan nota ditarik dari satu data servis yang sama agar tetap sinkron.
