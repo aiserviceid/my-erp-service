@@ -9,6 +9,7 @@ import './services/customerDeleteEnhancer.js'
 import './services/unifiedServiceEditEnhancer.js'
 import './services/adminOnlyCustomerDeleteGuard.js'
 import './services/adminServiceWhatsAppEnhancer.js'
+import './services/nativePrintBridge.js'
 import './index.css'
 import './unitpro-ui-polish.css'
 
