@@ -5,6 +5,7 @@ import AppErrorBoundary from './components/AppErrorBoundary.jsx'
 import './services/publicTrackingSync.js'
 import './services/adminCustomerLookupHotfix.js'
 import './services/customerDataEnhancer.js'
+import './services/customerDeleteEnhancer.js'
 import './index.css'
 import './unitpro-ui-polish.css'
 
