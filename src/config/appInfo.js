@@ -1,4 +1,5 @@
 import packageJson from '../../package.json';
+import { supabase } from '../services/supabase';
 
 export const APP_VERSION = packageJson.version;
 export const APK_FILE_NAME = `UnitPro-Android-v${APP_VERSION}.apk`;
@@ -7,8 +8,6 @@ export const APK_RELEASE_URL = `https://github.com/aiserviceid/my-erp-service/re
 export const APK_PUBLIC_URL = import.meta.env.VITE_APK_PUBLIC_URL || APK_RELEASE_URL;
 
 // Admin service modal enhancement: one customer can register up to 10 units at once.
-// EmployeePortal already has the native multi-unit wizard; this keeps the Admin/APK
-// reception modal consistent without changing the existing single-unit flow.
 if (typeof window !== 'undefined' && !window.__UNITPRO_ADMIN_MULTI_UNIT__) {
   window.__UNITPRO_ADMIN_MULTI_UNIT__ = true;
 
@@ -108,21 +107,28 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_ADMIN_MULTI_UNIT__) {
       })];
 
       const tenantCode = localStorage.getItem('TENANT_CODE');
-      const token = localStorage.getItem('TENANT_TOKEN');
-      const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      const batchId = Date.now();
       const saved = [];
       try {
+        if (!tenantCode) throw new Error('Sesi toko tidak ditemukan. Silakan masuk ulang.');
         for (let i = 0; i < units.length; i += 1) {
           const unit = units[i];
-          const resi = `TRX-${Date.now()}-${i + 1}`;
-          const response = await fetch('/api/services', {
-            method: 'POST', headers,
-            body: JSON.stringify({ tenant_code: tenantCode, resi, customer_name: customerName, customer_phone: normalizedPhone, device_name: String(unit.device || '').trim(), issue: makeIssue(unit.issue, unit.kelengkapan, unit.estimasi_waktu, unit.estimasi_biaya), technician_id: unit.technician_id, status: 'PROSES' })
-          });
-          if (!response.ok) throw new Error(`Unit ${i + 1} gagal disimpan`);
-          saved.push(resi);
+          const resi = `TRX-${batchId}-${String(i + 1).padStart(2, '0')}`;
+          const payload = {
+            tenant_code: tenantCode,
+            resi,
+            customer_name: customerName,
+            customer_phone: normalizedPhone,
+            device_name: String(unit.device || '').trim(),
+            issue: makeIssue(unit.issue, unit.kelengkapan, unit.estimasi_waktu, unit.estimasi_biaya),
+            technician_id: unit.technician_id,
+            status: 'PROSES'
+          };
+          const { data, error } = await supabase.from('services').insert(payload).select().single();
+          if (error) throw new Error(`Unit ${i + 1} gagal disimpan: ${error.message || 'database menolak data'}`);
+          saved.push(data || payload);
         }
-        window.alert(`${saved.length} unit berhasil didaftarkan untuk ${customerName}.\n\nResi:\n${saved.join('\n')}`);
+        window.alert(`${saved.length} unit berhasil didaftarkan dan ditugaskan untuk ${customerName}.\n\nResi:\n${saved.map(item => item.resi).join('\n')}`);
         window.location.reload();
       } catch (error) {
         window.alert(`${error.message || 'Gagal menyimpan semua unit.'}${saved.length ? `\n\n${saved.length} unit sudah berhasil tersimpan. Jangan input ulang unit tersebut.` : ''}`);
