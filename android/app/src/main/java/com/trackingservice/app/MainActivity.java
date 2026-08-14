@@ -31,7 +31,10 @@ public class MainActivity extends BridgeActivity {
             webSettings.setDomStorageEnabled(true);
             webSettings.setDatabaseEnabled(true);
             webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
-            webView.setNestedScrollingEnabled(true);
+            // The web document handles vertical scrolling. Disabling Android's
+            // nested-scroll handoff prevents one-finger gestures from being
+            // intercepted by the CoordinatorLayout on some Samsung WebViews.
+            webView.setNestedScrollingEnabled(false);
             webView.setVerticalScrollBarEnabled(true);
             webView.setOverScrollMode(View.OVER_SCROLL_ALWAYS);
         }

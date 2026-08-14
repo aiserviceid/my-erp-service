@@ -177,9 +177,10 @@
   }
   
   /* Allow text selection in specific areas */
-  input, textarea, select, .selectable-text {
-    -webkit-user-select: auto;
-    user-select: auto;
+  input, textarea, select, .selectable-text, .copyable-text {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 }
 
@@ -531,6 +532,22 @@
 .service-wizard-error { color: #b91c1c; }
 .service-wizard-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .service-wizard-actions .btn { display: inline-flex; align-items: center; gap: 4px; }
+.service-customer-lookup { position: relative; }
+.service-customer-results { position: absolute; z-index: 8; top: calc(100% - 8px); left: 0; right: 0; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 12px; background: #fff; box-shadow: 0 16px 35px rgba(15, 23, 42, .16); }
+.service-customer-result { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border: 0; border-bottom: 1px solid #eef2f7; background: #fff; color: #0f172a; text-align: left; cursor: pointer; }
+.service-customer-result:last-child { border-bottom: 0; }
+.service-customer-result:active, .service-customer-result:hover { background: #f0fdfa; }
+.service-customer-result strong, .service-customer-result span { display: block; }
+.service-customer-result span { margin-top: 2px; color: #64748b; font-size: 12px; }
+.service-customer-result small { flex: none; color: #0f766e; font-weight: 800; }
+.service-existing-customer { display: flex; align-items: center; gap: 7px; margin: -2px 0 12px; padding: 9px 11px; border-radius: 10px; background: #ecfdf5; color: #047857; font-size: 12px; font-weight: 800; }
+.service-unit-card { position: relative; margin-bottom: 12px; padding: 14px; border: 1px solid #dbe7ec; border-radius: 13px; background: #f8fafc; }
+.service-unit-card__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.service-unit-card__header strong { color: #0f172a; font-size: 13px; }
+.service-unit-remove { border: 0; background: transparent; color: #b91c1c; font-size: 12px; font-weight: 800; cursor: pointer; }
+.service-add-unit { width: 100%; justify-content: center; border: 1px dashed #0f9d95 !important; color: #087a75 !important; background: #f0fdfa !important; }
+.copy-value { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.copy-value__button { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 30px; min-height: 30px; padding: 5px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f766e; cursor: pointer; }
 .cashier-recent-service { padding: 16px 20px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: border-color .2s ease, box-shadow .2s ease; margin-bottom: 10px; }
 .cashier-recent-service:hover { border-color: #0284c7; box-shadow: 0 4px 16px rgba(2, 132, 199, 0.08); }
 .cashier-service-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -798,29 +815,33 @@ html.native-app #root {
 }
 
 html.native-app {
-  height: 100%;
-  overflow: hidden;
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 html.native-app body {
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
+  height: auto;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: visible;
+  overscroll-behavior-y: contain;
+  touch-action: pan-x pan-y;
   font-family: Inter, Roboto, Arial, sans-serif;
   background: #eef3f8;
 }
 
 html.native-app #root {
   width: 100%;
-  height: 100dvh;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior-y: auto;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+  touch-action: pan-x pan-y;
 }
 
 html.native-app .dashboard-layout {

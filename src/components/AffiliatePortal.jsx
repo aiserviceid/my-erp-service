@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../services/api';
 import { Gift, Copy, CheckCircle, TrendingUp, Users, DollarSign, Clock, Share2, ExternalLink } from 'lucide-react';
+import { copyText } from '../utils/clipboard';
 
 const tierLabels = { pro: 'Pro', enterprise: 'Enterprise', free: 'Starter Gratis' };
 const tierColors = { pro: '#0284c7', enterprise: '#7c3aed', free: '#64748b' };
@@ -40,16 +41,16 @@ export default function AffiliatePortal() {
   const proCommission = Math.floor(Number(affiliateSettings.pro_price || 99000) * Number(affiliateSettings.first_payment_rate || 0.20));
   const enterpriseCommission = Math.floor(Number(affiliateSettings.enterprise_price || 299000) * Number(affiliateSettings.first_payment_rate || 0.20));
 
-  const copyCode = () => {
+  const copyCode = async () => {
     if (!data.affiliate?.affiliate_code) return;
-    navigator.clipboard.writeText(data.affiliate.affiliate_code);
+    if (!await copyText(data.affiliate.affiliate_code)) return alert('Kode tidak dapat disalin. Coba tekan lama pada kode.');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const copyUrl = () => {
+  const copyUrl = async () => {
     if (!referralUrl) return;
-    navigator.clipboard.writeText(referralUrl);
+    if (!await copyText(referralUrl)) return alert('Link tidak dapat disalin. Coba tekan lama pada link.');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

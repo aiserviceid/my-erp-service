@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import { compressImageFile } from '../utils/imageCompressor';
+import { copyText } from '../utils/clipboard';
 import UpgradePrompt from '../components/UpgradePrompt';
 import MobileTabBar from '../components/MobileTabBar';
 import PremiumDashboardSummary from '../components/PremiumDashboardSummary';
@@ -1701,10 +1702,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                       <button 
                         className="btn"
                         style={{ background: '#e2e8f0', color: '#475569', fontWeight: '600', padding: '6px 12px', fontSize: '0.85rem' }}
-                        onClick={() => {
+                        onClick={async () => {
                           const numbers = [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].map(n => n.replace(/^0/, '62')).join(', ');
                           if(!numbers) return alert('Tidak ada nomor WA yang tersedia di kategori ini.');
-                          navigator.clipboard.writeText(numbers);
+                          if (!await copyText(numbers)) return alert('Nomor tidak dapat disalin. Coba lagi atau tekan lama pada teks nomor.');
                           alert('Berhasil disalin!\n\nSilakan "Paste" nomor-nomor ini di HP Anda untuk membuat Broadcast List WhatsApp.\n\nTotal: ' + [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].length + ' Nomor');
                         }}
                       >

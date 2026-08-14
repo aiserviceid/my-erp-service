@@ -22,6 +22,7 @@ import {
 import { apiService } from '../services/api';
 import { getWhatsAppSenderConfig, sendWhatsAppNotification } from '../services/notificationService';
 import { CAMPAIGN_VARIABLES, findUnknownCampaignVariables, renderCampaignTemplate } from '../config/waTemplates';
+import { copyText } from '../utils/clipboard';
 
 const normalizePhone = (value = '') => String(value || '').replace(/[^0-9+]/g, '').replace(/^0/, '62');
 const dayMs = 24 * 60 * 60 * 1000;
@@ -455,7 +456,7 @@ export default function CustomerCRMInsights({ services = [], transactions = [], 
   const copySegmentPhones = async () => {
     const phones = selectedCustomers.map((c) => c.phone).filter(Boolean).join(', ');
     if (!phones) return alert('Belum ada nomor WA di segment ini.');
-    await navigator.clipboard.writeText(phones);
+    if (!await copyText(phones)) return alert('Nomor tidak dapat disalin. Coba lagi atau tekan lama pada teks nomor.');
     alert(`Nomor segment berhasil disalin (${selectedCustomers.filter((c) => c.phone).length} pelanggan).`);
   };
 

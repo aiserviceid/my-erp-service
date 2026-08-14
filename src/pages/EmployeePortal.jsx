@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch, MessageSquareHeart } from 'lucide-react';
+import { LogIn, CheckCircle, Clock, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch, MessageSquareHeart, Copy } from 'lucide-react';
 import { apiService } from '../services/api';
 import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
 import POSView from '../components/POSView';
@@ -21,6 +21,16 @@ import { isServiceItem } from '../utils/productCategory';
 import { getAppLanguage, setAppLanguage, t } from '../utils/i18n';
 import { fetchAppVersionInfo, isNewerVersion } from '../utils/versionUtils';
 import { formatAttendanceTime, formatWorkDuration, getAttendanceSchedule, getAttendanceStatus, getEmployeeAttendance, getLocalDateKey, getWorkDurationMinutes } from '../utils/attendanceUtils';
+import { copyText } from '../utils/clipboard';
+import { buildCustomerDirectory, findCustomerSuggestions } from '../utils/customerDirectory';
+
+const createServiceUnit = () => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  device: '',
+  kelengkapan: '',
+  issue: '',
+  technician_id: '',
+});
 
 export default function EmployeePortal() {
   const { tenant, employee, setEmployee, setTenant } = useStore();
@@ -109,14 +119,21 @@ export default function EmployeePortal() {
   const [transferLoading, setTransferLoading] = useState(false);
   const [serviceWizardStep, setServiceWizardStep] = useState(1);
   const [serviceWizardError, setServiceWizardError] = useState('');
-  const [serviceForm, setServiceForm] = useState({
-    name: '', phone: '', device: '', kelengkapan: '', issue: '', technician_id: ''
-  });
+  const [serviceForm, setServiceForm] = useState({ name: '', phone: '' });
+  const [serviceUnits, setServiceUnits] = useState(() => [createServiceUnit()]);
+  const [customerLookupField, setCustomerLookupField] = useState('');
+  const [selectedCustomerKey, setSelectedCustomerKey] = useState('');
+  const [registrationBatch, setRegistrationBatch] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
   const printIframeRef = useRef(null);
 
   const technicianUsers = users.filter(u => u.role === 'TEKNISI' || u.role === 'Teknisi');
+  const customerDirectory = useMemo(() => buildCustomerDirectory(services), [services]);
+  const customerSuggestions = useMemo(() => {
+    const query = customerLookupField === 'phone' ? serviceForm.phone : serviceForm.name;
+    return findCustomerSuggestions(customerDirectory, query);
+  }, [customerDirectory, customerLookupField, serviceForm.name, serviceForm.phone]);
   const isJasaProduct = isServiceItem;
   const sparepartCatalog = products.filter(p => !isJasaProduct(p));
   const jasaCatalog = products.filter(p => isJasaProduct(p));
@@ -222,7 +239,10 @@ export default function EmployeePortal() {
   };
 
   const openServiceWizard = () => {
-    setServiceForm({ name: '', phone: '', device: '', kelengkapan: '', issue: '', technician_id: '' });
+    setServiceForm({ name: '', phone: '' });
+    setServiceUnits([createServiceUnit()]);
+    setCustomerLookupField('');
+    setSelectedCustomerKey('');
     setServiceWizardStep(1);
     setServiceWizardError('');
     setShowServiceModal(true);
@@ -235,17 +255,48 @@ export default function EmployeePortal() {
 
   const updateServiceForm = (field, value) => {
     setServiceForm((current) => ({ ...current, [field]: value }));
+    setSelectedCustomerKey('');
+    setCustomerLookupField(field);
     setServiceWizardError('');
   };
 
+  const selectExistingCustomer = (customer) => {
+    setServiceForm({ name: customer.name, phone: customer.phone });
+    setSelectedCustomerKey(customer.key);
+    setCustomerLookupField('');
+    setServiceWizardError('');
+  };
+
+  const updateServiceUnit = (unitId, field, value) => {
+    setServiceUnits((current) => current.map((unit) => unit.id === unitId ? { ...unit, [field]: value } : unit));
+    setServiceWizardError('');
+  };
+
+  const addServiceUnit = () => {
+    if (serviceUnits.length >= 10) {
+      setServiceWizardError('Maksimal 10 unit dalam satu penerimaan agar nota dan proses tetap mudah diperiksa.');
+      return;
+    }
+    setServiceUnits((current) => [...current, createServiceUnit()]);
+    setServiceWizardError('');
+  };
+
+  const removeServiceUnit = (unitId) => {
+    setServiceUnits((current) => current.length > 1 ? current.filter((unit) => unit.id !== unitId) : current);
+    setServiceWizardError('');
+  };
+
+  const handleCopyValue = async (value, label = 'Data') => {
+    const copied = await copyText(value);
+    alert(copied ? `${label} berhasil disalin.` : `${label} tidak dapat disalin. Tekan lama pada teks lalu pilih Salin.`);
+  };
+
   const moveServiceWizard = (direction) => {
-    const requiredFields = {
-      1: ['name', 'phone'],
-      2: ['device', 'kelengkapan'],
-      3: ['issue'],
-      4: ['technician_id'],
-    };
-    const missing = (requiredFields[serviceWizardStep] || []).some((field) => !String(serviceForm[field] || '').trim());
+    const customerMissing = !serviceForm.name.trim() || !serviceForm.phone.trim();
+    const unitFields = { 2: ['device', 'kelengkapan'], 3: ['issue'], 4: ['technician_id'] };
+    const missing = serviceWizardStep === 1
+      ? customerMissing
+      : serviceUnits.some((unit) => unitFields[serviceWizardStep].some((field) => !String(unit[field] || '').trim()));
     if (direction > 0 && missing) {
       setServiceWizardError('Lengkapi data pada langkah ini sebelum melanjutkan.');
       return;
@@ -411,8 +462,7 @@ export default function EmployeePortal() {
       setServiceWizardError('Servis sedang disimpan. Jangan tekan tombol dua kali.');
       return;
     }
-    const fd = new FormData(e.target);
-    const customerPhone = String(fd.get('phone') || '').trim();
+    const customerPhone = serviceForm.phone.trim();
     if (!/^(?:\+?62|0)8\d{7,12}$/.test(customerPhone)) {
       setServiceWizardStep(1);
       setServiceWizardError('Masukkan nomor WhatsApp yang valid, misalnya 0812xxxxxxx.');
@@ -430,44 +480,59 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         return;
       }
     }
-    const kelengkapan = fd.get('kelengkapan') || '-';
-    const issueText = `${fd.get('issue')} | Kelengkapan: ${kelengkapan}`;
-    const resiGenerated = 'TRX-' + Date.now();
-    const technician_id = fd.get('technician_id') || employee.id;
-    const serviceData = {
+    const invalidUnit = serviceUnits.some((unit) => !unit.device.trim() || !unit.kelengkapan.trim() || !unit.issue.trim() || !unit.technician_id);
+    if (invalidUnit) {
+      setServiceWizardError('Lengkapi perangkat, kelengkapan, keluhan, dan teknisi untuk setiap unit.');
+      return;
+    }
+
+    const createdAt = Date.now();
+    const serviceDataList = serviceUnits.map((unit, index) => ({
       tenant_code: employee.tenant_code || tenant.code,
-      resi: resiGenerated,
-      customer_name: fd.get('name'),
+      resi: serviceUnits.length === 1
+        ? `TRX-${createdAt}`
+        : `TRX-${createdAt}-${String(index + 1).padStart(2, '0')}`,
+      customer_name: serviceForm.name.trim(),
       customer_phone: normalizedCustomerPhone,
-      device_name: fd.get('device'),
-      issue: issueText,
-      technician_id: technician_id,
-      status: 'PROSES'
-    };
+      device_name: unit.device.trim(),
+      issue: `${unit.issue.trim()} | Kelengkapan: ${unit.kelengkapan.trim() || '-'}`,
+      technician_id: unit.technician_id,
+      status: 'PROSES',
+    }));
+
     serviceSubmissionLockRef.current = true;
     setIsAddingService(true);
+    const savedServices = [];
     try {
-      await apiService.post('/services', serviceData);
+      for (const serviceData of serviceDataList) {
+        const createdService = await apiService.post('/services', serviceData);
+        savedServices.push({ ...serviceData, ...(createdService || {}) });
+      }
 
-      const trackingLink = `${window.location.origin}/tracking?resi=${resiGenerated}`;
-      const waText = `Halo ${serviceData.customer_name}, perangkat ${serviceData.device_name} Anda sudah kami terima untuk diperbaiki.\n\n*Nomor Resi:* ${resiGenerated}\n*Keluhan:* ${fd.get('issue')}\n*Kelengkapan:* ${kelengkapan}\n\nAnda dapat mengecek status servis secara berkala melalui link berikut:\n${trackingLink}\n\nTerima kasih!`;
-      const waUrl = buildManualWhatsAppUrl(serviceData.customer_phone, waText);
+      const receiptLines = savedServices.map((service, index) => {
+        const unit = serviceUnits[index];
+        const trackingLink = `${window.location.origin}/tracking?resi=${service.resi}`;
+        return `*${index + 1}. ${service.device_name}*\nResi: ${service.resi}\nKeluhan: ${unit.issue}\nKelengkapan: ${unit.kelengkapan}\nLacak: ${trackingLink}`;
+      }).join('\n\n');
+      const waText = `Halo ${serviceForm.name.trim()}, ${savedServices.length === 1 ? 'perangkat Anda sudah' : `${savedServices.length} perangkat Anda sudah`} kami terima untuk diperbaiki.\n\n${receiptLines}\n\nSetiap unit memiliki resi dan status masing-masing. Terima kasih!`;
+      const waUrl = buildManualWhatsAppUrl(normalizedCustomerPhone, waText);
+      const resiSummary = savedServices.map((service) => service.resi).join(', ');
       
-      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim resi ke WhatsApp?', message: `Servis berhasil ditambahkan.\nResi: ${resiGenerated}\n\nKirim info resi ke WhatsApp pelanggan sekarang?`, confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm(`Servis berhasil ditambahkan (Resi: ${resiGenerated}).\n\nKlik OK untuk mengirim info resi ini ke WhatsApp pelanggan.`)))) {
+      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim resi ke WhatsApp?', message: `${savedServices.length} unit servis berhasil ditambahkan.\nResi: ${resiSummary}\n\nKirim semua info resi ke WhatsApp pelanggan sekarang?`, confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm(`${savedServices.length} unit servis berhasil ditambahkan.\nResi: ${resiSummary}\n\nKlik OK untuk mengirim info resi ke WhatsApp pelanggan.`)))) {
         window.open(waUrl, '_blank');
       }
 
-      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pendaftaran?', message: 'Nota pendaftaran siap dicetak untuk pelanggan.', confirmText: 'Cetak Nota', tone: 'info' }) : Promise.resolve(window.confirm(`Ingin mencetak Nota Pendaftaran untuk pelanggan?`)))) {
-        setSelectedService(serviceData);
+      if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pendaftaran?', message: `${savedServices.length > 1 ? 'Semua unit akan digabung dalam satu nota penerimaan.' : 'Nota pendaftaran siap dicetak untuk pelanggan.'}`, confirmText: 'Cetak Nota', tone: 'info' }) : Promise.resolve(window.confirm('Ingin mencetak Nota Pendaftaran untuk pelanggan?')))) {
+        setRegistrationBatch(savedServices);
+        setSelectedService(savedServices[0]);
         setPrintType('pendaftaran');
         setShowPrintModal(true);
       }
       
-      // Kirim WA Notifikasi ke Teknisi
-      if (technician_id) {
-        const tech = technicianUsers.find(u => String(u.id) === String(technician_id));
+      savedServices.forEach((serviceData, index) => {
+        const tech = technicianUsers.find(u => String(u.id) === String(serviceData.technician_id));
         if (tech && tech.phone) {
-          const techWaText = `Halo ${tech.name}, ada tugas servis baru:\n\n*Resi:* ${resiGenerated}\n*Pelanggan:* ${serviceData.customer_name}\n*Perangkat:* ${serviceData.device_name}\n*Keluhan:* ${fd.get('issue')}\n\nSilakan cek di portal karyawan.`;
+          const techWaText = `Halo ${tech.name}, ada tugas servis baru:\n\n*Resi:* ${serviceData.resi}\n*Pelanggan:* ${serviceData.customer_name}\n*Perangkat:* ${serviceData.device_name}\n*Keluhan:* ${serviceUnits[index].issue}\n\nSilakan cek di portal karyawan.`;
           sendWhatsAppNotification({
             tenant,
             target: tech.phone,
@@ -477,13 +542,19 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             if (result.status === 'failed') console.error('Gagal mengirim WA tugas teknisi:', result.error);
           });
         }
-      }
+      });
 
-      e.target.reset();
       setShowServiceModal(false);
       fetchServices();
     } catch (err) {
-      alert('Gagal tambah tugas');
+      await fetchServices();
+      if (savedServices.length > 0) {
+        setServiceUnits(serviceUnits.slice(savedServices.length));
+        setServiceWizardStep(2);
+        setServiceWizardError(`${savedServices.length} unit sudah tersimpan. ${serviceDataList.length - savedServices.length} unit belum tersimpan karena koneksi bermasalah. Silakan periksa lalu simpan unit yang tersisa.`);
+      } else {
+        setServiceWizardError(`Gagal menyimpan servis: ${err?.message || 'periksa koneksi lalu coba lagi.'}`);
+      }
     } finally {
       serviceSubmissionLockRef.current = false;
       setIsAddingService(false);
@@ -512,6 +583,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
   const doPrint = (printerType) => {
     if (!selectedService) return;
+    const registrationServices = printType === 'pendaftaran'
+      && registrationBatch.length > 1
+      && registrationBatch[0]?.resi === selectedService.resi
+      ? registrationBatch
+      : [selectedService];
     const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow.document;
     doc.open();
     
@@ -533,6 +609,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         .info-item strong { color: #64748b; font-weight: 600; }
         .info-item span { color: #0f172a; font-weight: 500; text-align: right; max-width: 60%; }
         .issue-box { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; color: #334155; margin-bottom: 20px; border: 1px solid #e2e8f0; white-space: pre-wrap; }
+        .service-unit { margin-bottom: 12px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; page-break-inside: avoid; }
+        .service-unit:last-child { margin-bottom: 20px; }
+        .service-unit strong, .service-unit span { display: block; }
+        .service-unit span { margin-top: 4px; font-size: ${printerType === 'thermal' ? '0.8rem' : '0.9rem'}; color: #475569; white-space: pre-wrap; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${printerType === 'thermal' ? '0.85rem' : '0.95rem'}; }
         .table th { border-bottom: 2px solid #cbd5e1; padding: 8px 0; text-align: left; color: #64748b; font-weight: 600; }
         .table td { padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
@@ -553,14 +633,19 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           </div>
           <div class="divider"></div>
           <div class="info-grid">
-            <div class="info-item"><strong>No. Resi</strong> <span>${selectedService.resi}</span></div>
+            <div class="info-item"><strong>Jumlah Unit</strong> <span>${registrationServices.length}</span></div>
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
             <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
             <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
-            <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
           </div>
-          <div><strong style="color: #64748b; font-size: 0.9rem;">Keluhan & Kelengkapan:</strong></div>
-          <div class="issue-box">${selectedService.issue}</div>
+          <div><strong style="color: #64748b; font-size: 0.9rem;">Daftar Unit Servis:</strong></div>
+          ${registrationServices.map((service, index) => `
+            <div class="service-unit">
+              <strong>${index + 1}. ${service.device_name}</strong>
+              <span>Resi: ${service.resi}</span>
+              <span>${service.issue}</span>
+            </div>
+          `).join('')}
           
           ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
           ${qrisImageUrl ? `<div class="bank-info"><strong>QRIS PEMBAYARAN:</strong><br/><img src="${qrisImageUrl}" alt="QRIS Pembayaran" style="width:110px;height:110px;object-fit:contain;margin-top:8px;" /><div style="margin-top:6px;">Scan QRIS untuk pembayaran</div></div>` : ''}
@@ -1078,6 +1163,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                 <span>{s.resi}</span>
                                 <strong>{s.customer_name}</strong>
                               </div>
+                              {s.customer_phone && <div className="copy-value"><span className="copyable-text">{s.customer_phone}</span><button type="button" className="copy-value__button" onClick={() => handleCopyValue(s.customer_phone, 'Nomor pelanggan')} aria-label={`Salin nomor ${s.customer_name}`}><Copy size={14} /></button></div>}
                               <div className="cashier-service-device">
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#f8fafc', padding: '3px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
                                   📱 {s.device_name}
@@ -1121,7 +1207,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div className="employee-settings-grid">
               <div className="employee-setting-card">
                 <UserRound size={20} />
-                <div><strong>{employee.name}</strong><span>{employee.role} - {employee.phone || 'Nomor belum diisi'}</span></div>
+                <div><strong>{employee.name}</strong><span>{employee.role}</span>{employee.phone && <div className="copy-value"><span className="copyable-text">{employee.phone}</span><button type="button" className="copy-value__button" onClick={() => handleCopyValue(employee.phone, 'Nomor HP')} aria-label="Salin nomor HP"><Copy size={14} /></button></div>}</div>
               </div>
               <div className="employee-setting-card">
                 <Languages size={20} />
@@ -1212,6 +1298,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                           </div>
                           <IssueChips issue={s.issue} />
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
+                          {s.customer_phone && <div className="copy-value" style={{ marginTop: '7px' }}><span className="copyable-text">{s.customer_phone}</span><button type="button" className="copy-value__button" onClick={() => handleCopyValue(s.customer_phone, 'Nomor pelanggan')} aria-label={`Salin nomor ${s.customer_name}`}><Copy size={14} /></button></div>}
                         </div>
                         <div className="technician-task-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                           {!['SELESAI', 'DIAMBIL', 'DI AMBIL'].includes(s.status) && technicianUsers.filter((technician) => String(technician.id) !== String(employee.id)).length > 0 && (
@@ -1374,7 +1461,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div className="employee-settings-grid">
               <div className="employee-setting-card">
                 <UserRound size={20} />
-                <div><strong>{employee.name}</strong><span>{employee.role} - {employee.phone || 'Nomor belum diisi'}</span></div>
+                <div><strong>{employee.name}</strong><span>{employee.role}</span>{employee.phone && <div className="copy-value"><span className="copyable-text">{employee.phone}</span><button type="button" className="copy-value__button" onClick={() => handleCopyValue(employee.phone, 'Nomor HP')} aria-label="Salin nomor HP"><Copy size={14} /></button></div>}</div>
               </div>
               <div className="employee-setting-card">
                 <StoreIcon size={20} />
@@ -1735,24 +1822,55 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               {[1, 2, 3, 4].map((step) => <span key={step} className={step <= serviceWizardStep ? 'active' : ''} />)}
             </div>
             <form onSubmit={handleAddService}>
-              <input type="hidden" name="name" value={serviceForm.name} />
-              <input type="hidden" name="phone" value={serviceForm.phone} />
-              <input type="hidden" name="device" value={serviceForm.device} />
-              <input type="hidden" name="kelengkapan" value={serviceForm.kelengkapan} />
-              <input type="hidden" name="issue" value={serviceForm.issue} />
-              <input type="hidden" name="technician_id" value={serviceForm.technician_id} />
-
               <div className="service-wizard-step">
                 <span>Langkah {serviceWizardStep} dari 4</span>
-                {serviceWizardStep === 1 && <><h4>Data pelanggan</h4><p>Mulai dari orang yang menitipkan unit.</p><input type="text" className="input-field" placeholder="Nama pelanggan" value={serviceForm.name} onChange={(event) => updateServiceForm('name', event.target.value)} autoFocus /><input type="tel" inputMode="numeric" className="input-field" placeholder="Nomor WhatsApp" value={serviceForm.phone} onChange={(event) => updateServiceForm('phone', event.target.value)} /></>}
-                {serviceWizardStep === 2 && <><h4>Data unit</h4><p>Catat perangkat dan barang yang ikut dititipkan.</p><input type="text" className="input-field" placeholder="Perangkat, misalnya Laptop ASUS" value={serviceForm.device} onChange={(event) => updateServiceForm('device', event.target.value)} autoFocus /><input type="text" className="input-field" placeholder="Kelengkapan, misalnya charger dan tas" value={serviceForm.kelengkapan} onChange={(event) => updateServiceForm('kelengkapan', event.target.value)} /></>}
-                {serviceWizardStep === 3 && <><h4>Keluhan servis</h4><p>Jelaskan kerusakan yang disampaikan pelanggan.</p><textarea className="input-field" rows="4" placeholder="Contoh: layar berkedip saat dinyalakan" value={serviceForm.issue} onChange={(event) => updateServiceForm('issue', event.target.value)} autoFocus /></>}
-                {serviceWizardStep === 4 && <><h4>Tugaskan teknisi</h4><p>Pilih teknisi yang menerima pekerjaan ini.</p><select className="input-field" value={serviceForm.technician_id} onChange={(event) => updateServiceForm('technician_id', event.target.value)} autoFocus><option value="">Pilih teknisi</option>{technicianUsers.map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.phone ? ` - ${technician.phone}` : ''}</option>)}</select>{technicianUsers.length === 0 && <p className="service-wizard-warning">Belum ada teknisi. Tambahkan akun teknisi dari dashboard terlebih dahulu.</p>}</>}
+                {serviceWizardStep === 1 && <>
+                  <h4>Data pelanggan</h4>
+                  <p>Ketik nama atau nomor. Pelanggan lama akan langsung muncul agar tidak didata berulang.</p>
+                  <div className="service-customer-lookup">
+                    <input type="text" className="input-field" placeholder="Nama pelanggan" value={serviceForm.name} onFocus={() => setCustomerLookupField('name')} onChange={(event) => updateServiceForm('name', event.target.value)} autoComplete="off" autoFocus />
+                    {customerLookupField === 'name' && customerSuggestions.length > 0 && (
+                      <div className="service-customer-results">
+                        {customerSuggestions.map((customer) => <button type="button" key={customer.key} className="service-customer-result" onClick={() => selectExistingCustomer(customer)}><span><strong>{customer.name}</strong><span>{customer.phone || 'Nomor belum tersedia'}</span></span><small>{customer.serviceCount} servis</small></button>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="service-customer-lookup">
+                    <input type="tel" inputMode="numeric" className="input-field" placeholder="Nomor WhatsApp" value={serviceForm.phone} onFocus={() => setCustomerLookupField('phone')} onChange={(event) => updateServiceForm('phone', event.target.value)} autoComplete="off" />
+                    {customerLookupField === 'phone' && customerSuggestions.length > 0 && (
+                      <div className="service-customer-results">
+                        {customerSuggestions.map((customer) => <button type="button" key={customer.key} className="service-customer-result" onClick={() => selectExistingCustomer(customer)}><span><strong>{customer.name}</strong><span>{customer.phone || 'Nomor belum tersedia'}</span></span><small>{customer.serviceCount} servis</small></button>)}
+                      </div>
+                    )}
+                  </div>
+                  {selectedCustomerKey && <div className="service-existing-customer"><CheckCircle size={15} /> Pelanggan lama dipilih dari database—data tidak dibuat ulang.</div>}
+                </>}
+                {serviceWizardStep === 2 && <>
+                  <h4>Data unit</h4>
+                  <p>Satu pelanggan dapat membawa beberapa perangkat. Setiap unit mendapat resi dan riwayat sendiri.</p>
+                  {serviceUnits.map((unit, index) => <div className="service-unit-card" key={unit.id}>
+                    <div className="service-unit-card__header"><strong>Unit {index + 1}</strong>{serviceUnits.length > 1 && <button type="button" className="service-unit-remove" onClick={() => removeServiceUnit(unit.id)}>Hapus unit</button>}</div>
+                    <input type="text" className="input-field" placeholder="Perangkat, misalnya Laptop ASUS" value={unit.device} onChange={(event) => updateServiceUnit(unit.id, 'device', event.target.value)} autoFocus={index === 0} />
+                    <input type="text" className="input-field" placeholder="Kelengkapan, misalnya charger dan tas" value={unit.kelengkapan} onChange={(event) => updateServiceUnit(unit.id, 'kelengkapan', event.target.value)} />
+                  </div>)}
+                  <button type="button" className="btn btn-ghost service-add-unit" onClick={addServiceUnit}><Plus size={17} /> Tambah Unit Lain</button>
+                </>}
+                {serviceWizardStep === 3 && <>
+                  <h4>Keluhan tiap unit</h4>
+                  <p>Catat keluhan secara terpisah supaya pekerjaan dan biayanya tidak tercampur.</p>
+                  {serviceUnits.map((unit, index) => <div className="service-unit-card" key={unit.id}><div className="service-unit-card__header"><strong>Unit {index + 1} · {unit.device}</strong></div><textarea className="input-field" rows="3" placeholder="Contoh: layar berkedip saat dinyalakan" value={unit.issue} onChange={(event) => updateServiceUnit(unit.id, 'issue', event.target.value)} autoFocus={index === 0} /></div>)}
+                </>}
+                {serviceWizardStep === 4 && <>
+                  <h4>Tugaskan teknisi</h4>
+                  <p>Pilih teknisi untuk setiap unit. Teknisi dan progresnya dapat berbeda.</p>
+                  {serviceUnits.map((unit, index) => <div className="service-unit-card" key={unit.id}><div className="service-unit-card__header"><strong>Unit {index + 1} · {unit.device}</strong></div><select className="input-field" value={unit.technician_id} onChange={(event) => updateServiceUnit(unit.id, 'technician_id', event.target.value)} autoFocus={index === 0}><option value="">Pilih teknisi</option>{technicianUsers.map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.phone ? ` - ${technician.phone}` : ''}</option>)}</select></div>)}
+                  {technicianUsers.length === 0 && <p className="service-wizard-warning">Belum ada teknisi. Tambahkan akun teknisi dari dashboard terlebih dahulu.</p>}
+                </>}
               </div>
               {serviceWizardError && <p className="service-wizard-error">{serviceWizardError}</p>}
               <div className="service-wizard-actions">
                 {serviceWizardStep > 1 ? <button type="button" className="btn btn-ghost" onClick={() => moveServiceWizard(-1)}><ChevronLeft size={18} /> Kembali</button> : <button type="button" className="btn btn-ghost" onClick={closeServiceWizard}>Batal</button>}
-                {serviceWizardStep < 4 ? <button type="button" className="btn btn-primary" onClick={() => moveServiceWizard(1)}>Lanjut <ChevronRight size={18} /></button> : <button type="submit" className="btn btn-primary" disabled={isAddingService} aria-busy={isAddingService}><Plus size={18} /> {isAddingService ? 'Sedang menyimpan...' : 'Simpan Servis'}</button>}
+                {serviceWizardStep < 4 ? <button type="button" className="btn btn-primary" onClick={() => moveServiceWizard(1)}>Lanjut <ChevronRight size={18} /></button> : <button type="submit" className="btn btn-primary" disabled={isAddingService} aria-busy={isAddingService}><Plus size={18} /> {isAddingService ? 'Sedang menyimpan...' : `Simpan ${serviceUnits.length} Unit`}</button>}
               </div>
             </form>
           </div>
