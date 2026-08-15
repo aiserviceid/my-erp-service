@@ -13,12 +13,14 @@ import {
 } from '../utils/serviceWarranty';
 
 const money = (value = 0) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
-const safeResi = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+const safeResi = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 50);
+const safeTenantCode = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 60);
 
 export default function PublicWarranty() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resi = safeResi(searchParams.get('resi'));
+  const tenantCode = safeTenantCode(searchParams.get('tenant_code') || searchParams.get('tenant'));
   const [service, setService] = useState(null);
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,29 +28,51 @@ export default function PublicWarranty() {
 
   useEffect(() => {
     let active = true;
+
     const load = async () => {
       if (!resi) {
         setError('Nomor garansi/resi tidak valid.');
         setLoading(false);
         return;
       }
+
+      setLoading(true);
+      setError('');
+
       try {
-        const data = await apiService.trackService(resi);
+        const query = new URLSearchParams({ resi });
+        if (tenantCode) query.set('tenant_code', tenantCode);
+        const response = await fetch(`/api/public-service?${query.toString()}`, { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.service) throw new Error(payload?.error || 'Data servis atau garansi tidak ditemukan.');
         if (!active) return;
-        setService(data);
-        if (data?.tenant_code) {
-          const tenantData = await apiService.getTenantPublic(data.tenant_code).catch(() => null);
-          if (active) setTenant(tenantData);
+        setService(payload.service);
+        setTenant(payload.tenant || null);
+        return;
+      } catch (serverError) {
+        try {
+          const data = await apiService.trackService(resi);
+          if (!active) return;
+          if (tenantCode && data?.tenant_code && String(data.tenant_code).toUpperCase() !== tenantCode) {
+            throw new Error('Data servis bukan milik toko pada tautan ini.');
+          }
+          setService(data);
+          if (data?.tenant_code) {
+            const tenantData = await apiService.getTenantPublic(data.tenant_code).catch(() => null);
+            if (active) setTenant(tenantData || null);
+          }
+          return;
+        } catch {
+          if (active) setError(serverError?.message || 'Data servis atau garansi tidak ditemukan.');
         }
-      } catch {
-        if (active) setError('Data servis atau garansi tidak ditemukan.');
       } finally {
         if (active) setLoading(false);
       }
     };
+
     load();
     return () => { active = false; };
-  }, [resi]);
+  }, [resi, tenantCode]);
 
   const settings = useMemo(() => {
     if (!tenant?.settings) return {};
@@ -73,9 +97,13 @@ export default function PublicWarranty() {
         ? { bg: '#fffbeb', border: '#fde68a', text: '#b45309', icon: <Clock3 size={22} /> }
         : { bg: '#f8fafc', border: '#cbd5e1', text: '#475569', icon: <ShieldCheck size={22} /> };
 
+  const trackingQuery = new URLSearchParams({ resi });
+  const effectiveTenantCode = tenantCode || service?.tenant_code || '';
+  if (effectiveTenantCode) trackingQuery.set('tenant_code', effectiveTenantCode);
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a', fontFamily: "'Inter','Plus Jakarta Sans',system-ui,sans-serif" }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.96)', borderBottom: '1px solid #e2e8f0', padding: '13px 16px', backdropFilter: 'blur(12px)' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.98)', borderBottom: '1px solid #e2e8f0', padding: '13px 16px' }}>
         <div style={{ maxWidth: 620, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <img src={logo} alt="Logo toko" style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 9 }} />
@@ -84,7 +112,7 @@ export default function PublicWarranty() {
               <div style={{ color: '#64748b', fontSize: 11, fontWeight: 700 }}>Bukti Garansi Servis Digital</div>
             </div>
           </div>
-          <button type="button" onClick={() => navigate(`/tracking?resi=${encodeURIComponent(resi)}`)} style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#334155', borderRadius: 10, padding: '8px 11px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <button type="button" onClick={() => navigate(`/tracking?${trackingQuery.toString()}`)} style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#334155', borderRadius: 10, padding: '8px 11px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <ArrowLeft size={15} /> Tracking
           </button>
         </div>
@@ -99,6 +127,7 @@ export default function PublicWarranty() {
           <div style={{ padding: 22, background: '#fff', border: '1px solid #fecaca', borderRadius: 20 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#b91c1c', fontWeight: 900 }}><TriangleAlert size={21} /> Garansi Tidak Ditemukan</div>
             <p style={{ margin: '8px 0 0', color: '#64748b', lineHeight: 1.55 }}>{error}</p>
+            <button type="button" onClick={() => window.location.reload()} style={{ marginTop: 12, border: 0, borderRadius: 10, padding: '10px 14px', background: '#0f172a', color: '#fff', fontWeight: 800 }}>Coba Lagi</button>
           </div>
         )}
 
@@ -116,17 +145,17 @@ export default function PublicWarranty() {
 
                 {warranty.hasWarranty ? (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
-                    <div style={{ background: 'rgba(255,255,255,.85)', borderRadius: 13, padding: 12 }}>
+                    <div style={{ background: 'rgba(255,255,255,.9)', borderRadius: 13, padding: 12 }}>
                       <div style={{ color: '#64748b', fontSize: 11, fontWeight: 700 }}>Durasi Garansi</div>
                       <div style={{ marginTop: 3, fontWeight: 900 }}>{warranty.label || '-'}</div>
                     </div>
-                    <div style={{ background: 'rgba(255,255,255,.85)', borderRadius: 13, padding: 12 }}>
+                    <div style={{ background: 'rgba(255,255,255,.9)', borderRadius: 13, padding: 12 }}>
                       <div style={{ color: '#64748b', fontSize: 11, fontWeight: 700 }}>Berlaku Sampai</div>
                       <div style={{ marginTop: 3, fontWeight: 900 }}>{warranty.endLabel || 'Mengikuti ketentuan toko'}</div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ marginTop: 14, padding: 12, background: 'rgba(255,255,255,.8)', borderRadius: 12, color: '#475569', lineHeight: 1.5, fontSize: 13 }}>
+                  <div style={{ marginTop: 14, padding: 12, background: 'rgba(255,255,255,.9)', borderRadius: 12, color: '#475569', lineHeight: 1.5, fontSize: 13 }}>
                     Servis ini tidak memiliki garansi tambahan yang tercatat pada data toko.
                   </div>
                 )}
@@ -134,20 +163,7 @@ export default function PublicWarranty() {
 
               <div style={{ padding: '18px 20px 20px', textAlign: 'center' }}>
                 <div style={{ color: '#64748b', fontSize: 11, fontWeight: 800, marginBottom: 10 }}>KODE GARANSI / NO. NOTA</div>
-                <div style={{
-                  width: '100%',
-                  maxWidth: 360,
-                  margin: '0 auto',
-                  padding: '12px 8px 8px',
-                  boxSizing: 'border-box',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 14,
-                  background: '#fff',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  overflow: 'hidden',
-                }}>
+                <div style={{ width: '100%', maxWidth: 360, margin: '0 auto', padding: '12px 8px 8px', boxSizing: 'border-box', border: '1px solid #e2e8f0', borderRadius: 14, background: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                   <Barcode value={service.resi} height={52} width={1.05} fontSize={11} margin={0} displayValue />
                 </div>
                 <div style={{ marginTop: 10, fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>Barcode dan link ini mengacu pada data servis yang sama di UnitPro.</div>
