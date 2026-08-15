@@ -2658,7 +2658,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         <div className="service-mobile-actions">
                           <button className="btn btn-ghost" onClick={() => { setSelectedResi(service.resi); setShowBarcodeModal(true); }}>Stiker</button>
                           <button className="btn btn-ghost" onClick={() => { setSelectedService(service); setPrintType(getServiceReceiptType(service.status)); setShowPrintModal(true); }}>Nota</button>
-                          <button className="btn btn-ghost" style={{ color: '#0284c7', fontWeight: 'bold' }} onClick={() => { setSelectedService(service); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
+                          <button data-service-resi={service.resi} className="btn btn-ghost" style={{ color: '#0284c7', fontWeight: 'bold' }} onClick={() => { setSelectedService(service); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
                           {service.customer_phone && <a className="btn btn-primary" target="_blank" rel="noreferrer" href={buildManualWhatsAppUrl(service.customer_phone, buildServiceStatusMessage({ tenant, service, status: service.status === 'PROSES' ? 'DITERIMA' : service.status }))}>Kirim WA</a>}
                         </div>
                       </article>
@@ -2722,7 +2722,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                 <div className="service-actions-dropdown">
                                   <button className="btn btn-ghost" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }}>Cetak Stiker</button>
                                   <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(getServiceReceiptType(s.status)); setShowPrintModal(true); }}>Cetak Nota</button>
-                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
+                                  <button data-service-resi={s.resi} className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
                                   {s.customer_phone && (
                                     <a href={buildManualWhatsAppUrl(s.customer_phone, buildServiceStatusMessage({ tenant, service: s, status: s.status === 'PROSES' ? 'DITERIMA' : s.status }))} target="_blank" rel="noreferrer" className="btn btn-ghost">
                                       Kirim WA 📲
