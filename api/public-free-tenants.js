@@ -1,4 +1,4 @@
-import { getConfigValue, getSupabaseAdmin } from '../server/superadmin-serverless.mjs';
+const EDGE_BASE = 'https://jgnyjgzwzksvheqhysye.supabase.co/functions/v1/unitpro-secure-api';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -8,24 +8,22 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method tidak diizinkan.' });
   }
 
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    return res.status(200).json({ free_tenants: ['AISERVICE'] });
-  }
-
   try {
-    const values = await Promise.all([
-      getConfigValue(supabase, 'super_admin_free_tenant_1').catch(() => null),
-      getConfigValue(supabase, 'super_admin_free_tenant_2').catch(() => null),
-      getConfigValue(supabase, 'super_admin_free_tenant_3').catch(() => null)
-    ]);
-
-    const freeTenants = values
-      .map((value, index) => String(value || (index === 0 ? 'AISERVICE' : '')).trim().toUpperCase())
-      .filter(Boolean);
-
-    return res.status(200).json({ free_tenants: [...new Set(freeTenants)] });
+    const upstream = await fetch(`${EDGE_BASE}/public-free-tenants`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const payload = await upstream.json().catch(() => ({ free_tenants: [] }));
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ error: payload.error || 'Gagal memuat akun Lifetime Free.' });
+    }
+    return res.status(200).json({
+      free_tenants: Array.isArray(payload.free_tenants)
+        ? payload.free_tenants.map((code) => String(code || '').trim().toUpperCase()).filter(Boolean)
+        : []
+    });
   } catch (error) {
-    return res.status(500).json({ error: error?.message || 'Gagal memuat akun Lifetime Free.' });
+    console.error('public-free-tenants proxy error:', error);
+    return res.status(502).json({ error: 'Backend Lifetime Free tidak dapat dihubungi.' });
   }
 }
