@@ -1,40 +1,35 @@
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
-import { supabase } from './supabase';
 
-let lastServiceResi = '';
-let lastServiceStatus = '';
+const RECEIPT_TYPES = new Set(['pendaftaran', 'tagihan', 'pengambilan']);
 
-const extractContext = (node) => {
-  let current = node;
-  let foundResi = '';
-  let foundStatus = '';
+const cleanResi = (value = '') => String(value || '')
+  .toUpperCase()
+  .replace(/[^A-Z0-9_-]/g, '')
+  .slice(0, 60);
 
-  for (let depth = 0; current && depth < 10; depth += 1, current = current.parentElement) {
-    const text = String(current.textContent || '');
-    if (!foundResi) {
-      const match = text.match(/TRX-[A-Z0-9_-]+/i);
-      if (match) foundResi = match[0].toUpperCase();
-    }
-    if (!foundStatus) {
-      if (/DI\s*[_ ]?AMBIL/i.test(text)) foundStatus = 'DIAMBIL';
-      else if (/\bSELESAI\b/i.test(text)) foundStatus = 'SELESAI';
-      else if (/\bDITERIMA\b/i.test(text)) foundStatus = 'DITERIMA';
-      else if (/\bPROSES\b|DIKERJAKAN|DICEK|MENUNGGU_PART/i.test(text)) foundStatus = 'PROSES';
-    }
-    if (foundResi && foundStatus) break;
-  }
+const normalizeStatus = (value = '') => String(value || '')
+  .toUpperCase()
+  .replace(/[\s_]+/g, '');
 
-  return { resi: foundResi, status: foundStatus };
+export const getServiceReceiptType = (status = '') => {
+  const normalized = normalizeStatus(status);
+  if (normalized === 'DIAMBIL') return 'pengambilan';
+  if (normalized === 'SELESAI') return 'tagihan';
+  return 'pendaftaran';
 };
 
-const rememberContext = (event) => {
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target) return;
-  const context = extractContext(target);
-  if (context.resi) lastServiceResi = context.resi;
-  if (context.status) lastServiceStatus = context.status;
-};
+export const getServiceReceiptLabel = (type = 'pendaftaran') => ({
+  pendaftaran: 'Nota Pendaftaran',
+  tagihan: 'Nota Tagihan',
+  pengambilan: 'Nota Garansi',
+}[type] || 'Nota Servis');
+
+const getPublicReceiptType = (type) => ({
+  tagihan: 'completion',
+  pengambilan: 'pickup',
+  pendaftaran: 'registration',
+}[type] || 'registration');
 
 const toBase64Url = (value) => {
   try {
@@ -47,90 +42,66 @@ const toBase64Url = (value) => {
   }
 };
 
-const getReceiptPayload = async (resi, tenantCode) => {
-  if (!resi || !tenantCode) return null;
-  try {
-    const { data: service, error } = await supabase
-      .from('services')
-      .select('resi,tenant_code,customer_name,device_name,issue,status,jasa_fee,part_fee,technician_id,created_at,updated_at')
-      .eq('tenant_code', tenantCode)
-      .eq('resi', resi)
-      .maybeSingle();
-    if (error || !service) return null;
-
-    let settings = {};
-    try { settings = JSON.parse(localStorage.getItem('TENANT_SETTINGS') || '{}'); } catch {}
-    const tenant = {
-      code: tenantCode,
-      name: localStorage.getItem('TENANT_NAME') || settings.storeName || 'UnitPro',
-      settings,
-    };
-    return { service, tenant };
-  } catch (error) {
-    console.warn('Data nota lokal tidak dapat dimuat:', error);
-    return null;
-  }
+// Only fields shown on a receipt are included in its URL payload. Tokens and
+// unrelated tenant settings must never be exposed in a browser URL.
+const buildSafePayload = (service = {}, tenant = {}) => {
+  const settings = tenant?.settings || {};
+  return {
+    service: {
+      resi: cleanResi(service.resi),
+      tenant_code: String(service.tenant_code || tenant?.code || tenant?.tenant_code || '').trim().toUpperCase(),
+      customer_name: String(service.customer_name || ''),
+      device_name: String(service.device_name || ''),
+      issue: String(service.issue || ''),
+      status: String(service.status || ''),
+      jasa_fee: Number(service.jasa_fee || 0),
+      part_fee: Number(service.part_fee || 0),
+      technician_id: service.technician_id || null,
+      created_at: service.created_at || null,
+      updated_at: service.updated_at || null,
+    },
+    tenant: {
+      code: String(tenant?.code || tenant?.tenant_code || '').trim().toUpperCase(),
+      name: String(tenant?.name || settings.storeName || settings.store_name || 'UnitPro'),
+      settings: {
+        storeName: settings.storeName || settings.store_name || '',
+        store_name: settings.store_name || settings.storeName || '',
+        store_address: settings.store_address || settings.address || '',
+        address: settings.address || settings.store_address || '',
+        store_wa: settings.store_wa || '',
+      },
+    },
+  };
 };
 
-const openNativePrintPage = async (button) => {
+/**
+ * Opens a receipt from the selected service. The previous implementation
+ * inferred a resi from modal text, which can point to a previous service in
+ * Android and then produces an empty/error receipt.
+ */
+export const openNativeServiceReceipt = async ({ service, tenant, format = 'thermal', type } = {}) => {
   if (!Capacitor.isNativePlatform()) return false;
-  const modal = button.closest('.modal-backdrop');
-  if (!modal) return false;
 
-  const label = String(button.textContent || '').trim();
-  if (!/Thermal|A4/i.test(label)) return false;
+  const payload = buildSafePayload(service, tenant);
+  if (!payload.service.resi) throw new Error('Nomor nota tidak tersedia. Tutup dialog lalu pilih servis kembali.');
 
-  const modalText = String(modal.textContent || '');
-  const modalContext = extractContext(modal);
-  const resi = lastServiceResi || modalContext.resi;
-  const status = lastServiceStatus || modalContext.status;
+  const receiptType = RECEIPT_TYPES.has(type) ? type : getServiceReceiptType(payload.service.status);
+  const query = new URLSearchParams({
+    resi: payload.service.resi,
+    format: format === 'thermal' ? 'thermal' : 'a4',
+    type: getPublicReceiptType(receiptType),
+    autoprint: '1',
+  });
+  if (payload.tenant.code) query.set('tenant_code', payload.tenant.code);
 
-  if (!resi) {
-    window.alert('Nomor nota tidak terbaca. Tutup popup lalu tekan Nota lagi.');
-    return true;
-  }
-
-  const format = /Thermal/i.test(label) ? 'thermal' : 'a4';
-  let type = 'registration';
-  if (status === 'DIAMBIL') type = 'pickup';
-  else if (status === 'SELESAI') type = 'completion';
-  else if (/Pengambilan|Pelunasan/i.test(modalText)) type = 'pickup';
-
-  const tenantCode = String(localStorage.getItem('TENANT_CODE') || '').trim().toUpperCase();
-  const query = new URLSearchParams({ resi, format, type, autoprint: '1' });
-  if (tenantCode) query.set('tenant_code', tenantCode);
-
-  const payload = await getReceiptPayload(resi, tenantCode);
-  const encodedPayload = payload ? toBase64Url(payload) : '';
+  const encodedPayload = toBase64Url(payload);
   const url = `${window.location.origin}/print-nota?${query.toString()}${encodedPayload ? `#payload=${encodedPayload}` : ''}`;
 
   try {
     await Browser.open({ url });
   } catch (error) {
-    console.warn('Native print browser gagal dibuka:', error);
+    console.warn('Browser Android gagal dibuka untuk nota:', error);
     window.open(url, '_blank', 'noopener,noreferrer');
   }
   return true;
 };
-
-if (typeof window !== 'undefined' && !window.__UNITPRO_NATIVE_PRINT_BRIDGE__) {
-  window.__UNITPRO_NATIVE_PRINT_BRIDGE__ = true;
-
-  document.addEventListener('click', (event) => {
-    rememberContext(event);
-    const button = event.target instanceof Element ? event.target.closest('button') : null;
-    if (!button) return;
-
-    if (Capacitor.isNativePlatform() && button.closest('.modal-backdrop') && /Thermal|A4/i.test(button.textContent || '')) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      openNativePrintPage(button).catch((error) => {
-        console.error('Gagal membuka nota cetak:', error);
-        window.alert('Nota gagal dibuka. Silakan tutup popup lalu coba lagi.');
-      });
-    }
-  }, true);
-
-  document.addEventListener('change', rememberContext, true);
-}

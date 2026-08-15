@@ -8,7 +8,8 @@ import Barcode from 'react-barcode';
 import { AreaChart, Area, BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx-js-style';
 import { apiService } from '../services/api';
-import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
+import { buildManualWhatsAppUrl, buildServiceStatusMessage, sendWhatsAppNotification } from '../services/notificationService';
+import { getServiceReceiptLabel, getServiceReceiptType, openNativeServiceReceipt } from '../services/nativePrintBridge';
 import { compressImageFile } from '../utils/imageCompressor';
 import { copyText } from '../utils/clipboard';
 import UpgradePrompt from '../components/UpgradePrompt';
@@ -251,7 +252,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     }
 
     try {
-      await apiService.post('/services', {
+      const newService = {
         tenant_code: tenant.code,
         resi: resiGenerated,
         customer_name: customerName,
@@ -260,7 +261,16 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         issue: issueText,
         technician_id: fd.get('technician_id'),
         status: 'PROSES'
-      });
+      };
+      await apiService.post('/services', newService);
+      if (hasFeature(tenant?.tier, 'whatsappNotif')) {
+        await sendWhatsAppNotification({
+          tenant,
+          target: normalizedPhone,
+          message: buildServiceStatusMessage({ tenant, service: newService, status: 'DITERIMA' }),
+          openManual: true,
+        });
+      }
       alert(`Servis berhasil didaftarkan.\nResi: ${resiGenerated}\n\nTugas sudah dikirim ke teknisi yang dipilih.`);
       form.reset();
       setShowServiceRegistration(false);
@@ -475,8 +485,18 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     XLSX.writeFile(workbook, `Laporan_Keuangan_${safeName}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const doPrint = (printerType) => {
+  const doPrint = async (printerType) => {
     if (!selectedService) return;
+    try {
+      if (await openNativeServiceReceipt({ service: selectedService, tenant, format: printerType, type: printType })) {
+        setShowPrintModal(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Gagal menyiapkan nota APK:', error);
+      alert(error?.message || 'Nota tidak dapat disiapkan. Silakan coba lagi.');
+      return;
+    }
     const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow.document;
     doc.open();
     
@@ -523,6 +543,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     const freeWatermarkHtml = isFree ? `<img src="${UNITPRO_LOGO_URL}" class="free-watermark" alt="" />` : '';
     const logoHtml = `<img src="${activeLogoUrl}" class="logo" alt="Logo" />`;
 
+    const isBillingReceipt = printType === 'tagihan';
     if (printType === 'pendaftaran') {
       htmlContent = `
         <div class="receipt-container">
@@ -576,7 +597,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               ${logoHtml}
               <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
             </div>
-            <p>NOTA PELUNASAN SERVIS (GARANSI)</p>
+            <p>${isBillingReceipt ? 'NOTA TAGIHAN SERVIS' : 'NOTA PELUNASAN SERVIS (GARANSI)'}</p>
           </div>
           <div class="divider"></div>
           <div class="info-grid">
@@ -601,7 +622,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <tr><td>Subtotal</td><td class="text-right">${subtotal.toLocaleString('id-ID')}</td></tr>
               <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${discount.toLocaleString('id-ID')}</td></tr>
               ` : ''}
-              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
+              <tr class="total-row"><td>${isBillingReceipt ? 'TOTAL TAGIHAN' : 'TOTAL LUNAS'}</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
             </tbody>
           </table>
           
@@ -616,7 +637,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           <div class="divider"></div>
           <div class="footer">
             ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note_service.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>`}
-            <p style="margin: 0;">Barang yang sudah diambil tidak dapat dikembalikan / ditukar.</p>
+            <p style="margin: 0;">${isBillingReceipt ? 'Silakan lakukan pembayaran atau pengambilan sesuai total tagihan.' : 'Simpan nota ini sebagai bukti pembayaran dan garansi.'}</p>
           </div>
         </div>
       `;
@@ -688,19 +709,43 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
     const updatedIssue = buildIssueWithDiscount(note || selectedService.issue || '', discount);
     try {
+      const markingServiceComplete = Boolean(selectedService.__markSelesaiFromAdmin);
       const updatedService = await apiService.post('/services/update', {
         resi: selectedService.resi,
         tenant_code: selectedService.tenant_code || tenant?.code,
-        ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}),
+        ...(markingServiceComplete ? { status: 'SELESAI' } : {}),
         part_fee: partFee,
         jasa_fee: jasaFee,
         issue: updatedIssue
       });
-      const nextService = { ...selectedService, ...updatedService, ...(selectedService.__markSelesaiFromAdmin ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
+      const nextService = { ...selectedService, ...updatedService, ...(markingServiceComplete ? { status: 'SELESAI' } : {}), part_fee: partFee, jasa_fee: jasaFee, issue: updatedIssue };
       setSelectedService(nextService);
       setServices(services.map(s => s.resi === selectedService.resi ? { ...s, ...nextService } : s));
       setShowEditServiceNota(false);
-      alert(selectedService.__markSelesaiFromAdmin ? 'Rincian tagihan berhasil disimpan dan status menjadi Selesai.' : 'Nota servis berhasil dikoreksi.');
+      if (markingServiceComplete && hasFeature(tenant?.tier, 'whatsappNotif')) {
+        const shouldSendInvoice = await (window.UnitProConfirm
+          ? window.UnitProConfirm({
+              title: 'Kirim Nota Tagihan?',
+              message: 'Rincian servis telah disimpan. Kirim Nota Tagihan digital ke pelanggan sekarang?',
+              confirmText: 'Kirim Tagihan',
+              tone: 'success',
+            })
+          : Promise.resolve(window.confirm('Rincian servis telah disimpan. Kirim Nota Tagihan ke pelanggan sekarang?')));
+        if (shouldSendInvoice) {
+          const phoneConflict = findEmployeePhoneConflict(nextService.customer_phone, users);
+          if (phoneConflict) {
+            alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
+          } else {
+            await sendWhatsAppNotification({
+              tenant,
+              target: nextService.customer_phone,
+              message: buildServiceStatusMessage({ tenant, service: nextService, status: 'SELESAI' }),
+              openManual: true,
+            });
+          }
+        }
+      }
+      alert(markingServiceComplete ? 'Rincian tagihan berhasil disimpan dan status menjadi Selesai.' : 'Nota servis berhasil dikoreksi.');
     } catch (err) {
       alert('Gagal menyimpan koreksi nota.');
     }
@@ -951,6 +996,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       if (!confirmed) return;
     }
 
+    let updatedService = { ...service, status: normalizedStatus };
     try {
       if (normalizedStatus === 'DIAMBIL') {
         const discountMatch = String(service.issue || '').match(/\[Diskon: Rp (.*?)\]/);
@@ -965,6 +1011,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           issue: service.issue,
           customer_name: service.customer_name,
         });
+        updatedService = { ...service, ...result.service, status: 'DIAMBIL' };
         setServices((current) => current.map((item) => item.resi === service.resi ? { ...item, ...result.service, status: 'DIAMBIL' } : item));
         const latestTransactions = await apiService.getTransactions(tenant.code);
         setTransactions(latestTransactions);
@@ -977,13 +1024,12 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           tenant_code: tenant.code,
           status: normalizedStatus,
         });
+        updatedService = { ...service, ...updated, status: normalizedStatus };
         setServices((current) => current.map((item) => item.resi === service.resi ? { ...item, ...updated, status: normalizedStatus } : item));
       }
 
       if (hasFeature(tenant?.tier, 'whatsappNotif') && await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim WhatsApp pelanggan?', message: 'Status berhasil disimpan. Kirim update status ke WhatsApp pelanggan sekarang?', confirmText: 'Kirim WA', tone: 'info' }) : Promise.resolve(window.confirm('Kirim update status ke WhatsApp pelanggan?')))) {
-        const storeName = tenant?.settings?.storeName || tenant?.name || 'Toko Servis';
-        const trackingUrl = `${window.location.origin}/tracking?resi=${service.resi}`;
-        const message = `Halo Kak ${service.customer_name}, status servis ${service.device_name} (Resi: ${service.resi}) dari *${storeName}* sekarang: *${getStatusInfo(normalizedStatus).label}*.\n\nCek status langsung di sini:\n${trackingUrl}`;
+        const message = buildServiceStatusMessage({ tenant, service: updatedService, status: normalizedStatus });
         const phoneConflict = findEmployeePhoneConflict(service.customer_phone, users);
         if (phoneConflict) {
           alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
@@ -2611,9 +2657,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         </label>
                         <div className="service-mobile-actions">
                           <button className="btn btn-ghost" onClick={() => { setSelectedResi(service.resi); setShowBarcodeModal(true); }}>Stiker</button>
-                          <button className="btn btn-ghost" onClick={() => { setSelectedService(service); setPrintType(service.status === 'SELESAI' || service.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>Nota</button>
+                          <button className="btn btn-ghost" onClick={() => { setSelectedService(service); setPrintType(getServiceReceiptType(service.status)); setShowPrintModal(true); }}>Nota</button>
                           <button className="btn btn-ghost" style={{ color: '#0284c7', fontWeight: 'bold' }} onClick={() => { setSelectedService(service); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
-                          {service.customer_phone && <a className="btn btn-primary" target="_blank" rel="noreferrer" href={`https://wa.me/${service.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${service.customer_name}, ini link cek servis ${service.device_name} (Resi: ${service.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:\n${window.location.origin}/tracking?resi=${service.resi}`)}`}>Kirim WA</a>}
+                          {service.customer_phone && <a className="btn btn-primary" target="_blank" rel="noreferrer" href={buildManualWhatsAppUrl(service.customer_phone, buildServiceStatusMessage({ tenant, service, status: service.status === 'PROSES' ? 'DITERIMA' : service.status }))}>Kirim WA</a>}
                         </div>
                       </article>
                     );
@@ -2675,11 +2721,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                 <summary aria-label={`Buka menu aksi ${s.resi}`} title="Aksi">⋮</summary>
                                 <div className="service-actions-dropdown">
                                   <button className="btn btn-ghost" onClick={() => { setSelectedResi(s.resi); setShowBarcodeModal(true); }}>Cetak Stiker</button>
-                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(s.status === 'SELESAI' || s.status === 'DI AMBIL' ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>Cetak Nota</button>
+                                  <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(getServiceReceiptType(s.status)); setShowPrintModal(true); }}>Cetak Nota</button>
                                   <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowEditServiceNota(true); }}>✏️ Edit Nota</button>
                                   {s.customer_phone && (
-                                    <a href={`https://wa.me/${s.customer_phone.replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Kak ${s.customer_name}, ini link untuk cek status servis ${s.device_name} Anda (Resi: ${s.resi}) dari *${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}*:
-${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
+                                    <a href={buildManualWhatsAppUrl(s.customer_phone, buildServiceStatusMessage({ tenant, service: s, status: s.status === 'PROSES' ? 'DITERIMA' : s.status }))} target="_blank" rel="noreferrer" className="btn btn-ghost">
                                       Kirim WA 📲
                                     </a>
                                   )}
@@ -3281,7 +3326,7 @@ ${window.location.origin}/tracking?resi=${s.resi}`)}`} target="_blank" rel="nore
         <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: '350px', background: 'var(--bg-light)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Cetak {printType === 'pendaftaran' ? 'Nota Pendaftaran' : 'Nota Pengambilan'}</h3>
+              <h3 style={{ margin: 0 }}>Cetak {getServiceReceiptLabel(printType)}</h3>
               <button className="btn btn-ghost" onClick={() => setShowPrintModal(false)}><X size={20}/></button>
             </div>
             <p style={{ fontSize: '0.9rem', marginBottom: '20px' }}>Pilih jenis printer yang Anda gunakan:</p>

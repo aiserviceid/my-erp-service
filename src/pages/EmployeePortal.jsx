@@ -4,7 +4,8 @@ import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, CheckCircle, LogOut, Wallet, Plus, MessageSquare, Printer, X, ShoppingCart, Wrench, ChevronLeft, ChevronRight, ArrowRightLeft, Search, KeyRound, Settings, ScanLine, UserRound, Download, Languages, Store as StoreIcon, PackageSearch, MessageSquareHeart, Copy } from 'lucide-react';
 import { apiService } from '../services/api';
-import { buildManualWhatsAppUrl, sendWhatsAppNotification } from '../services/notificationService';
+import { buildServiceReceivedMessage, buildServiceStatusMessage, sendWhatsAppNotification } from '../services/notificationService';
+import { getServiceReceiptLabel, getServiceReceiptType, openNativeServiceReceipt } from '../services/nativePrintBridge';
 import POSView from '../components/POSView';
 import MobileTabBar from '../components/MobileTabBar';
 import UnitProLogo from '../components/UnitProLogo';
@@ -530,17 +531,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         savedServices.push({ ...serviceData, ...(createdService || {}) });
       }
 
-      const receiptLines = savedServices.map((service, index) => {
-        const unit = serviceUnits[index];
-        const trackingLink = `${window.location.origin}/tracking?resi=${service.resi}`;
-        return `*${index + 1}. ${service.device_name}*\nResi: ${service.resi}\nKeluhan: ${unit.issue}\nKelengkapan: ${unit.kelengkapan}\nLacak: ${trackingLink}`;
-      }).join('\n\n');
-      const waText = `Halo ${serviceForm.name.trim()}, ${savedServices.length === 1 ? 'perangkat Anda sudah' : `${savedServices.length} perangkat Anda sudah`} kami terima untuk diperbaiki.\n\n${receiptLines}\n\nSetiap unit memiliki resi dan status masing-masing. Terima kasih!`;
-      const waUrl = buildManualWhatsAppUrl(normalizedCustomerPhone, waText);
+      const waText = buildServiceReceivedMessage({ tenant, services: savedServices });
       const resiSummary = savedServices.map((service) => service.resi).join(', ');
       
       if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Kirim resi ke WhatsApp?', message: `${savedServices.length} unit servis berhasil ditambahkan.\nResi: ${resiSummary}\n\nKirim semua info resi ke WhatsApp pelanggan sekarang?`, confirmText: 'Kirim WA', tone: 'success' }) : Promise.resolve(window.confirm(`${savedServices.length} unit servis berhasil ditambahkan.\nResi: ${resiSummary}\n\nKlik OK untuk mengirim info resi ke WhatsApp pelanggan.`)))) {
-        window.open(waUrl, '_blank');
+        await sendWhatsAppNotification({ tenant, target: normalizedCustomerPhone, message: waText, openManual: true });
       }
 
       if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pendaftaran?', message: `${savedServices.length > 1 ? 'Semua unit akan digabung dalam satu nota penerimaan.' : 'Nota pendaftaran siap dicetak untuk pelanggan.'}`, confirmText: 'Cetak Nota', tone: 'info' }) : Promise.resolve(window.confirm('Ingin mencetak Nota Pendaftaran untuk pelanggan?')))) {
@@ -602,8 +597,18 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     }
   };
 
-  const doPrint = (printerType) => {
+  const doPrint = async (printerType) => {
     if (!selectedService) return;
+    try {
+      if (await openNativeServiceReceipt({ service: selectedService, tenant, format: printerType, type: printType })) {
+        setShowPrintModal(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Gagal menyiapkan nota APK:', error);
+      alert(error?.message || 'Nota tidak dapat disiapkan. Silakan coba lagi.');
+      return;
+    }
     const registrationServices = printType === 'pendaftaran'
       && registrationBatch.length > 1
       && registrationBatch[0]?.resi === selectedService.resi
@@ -645,6 +650,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       </style>
     `;
     
+    const isBillingReceipt = printType === 'tagihan';
     if (printType === 'pendaftaran') {
       htmlContent = `
         <div class="receipt-container">
@@ -690,7 +696,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         <div class="receipt-container">
           <div class="header">
             <h2>${tenant?.name || 'Toko Servis'}</h2>
-            <p>NOTA PELUNASAN SERVIS (GARANSI)</p>
+            <p>${isBillingReceipt ? 'NOTA TAGIHAN SERVIS' : 'NOTA PELUNASAN SERVIS (GARANSI)'}</p>
           </div>
           <div class="divider"></div>
           <div class="info-grid">
@@ -715,7 +721,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <tr><td>Subtotal</td><td class="text-right">${subtotal.toLocaleString('id-ID')}</td></tr>
               <tr><td style="color: #ef4444; font-weight: 600;">Diskon Khusus</td><td class="text-right" style="color: #ef4444; font-weight: 600;">- ${discount.toLocaleString('id-ID')}</td></tr>
               ` : ''}
-              <tr class="total-row"><td>TOTAL LUNAS</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
+              <tr class="total-row"><td>${isBillingReceipt ? 'TOTAL TAGIHAN' : 'TOTAL LUNAS'}</td><td class="text-right">${total.toLocaleString('id-ID')}</td></tr>
             </tbody>
           </table>
           
@@ -725,7 +731,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           <div class="divider"></div>
           <div class="footer">
             <p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 600;">Terima kasih atas kepercayaan Anda!</p>
-            <p style="margin: 0;">Barang yang sudah diambil tidak dapat dikembalikan / ditukar.</p>
+            <p style="margin: 0;">${isBillingReceipt ? 'Silakan lakukan pembayaran atau pengambilan sesuai total tagihan.' : 'Simpan nota ini sebagai bukti pembayaran dan garansi.'}</p>
           </div>
         </div>
       `;
@@ -1186,7 +1192,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                 {s.status || 'PROSES'}
                               </span>
                               <div className="cashier-service-actions">
-                                <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(isCompleted ? 'pengambilan' : 'pendaftaran'); setShowPrintModal(true); }}>
+                                <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setPrintType(getServiceReceiptType(s.status)); setShowPrintModal(true); }}>
                                   <Printer size={15} color="#0284c7" /> Cetak Nota
                                 </button>
                                 <button className="btn btn-ghost" onClick={() => { setSelectedService(s); setShowBarcodeModal(true); }}>
@@ -1363,8 +1369,22 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                                         alert('Servis berhasil ditandai Diambil (Lunas) dan pembayaran sudah masuk ke Laporan.');
                                       }
 
+                                      const pickedUpService = { ...s, ...result.service, status: 'DIAMBIL' };
+                                      const phoneConflict = findEmployeePhoneConflict(pickedUpService.customer_phone, users);
+                                      if (phoneConflict) {
+                                        alert(`Nomor WA pelanggan ini sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan dulu agar notifikasi tidak salah alamat.`);
+                                      } else {
+                                        const notificationResult = await sendWhatsAppNotification({
+                                          tenant,
+                                          target: pickedUpService.customer_phone,
+                                          message: buildServiceStatusMessage({ tenant, service: pickedUpService, status: 'DIAMBIL' }),
+                                          openManual: true,
+                                        });
+                                        if (notificationResult.status === 'failed') console.error('Gagal mengirim nota garansi:', notificationResult.error);
+                                      }
+
                                       if (await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Cetak nota pengambilan?', message: 'Servis sudah lunas. Cetak nota pengambilan untuk pelanggan?', confirmText: 'Cetak Nota', tone: 'success' }) : Promise.resolve(window.confirm('Servis Lunas! Ingin mencetak Nota Pengambilan?')))) {
-                                        setSelectedService({ ...s, ...result.service, status: 'DIAMBIL' });
+                                        setSelectedService(pickedUpService);
                                         setPrintType('pengambilan');
                                         setShowPrintModal(true);
                                       }
@@ -1608,8 +1628,14 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   setProducts(prev => prev.map(p => String(p.id) === String(selectedPartProduct.id) ? { ...p, stock: nextStock } : p));
                 }
                 
-                const totalTagihan = Math.max(0, partFee + jasaFee - diskon);
-                const message = `Halo ${selectedService.customer_name},\n\nServis perangkat ${selectedService.device_name} Anda (Resi: ${selectedService.resi}) telah *SELESAI*.\nTotal Tagihan: Rp ${totalTagihan.toLocaleString('id-ID')}.\n\nSilakan diambil di toko kami. Terima kasih!`;
+                const completedService = {
+                  ...selectedService,
+                  issue: updatedIssue,
+                  part_fee: partFee,
+                  jasa_fee: jasaFee,
+                  status: 'SELESAI',
+                };
+                const message = buildServiceStatusMessage({ tenant, service: completedService, status: 'SELESAI' });
                 
                 const phoneConflict = findEmployeePhoneConflict(selectedService.customer_phone, users);
                 if (phoneConflict) {
@@ -1700,14 +1726,21 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <h3 style={{ margin: 0 }}>Minta Persetujuan WA</h3>
               <button className="btn btn-ghost" onClick={() => setShowPersetujuanModal(false)}><X size={20}/></button>
             </div>
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const partName = e.target.part.value;
               const estPrice = e.target.price.value;
-              
-              const waText = `Halo kak ${selectedService.customer_name}, dari ${tenant?.name || 'Toko Servis'}.\n\nSetelah kami lakukan pengecekan pada perangkat ${selectedService.device_name} kakak, ternyata memerlukan perbaikan/penggantian *${partName}*.\n\nEstimasi biaya totalnya adalah *Rp ${normalizeMoneyInput(estPrice).toLocaleString('id-ID')}*.\n\nApakah kakak setuju untuk kami lanjutkan perbaikannya? Mohon konfirmasinya ya kak. Terima kasih! 🙏`;
-              const waUrl = buildManualWhatsAppUrl(selectedService.customer_phone, waText);
-              window.open(waUrl, '_blank');
+              const waText = buildServiceStatusMessage({
+                tenant,
+                service: selectedService,
+                status: 'PERSETUJUAN',
+                approval: { action: partName, estimate: normalizeMoneyInput(estPrice) },
+              });
+              const result = await sendWhatsAppNotification({ tenant, target: selectedService.customer_phone, message: waText, openManual: true });
+              if (result.status === 'failed') {
+                alert('Pesan persetujuan belum terkirim. Periksa nomor pelanggan dan WhatsApp Gateway.');
+                return;
+              }
               setShowPersetujuanModal(false);
             }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Tindakan / Nama Sparepart:</label>
@@ -1726,7 +1759,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: '350px', background: 'var(--bg-light)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Cetak {printType === 'pendaftaran' ? 'Nota Pendaftaran' : 'Nota Pengambilan'}</h3>
+              <h3 style={{ margin: 0 }}>Cetak {getServiceReceiptLabel(printType)}</h3>
               <button className="btn btn-ghost" onClick={() => setShowPrintModal(false)}><X size={20}/></button>
             </div>
             <p style={{ fontSize: '0.9rem', marginBottom: '20px' }}>Pilih jenis printer yang Anda gunakan:</p>
