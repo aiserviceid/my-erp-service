@@ -20,13 +20,31 @@ const defaultSettings = {
   ]
 };
 
+const normalizeLifetimeSettings = (rawSettings) => {
+  const settings = { ...(rawSettings || {}) };
+  const isLifetimeFree = settings.lifetime_free === true || String(settings.lifetime_free || '').toLowerCase() === 'true';
+  if (isLifetimeFree) {
+    settings.lifetime_free = true;
+    settings.subscription_status = 'active';
+    settings.active_until = null;
+    settings.trial_ends_at = null;
+    settings.is_banned = false;
+  }
+  return settings;
+};
+
+const getInitialSettings = () => {
+  if (typeof window === 'undefined') return defaultSettings;
+  return normalizeLifetimeSettings(safeParseJSON(localStorage.getItem('TENANT_SETTINGS'), defaultSettings));
+};
+
 export const useStore = create((set) => ({
   tenant: {
     code: (typeof window !== 'undefined' ? localStorage.getItem('TENANT_CODE') : null) || null,
     name: (typeof window !== 'undefined' ? localStorage.getItem('TENANT_NAME') : null) || null,
     tier: (typeof window !== 'undefined' ? localStorage.getItem('TENANT_TIER') : 'free') || 'free',
     token: (typeof window !== 'undefined' ? localStorage.getItem('TENANT_TOKEN') : null) || null,
-    settings: (typeof window !== 'undefined' ? safeParseJSON(localStorage.getItem('TENANT_SETTINGS'), defaultSettings) : defaultSettings)
+    settings: getInitialSettings()
   },
   employee: typeof window !== 'undefined' ? safeParseJSON(localStorage.getItem('EMP_SESSION'), null) : null,
   setEmployee: (emp) => {
@@ -90,12 +108,12 @@ export const useStore = create((set) => ({
 
     set((state) => {
       const currentSettings = state.tenant?.settings || defaultSettings;
-      const updatedSettings = {
+      const updatedSettings = normalizeLifetimeSettings({
         ...currentSettings,
         ...(resolvedSettings || {}),
         storeName: (resolvedSettings && resolvedSettings.storeName) || resolvedName || currentSettings.storeName,
         store_wa: (resolvedSettings && resolvedSettings.store_wa) || resolvedPhone || currentSettings.store_wa
-      };
+      });
       if (typeof window !== 'undefined') {
         localStorage.setItem('TENANT_SETTINGS', JSON.stringify(updatedSettings));
       }
@@ -115,7 +133,7 @@ export const useStore = create((set) => ({
   },
   
   updateTenantSettings: (newSettings) => set((state) => {
-    const updatedSettings = { ...(state.tenant?.settings || defaultSettings), ...newSettings };
+    const updatedSettings = normalizeLifetimeSettings({ ...(state.tenant?.settings || defaultSettings), ...newSettings });
     if (typeof window !== 'undefined') {
       localStorage.setItem('TENANT_SETTINGS', JSON.stringify(updatedSettings));
     }
@@ -148,3 +166,43 @@ export const useStore = create((set) => ({
   showOnboarding: false,
   setShowOnboarding: (val) => set({ showOnboarding: val }),
 }));
+
+// Keep Lifetime Free status synchronized for an already-open admin session.
+// This fixes stale localStorage after a Super Admin changes a tenant status
+// or after the tenant code/username is renamed.
+if (typeof window !== 'undefined') {
+  let lifetimeSyncInFlight = false;
+  const syncLifetimeStatus = async () => {
+    const code = String(localStorage.getItem('TENANT_CODE') || '').trim().toUpperCase();
+    if (!code || lifetimeSyncInFlight) return;
+    lifetimeSyncInFlight = true;
+    try {
+      const apiBase = window.location.hostname === 'localhost' ? 'http://localhost:3001/api' : '/api';
+      const response = await fetch(`${apiBase}/public-free-tenants`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json().catch(() => ({}));
+      const freeTenants = Array.isArray(payload?.free_tenants)
+        ? payload.free_tenants.map((item) => String(item || '').trim().toUpperCase()).filter(Boolean)
+        : [];
+      if (freeTenants.includes(code)) {
+        useStore.getState().updateTenantSettings({
+          lifetime_free: true,
+          subscription_status: 'active',
+          active_until: null,
+          trial_ends_at: null,
+          is_banned: false
+        });
+      }
+    } catch (error) {
+      console.warn('Lifetime Free session sync warning:', error);
+    } finally {
+      lifetimeSyncInFlight = false;
+    }
+  };
+
+  queueMicrotask(syncLifetimeStatus);
+  window.addEventListener('focus', syncLifetimeStatus);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncLifetimeStatus();
+  });
+}
