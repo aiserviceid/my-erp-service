@@ -1,17 +1,18 @@
 {
-  "version": "1.2.12",
-  "buildNumber": 23,
-  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.12/UnitPro-Android-v1.2.12.apk",
-  "apkFileName": "UnitPro-Android-v1.2.12.apk",
-  "releaseTitle": "UnitPro Android v1.2.12",
-  "description": "Perbaikan scroll satu jari, layout responsif, dan keterbacaan tampilan di APK, dashboard, portal tim, serta halaman pelanggan.",
+  "version": "1.2.14",
+  "buildNumber": 25,
+  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.14/UnitPro-Android-v1.2.14.apk",
+  "apkFileName": "UnitPro-Android-v1.2.14.apk",
+  "releaseTitle": "UnitPro Android v1.2.14",
+  "description": "Sinkronisasi gaji dan komisi Portal Tim, pencatatan komisi servis otomatis, serta perbaikan tampilan Manajemen Tim dan area bawah layar pada HP.",
   "minRequiredVersion": "1.0.0",
   "releaseDate": "15 Agustus 2026",
   "changelog": [
-    "Memperbaiki scroll satu jari pada APK dan halaman yang sebelumnya rawan membutuhkan dua jari.",
-    "Mencegah tabel dan konten mobile melebar keluar layar atau memenuhi viewport secara tidak wajar.",
-    "Meningkatkan kontras panel, sidebar, dan navigasi agar teks serta kontrol lebih mudah terlihat.",
-    "Menyinkronkan metadata update aplikasi agar versi terbaru terdeteksi dengan benar di menu Update Aplikasi."
+    "Menyinkronkan pengaturan gaji dan persentase komisi dari data toko ke Portal Tim saat karyawan masuk.",
+    "Mencatat komisi teknisi otomatis sebagai pengeluaran keuangan saat servis sudah diambil/lunas, dihitung dari jasa bersih setelah diskon dan tidak dari sparepart.",
+    "Melakukan sinkronisasi awal untuk servis yang sudah diambil tetapi belum memiliki catatan komisi, dengan pengaman agar transaksi tidak tercatat dua kali.",
+    "Menambah ruang aman di bawah Portal Tim agar Take Home Pay dan tombol Ajukan Kasbon tidak tertutup navigasi bawah.",
+    "Mengubah daftar karyawan pada layar HP menjadi kartu responsif agar nama, WhatsApp, peran, gaji, komisi, Edit, dan Hapus tidak melebar keluar layar."
   ],
   "forceUpdate": false
 }
