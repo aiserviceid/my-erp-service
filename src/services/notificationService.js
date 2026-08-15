@@ -2,6 +2,19 @@ import { supabase } from './supabase';
 
 const FONNTE_SEND_URL = 'https://api.fonnte.com/send';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
+const DEFAULT_PUBLIC_ORIGIN = 'https://unitproid.vercel.app';
+
+const getPublicOrigin = () => {
+  const configured = String(import.meta.env.VITE_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(configured)) return configured;
+  if (typeof window !== 'undefined') {
+    const hostname = String(window.location.hostname || '').toLowerCase();
+    const origin = String(window.location.origin || '').replace(/\/+$/, '');
+    const isLocal = !hostname || hostname === 'localhost' || hostname === '127.0.0.1';
+    if (!isLocal && /^https?:\/\//i.test(origin)) return origin;
+  }
+  return DEFAULT_PUBLIC_ORIGIN;
+};
 
 export const normalizeWhatsAppNumber = (phone = '') => {
   const cleaned = String(phone || '').replace(/\D/g, '');
@@ -91,28 +104,6 @@ const looksLikeAccountNumber = (value = '') => {
   return digits.length >= 6 && digits.length >= Math.ceil(text.length * 0.6);
 };
 
-const paymentInfoLines = (settings = {}) => {
-  const bankName = String(settings.bank_name || '').trim();
-  let account = String(settings.bank_account || '').trim();
-  let holder = String(settings.bank_holder || '').trim();
-
-  if (!looksLikeAccountNumber(account) && looksLikeAccountNumber(holder)) {
-    [account, holder] = [holder, account];
-  }
-
-  if (bankName || account || holder) {
-    return [
-      '🏦 *PEMBAYARAN*',
-      bankName ? `Bank: ${bankName}` : '',
-      account ? `No. Rekening: *${account}*` : '',
-      holder ? `a.n. ${holder}` : '',
-    ].filter(Boolean);
-  }
-
-  const legacyPayment = String(settings.store_bank || '').trim();
-  return legacyPayment ? ['🏦 *PEMBAYARAN*', legacyPayment] : [];
-};
-
 const paymentSummary = (settings = {}) => {
   const bankName = String(settings.bank_name || '').trim();
   let account = String(settings.bank_account || '').trim();
@@ -121,90 +112,40 @@ const paymentSummary = (settings = {}) => {
     [account, holder] = [holder, account];
   }
   if (bankName || account || holder) {
-    return [bankName, account, holder ? `a.n. ${holder}` : ''].filter(Boolean).join(' ');
+    return [bankName, account, holder ? `a/n ${holder}` : ''].filter(Boolean).join(' ');
   }
   return String(settings.store_bank || '').trim();
 };
-
-const isPublicHttpUrl = (value = '') => /^https?:\/\//i.test(String(value || '').trim());
 
 const getStoreName = (tenant = {}) => {
   const settings = tenant?.settings || {};
   return settings.storeName || settings.store_name || tenant?.name || 'UnitPro';
 };
 
-const joinMessageSections = (...sections) => sections
-  .map((section) => (Array.isArray(section) ? section : [section])
-    .filter(Boolean)
-    .join('\n'))
-  .filter(Boolean)
-  .join('\n\n');
-
-const safePublicSettings = (settings = {}) => ({
-  storeName: settings.storeName || '',
-  store_name: settings.store_name || '',
-  store_address: settings.store_address || '',
-  address: settings.address || '',
-  store_wa: settings.store_wa || '',
-  logoUrl: settings.logoUrl || '',
-  logo_url: settings.logo_url || '',
-  store_logo: settings.store_logo || '',
-});
-
-const encodePublicPayload = (tenant = {}, service = {}) => {
-  if (typeof window === 'undefined' || !service?.resi) return '';
-  try {
-    const payload = {
-      service: {
-        resi: service.resi,
-        tenant_code: service.tenant_code || tenant?.code || tenant?.tenant_code || '',
-        customer_name: service.customer_name || '',
-        device_name: service.device_name || '',
-        issue: service.issue || '',
-        status: service.status || '',
-        jasa_fee: Number(service.jasa_fee || 0),
-        part_fee: Number(service.part_fee || 0),
-        technician_id: service.technician_id || null,
-        created_at: service.created_at || '',
-        updated_at: service.updated_at || '',
-      },
-      tenant: {
-        code: tenant?.code || tenant?.tenant_code || service.tenant_code || '',
-        name: tenant?.name || getStoreName(tenant),
-        tier: tenant?.tier || 'free',
-        settings: safePublicSettings(tenant?.settings || {}),
-      },
-    };
-    const bytes = new TextEncoder().encode(JSON.stringify(payload));
-    let binary = '';
-    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  } catch {
-    return '';
-  }
-};
-
-const withPublicPayload = (url, tenant, service) => {
-  const encoded = encodePublicPayload(tenant, service);
-  return encoded ? `${url}#payload=${encoded}` : url;
-};
+const getTenantCode = (tenant = {}, service = {}) => tenant?.code || tenant?.tenant_code || service?.tenant_code || '';
 
 const buildPublicReceiptUrl = (tenant = {}, service = {}, type = 'completion') => {
-  if (typeof window === 'undefined' || !service?.resi) return '';
+  if (!service?.resi) return '';
   const query = new URLSearchParams({ resi: service.resi, type, format: 'a4' });
-  const tenantCode = tenant?.code || tenant?.tenant_code || service?.tenant_code || '';
+  const tenantCode = getTenantCode(tenant, service);
   if (tenantCode) query.set('tenant_code', tenantCode);
-  const baseUrl = `${window.location.origin}/print-nota?${query.toString()}`;
-  return withPublicPayload(baseUrl, tenant, service);
+  return `${getPublicOrigin()}/print-nota?${query.toString()}`;
 };
 
 const buildWarrantyUrl = (tenant = {}, service = {}) => {
-  if (typeof window === 'undefined' || !service?.resi) return '';
+  if (!service?.resi) return '';
   const query = new URLSearchParams({ resi: service.resi });
-  const tenantCode = tenant?.code || tenant?.tenant_code || service?.tenant_code || '';
+  const tenantCode = getTenantCode(tenant, service);
   if (tenantCode) query.set('tenant_code', tenantCode);
-  const baseUrl = `${window.location.origin}/garansi?${query.toString()}`;
-  return withPublicPayload(baseUrl, tenant, service);
+  return `${getPublicOrigin()}/garansi?${query.toString()}`;
+};
+
+const buildTrackingUrl = (tenant = {}, service = {}) => {
+  if (!service?.resi) return '';
+  const query = new URLSearchParams({ resi: service.resi });
+  const tenantCode = getTenantCode(tenant, service);
+  if (tenantCode) query.set('tenant_code', tenantCode);
+  return `${getPublicOrigin()}/tracking?${query.toString()}`;
 };
 
 const fetchServiceByResi = async (tenant, resi) => {
@@ -225,11 +166,12 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   const jasaFee = Number(service.jasa_fee || 0);
   const total = Math.max(0, partFee + jasaFee - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
-  const qrisUrl = settings.qrisUrl || settings.qris_image_url || '';
   const invoiceUrl = buildPublicReceiptUrl(tenant, service, 'completion');
   const payment = paymentSummary(settings);
   const pickupWarning = meta.pickupMessage
-    || (meta.pickupDays > 0 ? `Barang yang telah selesai harap diambil maksimal ${meta.pickupDays} hari.` : 'Barang yang telah selesai harap segera dilakukan pembayaran/pengambilan.');
+    || (meta.pickupDays > 0
+      ? `Barang yang telah selesai harap diambil maksimal ${meta.pickupDays} hari.`
+      : 'Barang yang telah selesai harap segera dilakukan pembayaran/pengambilan.');
 
   const lines = [
     '🧾 *NOTA TAGIHAN SERVIS*',
@@ -245,7 +187,7 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
     payment ? `Pembayaran: ${payment}` : '',
     `⚠️ ${pickupWarning}`,
     'Silakan lakukan pembayaran/pengambilan sesuai total tagihan di atas.',
-    invoiceUrl ? '🖨 *Nota Tagihan Digital:*' : '',
+    '🖨 *Nota Tagihan Digital:*',
     invoiceUrl,
     'Setelah barang diambil dan lunas, UnitPro akan mengirim Nota Pelunasan serta Link Garansi.',
   ].filter(Boolean).join('\n');
@@ -253,9 +195,9 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   return {
     type: 'completion',
     message: lines,
-    urlMedia: urlMedia || (isPublicHttpUrl(qrisUrl) ? qrisUrl : ''),
+    urlMedia: urlMedia || '',
     resi: service.resi,
-    mediaLabel: isPublicHttpUrl(qrisUrl) ? 'QRIS pembayaran' : '',
+    invoiceUrl,
   };
 };
 
@@ -264,15 +206,10 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
   const discount = getServiceDiscount(service.issue || '');
   const partFee = Number(service.part_fee || 0);
   const jasaFee = Number(service.jasa_fee || 0);
-  const subtotal = partFee + jasaFee;
-  const total = Math.max(0, subtotal - discount);
+  const total = Math.max(0, partFee + jasaFee - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const warrantyUrl = buildWarrantyUrl(tenant, service);
-  const qrUrl = warrantyUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=16&data=${encodeURIComponent(warrantyUrl)}`
-    : '';
   const receiptUrl = buildPublicReceiptUrl(tenant, service, 'pickup');
-
   const warrantyText = meta.warrantyLabel
     ? `${meta.warrantyLabel}${meta.warrantyEnd ? ` — berlaku sampai ${meta.warrantyEnd}` : ''}`
     : 'Tanpa garansi tambahan';
@@ -289,9 +226,9 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
     `*TOTAL LUNAS: Rp ${total.toLocaleString('id-ID')}*`,
     `Garansi Servis: ${warrantyText}`,
     '*Status: SUDAH DIAMBIL / LUNAS*',
-    warrantyUrl ? '🔗 *Link Garansi:*' : '',
+    '🔗 *Link Garansi:*',
     warrantyUrl,
-    receiptUrl ? '🖨 *Nota Garansi Digital:*' : '',
+    '🖨 *Nota Garansi Digital:*',
     receiptUrl,
     'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
   ].filter(Boolean).join('\n');
@@ -299,10 +236,10 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
   return {
     type: 'pickup',
     message: lines,
-    urlMedia: urlMedia || qrUrl,
+    urlMedia: urlMedia || '',
     resi: service.resi,
-    qrUrl,
     warrantyUrl,
+    receiptUrl,
   };
 };
 
@@ -313,9 +250,7 @@ export const buildServiceReceivedMessage = ({ tenant, services = [] } = {}) => {
   const storeName = getStoreName(tenant);
   const customer = list[0].customer_name || 'Pelanggan';
   const unitLines = list.map((service, index) => {
-    const trackingUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/tracking?resi=${encodeURIComponent(service.resi)}`
-      : '';
+    const trackingUrl = buildTrackingUrl(tenant, service);
     return [
       `*${index + 1}. ${service.device_name || 'Perangkat'}*`,
       `No. Resi: ${service.resi}`,
@@ -342,9 +277,7 @@ export const buildServiceStatusMessage = ({ tenant, service, status, approval = 
   const normalizedStatus = normalizeStatus(status || service.status);
   const storeName = getStoreName(tenant);
   const customer = service.customer_name || 'Pelanggan';
-  const trackingUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/tracking?resi=${encodeURIComponent(service.resi)}`
-    : '';
+  const trackingUrl = buildTrackingUrl(tenant, service);
 
   if (normalizedStatus === 'SELESAI') return buildCompletionInvoiceFromService(tenant, { ...service, status: 'SELESAI' }).message;
   if (normalizedStatus === 'DIAMBIL') return buildPickupReceiptFromService(tenant, { ...service, status: 'DIAMBIL' }).message;
@@ -392,6 +325,7 @@ export const buildServiceStatusMessage = ({ tenant, service, status, approval = 
     title: String(normalizedStatus || 'STATUS SERVIS').replace(/_/g, ' '),
     body: `Status servis Anda di *${storeName}* telah diperbarui.`,
   };
+
   return [
     `Halo Kak ${customer},`,
     '',
@@ -508,11 +442,7 @@ export const sendWhatsAppNotification = async ({ tenant, target, message, urlMed
   }
 
   if (openManual && typeof window !== 'undefined') {
-    let manualMessage = cleanMessage;
-    if (prepared.type === 'completion' && mediaUrl && prepared.mediaLabel) {
-      manualMessage += `\n\n${prepared.mediaLabel}:\n${mediaUrl}`;
-    }
-    const url = buildRawWhatsAppUrl(normalizedTarget, manualMessage);
+    const url = buildRawWhatsAppUrl(normalizedTarget, cleanMessage);
     if (url) {
       openExternal(url);
       if (prepared.type === 'pickup') markPickupReceiptSent(prepared.resi);
@@ -528,6 +458,8 @@ export const sendWhatsAppNotification = async ({ tenant, target, message, urlMed
   };
 };
 
+// Alur lama Admin masih dapat membuka wa.me secara langsung. Interceptor ini
+// memastikan status SELESAI/DIAMBIL tetap memakai satu template nota yang sama.
 if (typeof window !== 'undefined' && nativeWindowOpen && !window.__UNITPRO_SERVICE_WA_OPEN_INTERCEPTOR__) {
   window.__UNITPRO_SERVICE_WA_OPEN_INTERCEPTOR__ = true;
   window.open = (url, target, features) => {
@@ -538,14 +470,15 @@ if (typeof window !== 'undefined' && nativeWindowOpen && !window.__UNITPRO_SERVI
       const parsed = new URL(rawUrl);
       const originalMessage = parsed.searchParams.get('text') || '';
       const resi = extractResiFromMessage(originalMessage);
-      const looksLikeLegacyStatus = Boolean(resi) && (
+      const looksLikeServiceStatus = Boolean(resi) && (
         /UnitPro\s+sekarang\s*:/i.test(originalMessage)
         || /Cek\s+status\s+langsung/i.test(originalMessage)
+        || /NOTA\s+(?:TAGIHAN|PELUNASAN)/i.test(originalMessage)
         || /\bSELESAI\b/i.test(originalMessage)
         || /\bDI\s*AMBIL\b/i.test(originalMessage)
         || /\bDIAMBIL\b/i.test(originalMessage)
       );
-      if (!looksLikeLegacyStatus) return nativeWindowOpen(url, target, features);
+      if (!looksLikeServiceStatus) return nativeWindowOpen(url, target, features);
 
       const phone = parsed.pathname.replace(/^\/+/, '');
       const popup = nativeWindowOpen('about:blank', target || '_blank', features);
