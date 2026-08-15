@@ -74,3 +74,18 @@ jobs:
           files: android/app/build/outputs/apk/release/UnitPro-Android-v${{ steps.app_version.outputs.version }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Stable Web APK
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p public/downloads
+          cp android/app/build/outputs/apk/release/app-release.apk public/downloads/UnitPro.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/downloads/UnitPro.apk
+          if git diff --cached --quiet; then
+            echo "Stable APK already up to date"
+          else
+            git commit -m "chore: publish UnitPro v${{ steps.app_version.outputs.version }} APK [skip ci]"
+            git push origin HEAD:main
+          fi
