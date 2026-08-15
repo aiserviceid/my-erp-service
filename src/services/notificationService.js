@@ -212,29 +212,38 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
     : '';
   const receiptUrl = buildPublicReceiptUrl(tenant, service, 'pickup');
 
-  const lines = [
-    '🧾 *NOTA PELUNASAN SERVIS (GARANSI)*',
-    `*${storeName}*`,
-    '',
-    `No. Nota: ${service.resi}`,
-    `Pelanggan: ${service.customer_name || '-'}`,
-    `Perangkat: ${service.device_name || '-'}`,
-    `Biaya Sparepart: Rp ${Number(service.part_fee || 0).toLocaleString('id-ID')}`,
-    `Biaya Jasa: Rp ${Number(service.jasa_fee || 0).toLocaleString('id-ID')}`,
-    discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
-    `*TOTAL LUNAS: Rp ${total.toLocaleString('id-ID')}*`,
-    '',
-    meta.warrantyLabel ? `Garansi Servis: *${meta.warrantyLabel}*${meta.warrantyEnd ? ` — sampai ${meta.warrantyEnd}` : ''}` : 'Garansi Servis: Tanpa garansi tambahan',
-    '*Status: SUDAH DIAMBIL / LUNAS*',
-    '',
-    warrantyUrl ? `🔗 *Link Garansi:* ${warrantyUrl}` : '',
-    receiptUrl ? `🖨 *Nota Garansi Digital:* ${receiptUrl}` : '',
-    'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
-  ].filter(Boolean);
+  const warrantyText = meta.warrantyLabel
+    ? `${meta.warrantyLabel}${meta.warrantyEnd ? ` — berlaku sampai ${meta.warrantyEnd}` : ''}`
+    : 'Tanpa garansi tambahan';
+
+  const lines = joinMessageSections(
+    ['🧾 *NOTA PELUNASAN & GARANSI*', `*${storeName}*`],
+    [
+      '*DATA SERVIS*',
+      `No. Nota  : \`${service.resi}\``,
+      `Pelanggan : ${service.customer_name || '-'}`,
+      `Perangkat : ${service.device_name || '-'}`,
+    ],
+    [
+      '───────────────',
+      '*RINCIAN PELUNASAN*',
+      `Sparepart : Rp ${Number(service.part_fee || 0).toLocaleString('id-ID')}`,
+      `Jasa      : Rp ${Number(service.jasa_fee || 0).toLocaleString('id-ID')}`,
+      discount > 0 ? `Diskon    : - Rp ${discount.toLocaleString('id-ID')}` : '',
+      '───────────────',
+      '*TOTAL LUNAS*',
+      `*Rp ${total.toLocaleString('id-ID')}*`,
+    ],
+    ['✅ *LUNAS • BARANG SUDAH DIAMBIL*'],
+    ['🛡️ *GARANSI SERVIS*', warrantyText],
+    warrantyUrl ? ['🔗 *Kartu Garansi Digital*', warrantyUrl] : [],
+    receiptUrl ? ['🖨 *Nota Pelunasan Digital*', receiptUrl] : [],
+    'Simpan pesan ini sebagai bukti pembayaran, servis, dan garansi.',
+  );
 
   return {
     type: 'pickup',
-    message: lines.join('\n'),
+    message: lines,
     urlMedia: urlMedia || qrUrl,
     resi: service.resi,
     qrUrl,

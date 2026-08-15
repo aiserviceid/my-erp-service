@@ -49,69 +49,6 @@ const parseWhatsAppHref = (href = '') => {
   }
 };
 
-const stripMarkdown = (value = '') => String(value || '').replace(/^\*+|\*+$/g, '').trim();
-const lineValue = (message = '', label = '') => {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = String(message || '').match(new RegExp(`^\\*?${escaped}\\*?\\s*:\\s*(.*?)$`, 'mi'));
-  return match ? stripMarkdown(match[1]) : '';
-};
-const findValue = (message = '', pattern) => stripMarkdown(String(message || '').match(pattern)?.[1] || '');
-const receiptLine = '━━━━━━━━━━━━━━━━━━━━';
-
-const getStoreNameFromPrepared = (message, tenant) => {
-  const lines = String(message || '').split('\n').map((line) => line.trim()).filter(Boolean);
-  const candidate = lines.find((line, index) => index > 0 && /^\*.+\*$/.test(line) && !/TOTAL|Status/i.test(line));
-  return stripMarkdown(candidate) || tenant?.settings?.storeName || tenant?.name || 'UnitPro';
-};
-
-const buildPrintUrl = (resi, tenantCode, type = 'pickup') => {
-  const query = new URLSearchParams({ resi, format: 'a4', type });
-  if (tenantCode) query.set('tenant_code', tenantCode);
-  return `${window.location.origin}/print-nota?${query.toString()}`;
-};
-
-const formatPickupReceipt = (message, tenant, resi) => {
-  const storeName = getStoreNameFromPrepared(message, tenant);
-  const noteNo = lineValue(message, 'No. Nota') || resi;
-  const customer = lineValue(message, 'Pelanggan') || '-';
-  const device = lineValue(message, 'Perangkat') || '-';
-  const partFee = lineValue(message, 'Biaya Sparepart') || 'Rp 0';
-  const serviceFee = lineValue(message, 'Biaya Jasa') || 'Rp 0';
-  const discount = lineValue(message, 'Diskon');
-  const total = findValue(message, /TOTAL LUNAS:\s*([^\n*]+(?:\.[0-9]{3})*)/i) || 'Rp 0';
-  const warranty = lineValue(message, 'Garansi Servis') || 'Sesuai ketentuan toko';
-  const warrantyUrl = findValue(message, /Link Garansi:\*?\s*(https?:\/\/\S+)/i) || `${window.location.origin}/garansi?resi=${encodeURIComponent(noteNo)}`;
-  const tenantCode = tenant?.code || tenant?.tenant_code || '';
-  const printUrl = buildPrintUrl(noteNo, tenantCode, 'pickup');
-
-  return [
-    '🧾 *NOTA PELUNASAN SERVIS*',
-    `*${storeName}*`,
-    receiptLine,
-    `No. Nota  : ${noteNo}`,
-    `Pelanggan : ${customer}`,
-    `Perangkat : ${device}`,
-    receiptLine,
-    '*RINCIAN BIAYA*',
-    `Sparepart : ${partFee}`,
-    `Jasa      : ${serviceFee}`,
-    ...(discount ? [`Diskon    : ${discount}`] : []),
-    receiptLine,
-    '*TOTAL LUNAS*',
-    `*${total}*`,
-    receiptLine,
-    '✅ *LUNAS • BARANG SUDAH DIAMBIL*',
-    '',
-    `Garansi Servis: ${warranty}`,
-    '',
-    `🖨 *Nota Cetak:*\n${printUrl}`,
-    '',
-    `🔗 *Garansi Digital:*\n${warrantyUrl}`,
-    '',
-    'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
-  ].join('\n').trim();
-};
-
 const enhanceWhatsAppButtons = () => {
   if (!isAdminPage()) return;
 
@@ -140,10 +77,9 @@ const enhanceWhatsAppButtons = () => {
         const fallbackMessage = parsed.message || `Resi: ${resi}`;
         const prepared = await prepareServiceWhatsAppDelivery({ tenant, message: fallbackMessage });
 
-        let finalMessage = prepared.message || fallbackMessage;
-        if (prepared.type === 'pickup') {
-          finalMessage = formatPickupReceipt(finalMessage, tenant, prepared.resi || resi);
-        }
+        // Semua status memakai template dari notificationService sebagai satu sumber kebenaran.
+        // Jangan format ulang di tombol WA; agar nominal, status, dan tautan selalu sinkron.
+        const finalMessage = prepared.message || fallbackMessage;
 
         const waUrl = buildManualWhatsAppUrl(parsed.phone, finalMessage);
         if (!waUrl) throw new Error('Nomor WhatsApp pelanggan tidak valid.');

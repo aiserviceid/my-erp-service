@@ -1,16 +1,16 @@
 {
-  "version": "1.2.9",
-  "buildNumber": 21,
-  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.9/UnitPro-Android-v1.2.9.apk",
-  "apkFileName": "UnitPro-Android-v1.2.9.apk",
-  "releaseTitle": "UnitPro Android v1.2.9",
-  "description": "Sinkronisasi Nota Tagihan WhatsApp agar rincian biaya dan total tidak kembali Rp0.",
+  "version": "1.2.10",
+  "buildNumber": 22,
+  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.10/UnitPro-Android-v1.2.10.apk",
+  "apkFileName": "UnitPro-Android-v1.2.10.apk",
+  "releaseTitle": "UnitPro Android v1.2.10",
+  "description": "Nota Pelunasan dan Garansi WhatsApp kini lebih rapi serta sepenuhnya sinkron.",
   "minRequiredVersion": "1.0.0",
   "releaseDate": "15 Agustus 2026",
   "changelog": [
-    "Pesan Nota Tagihan tidak lagi diformat ulang oleh jalur lama WhatsApp.",
-    "Biaya sparepart, jasa, dan total pada pesan sekarang konsisten dengan data servis.",
-    "Nomor resi pada tombol WhatsApp juga dikunci agar tidak bercampur dengan status atau nama perangkat."
+    "Nota Pelunasan dan Garansi WhatsApp kini memakai struktur yang lebih rapi dan mudah dibaca.",
+    "Rincian biaya, total lunas, status, kartu garansi, dan nota digital dipisahkan dengan jelas.",
+    "Semua pesan status servis memakai satu sumber format agar data tidak berubah di tombol WhatsApp."
   ],
   "forceUpdate": false
 }
