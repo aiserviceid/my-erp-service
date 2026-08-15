@@ -4,6 +4,150 @@ const FONNTE_SEND_URL = 'https://api.fonnte.com/send';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 const DEFAULT_PUBLIC_ORIGIN = 'https://unitproid.vercel.app';
 
+export const DEFAULT_TEMPLATE_RECEIVED = `Halo Kak {customer_name},
+
+📥 *KONFIRMASI SERVIS DITERIMA*
+Terima kasih, perangkat Anda telah kami terima di *{store_name}*.
+
+------------------------------------------
+No. Nota  : {resi}
+Tanggal   : {date}
+Pelanggan : {customer_name}
+Perangkat : {device_name}
+------------------------------------------
+*KELUHAN*
+{repair_details}
+------------------------------------------
+
+Perangkat akan segera diproses oleh teknisi. Jika sebelum perbaikan diperlukan persetujuan tindakan atau biaya, kami akan menghubungi Anda melalui WhatsApp ini.
+
+🔗 *Lacak Progres Servis:*
+{tracking_url}`;
+
+export const DEFAULT_TEMPLATE_COMPLETED = `🧾 *NOTA TAGIHAN SERVIS*
+*{store_name}*
+{store_address}
+{store_phone}
+
+------------------------------------------
+No. Nota  : {resi}
+Tanggal   : {date}
+Pelanggan : {customer_name}
+Perangkat : {device_name}
+------------------------------------------
+*RINCIAN PERBAIKAN*
+{repair_details}
+------------------------------------------
+*RINCIAN BIAYA*
+Biaya Sparepart : Rp {part_fee}
+Biaya Jasa      : Rp {jasa_fee}
+Subtotal        : Rp {subtotal}
+Diskon          : - Rp {discount}
+*TOTAL TAGIHAN  : Rp {total}*
+
+==========================================
+*Status: SERVIS SELESAI • BELUM LUNAS*
+==========================================
+
+{payment_info}
+⚠️ {pickup_warning}
+
+*{receipt_note}*
+Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
+------------------------------------------
+🖨 *Nota Tagihan Digital:*
+{invoice_url}
+
+🔗 *Link Garansi (Aktif setelah Lunas):*
+{warranty_url}`;
+
+export const DEFAULT_TEMPLATE_PICKED = `🧾 *NOTA PELUNASAN SERVIS*
+*{store_name}*
+{store_address}
+{store_phone}
+
+------------------------------------------
+No. Nota  : {resi}
+Tanggal   : {date}
+Pelanggan : {customer_name}
+Perangkat : {device_name}
+------------------------------------------
+*RINCIAN PERBAIKAN*
+{repair_details}
+------------------------------------------
+*RINCIAN BIAYA*
+Biaya Sparepart : Rp {part_fee}
+Biaya Jasa      : Rp {jasa_fee}
+Subtotal        : Rp {subtotal}
+Diskon          : - Rp {discount}
+*TOTAL LUNAS    : Rp {total}*
+
+==========================================
+*Status: LUNAS • BARANG SUDAH DIAMBIL*
+==========================================
+
+*GARANSI SERVIS*
+{warranty_text}
+
+*{receipt_note}*
+Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
+------------------------------------------
+🖨 *Nota Pelunasan Digital:*
+{receipt_url}
+
+🔗 *Link Garansi:*
+{warranty_url}`;
+
+export const resolveWhatsAppTemplate = (template = '', data = {}) => {
+  let lines = String(template || '').split('\n');
+  const replacements = {
+    '{store_name}': data.store_name || '',
+    '{store_address}': data.store_address || '',
+    '{store_phone}': data.store_phone || '',
+    '{resi}': data.resi || '',
+    '{date}': data.date || '',
+    '{customer_name}': data.customer_name || 'Pelanggan',
+    '{device_name}': data.device_name || '-',
+    '{repair_details}': data.repair_details || '',
+    '{part_fee}': data.part_fee || '0',
+    '{jasa_fee}': data.jasa_fee || '0',
+    '{subtotal}': data.subtotal || '0',
+    '{discount}': data.discount || '',
+    '{total}': data.total || '0',
+    '{payment_info}': data.payment_info || '',
+    '{pickup_warning}': data.pickup_warning || '',
+    '{warranty_text}': data.warranty_text || '',
+    '{receipt_note}': data.receipt_note || 'Terima kasih atas kepercayaan Anda!',
+    '{invoice_url}': data.invoice_url || '',
+    '{receipt_url}': data.receipt_url || '',
+    '{warranty_url}': data.warranty_url || '',
+    '{tracking_url}': data.tracking_url || '',
+  };
+
+  const resolvedLines = lines.map((line) => {
+    let activeLine = line;
+
+    if (activeLine.includes('{store_address}') && !data.store_address) return null;
+    if (activeLine.includes('{store_phone}') && !data.store_phone) return null;
+    if (activeLine.includes('{payment_info}') && !data.payment_info) return null;
+    if (activeLine.includes('{discount}') && (!data.discount || data.discount === '0')) return null;
+    if (activeLine.includes('{subtotal}') && (!data.discount || data.discount === '0')) return null;
+    if (activeLine.includes('{repair_details}') && !data.repair_details) return null;
+
+    Object.entries(replacements).forEach(([token, value]) => {
+      activeLine = activeLine.split(token).join(String(value ?? ''));
+    });
+
+    return activeLine;
+  });
+
+  return resolvedLines
+    .filter((line) => line !== null)
+    .join('\n')
+    .trim()
+    .replace(/\n{3,}/g, '\n\n');
+};
+
 const getPublicOrigin = () => {
   const configured = String(import.meta.env.VITE_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
   if (/^https?:\/\//i.test(configured)) return configured;
@@ -171,6 +315,7 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const invoiceUrl = buildPublicReceiptUrl(tenant, service, 'completion');
   const warrantyUrl = buildWarrantyUrl(tenant, service);
+  const trackingUrl = buildTrackingUrl(tenant, service);
   const payment = paymentSummary(settings);
   const pickupWarning = meta.pickupMessage
     || (meta.pickupDays > 0
@@ -201,49 +346,35 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   if (jasaName) repairDetails.push(`Jasa      : ${jasaName}`);
   if (repairResult) repairDetails.push(`Hasil     : ${repairResult}`);
   if (cleanIssueText) repairDetails.push(`Keluhan   : ${cleanIssueText}`);
+  const repairDetailsStr = repairDetails.join('\n');
 
-  const lines = [
-    '🧾 *NOTA TAGIHAN SERVIS*',
-    `*${storeName}*`,
-    storeAddress ? `${storeAddress}` : '',
-    storePhone ? `WA: ${storePhone}` : '',
-    '',
-    '------------------------------------------',
-    `No. Nota  : ${service.resi}`,
-    `Tanggal   : ${formattedDate}`,
-    `Pelanggan : ${service.customer_name || '-'}`,
-    `Perangkat : ${service.device_name || '-'}`,
-    '------------------------------------------',
-    repairDetails.length > 0 ? '*RINCIAN PERBAIKAN*' : '',
-    ...repairDetails,
-    repairDetails.length > 0 ? '------------------------------------------' : '',
-    '*RINCIAN BIAYA*',
-    `Biaya Sparepart : Rp ${partFee.toLocaleString('id-ID')}`,
-    `Biaya Jasa      : Rp ${jasaFee.toLocaleString('id-ID')}`,
-    discount > 0 ? `Subtotal        : Rp ${subtotal.toLocaleString('id-ID')}` : '',
-    discount > 0 ? `Diskon          : - Rp ${discount.toLocaleString('id-ID')}` : '',
-    `*TOTAL TAGIHAN  : Rp ${total.toLocaleString('id-ID')}*`,
-    '',
-    '==========================================',
-    '*Status: SERVIS SELESAI • BELUM LUNAS*',
-    '==========================================',
-    '',
-    payment ? `*INFO REKENING PEMBAYARAN:*\n${payment}\n` : '',
-    `⚠️ ${pickupWarning}`,
-    '',
-    `*${receiptNote}*`,
-    'Barang yang sudah diambil tidak dapat dikembalikan / ditukar.',
-    '------------------------------------------',
-    '🖨 *Nota Tagihan Digital:*',
-    invoiceUrl,
-    '',
-    '🔗 *Link Garansi (Aktif setelah Lunas):*',
-    warrantyUrl,
-  ].filter((val) => typeof val === 'string').join('\n');
+  const template = settings.wa_template_completed || DEFAULT_TEMPLATE_COMPLETED;
+  
+  const message = resolveWhatsAppTemplate(template, {
+    store_name: storeName,
+    store_address: storeAddress,
+    store_phone: storePhone,
+    resi: service.resi,
+    date: formattedDate,
+    customer_name: service.customer_name || 'Pelanggan',
+    device_name: service.device_name || '-',
+    repair_details: repairDetailsStr,
+    part_fee: partFee.toLocaleString('id-ID'),
+    jasa_fee: jasaFee.toLocaleString('id-ID'),
+    subtotal: subtotal.toLocaleString('id-ID'),
+    discount: discount.toLocaleString('id-ID'),
+    total: total.toLocaleString('id-ID'),
+    payment_info: payment,
+    pickup_warning: pickupWarning,
+    receipt_note: receiptNote,
+    invoice_url: invoiceUrl,
+    warranty_url: warrantyUrl,
+    tracking_url: trackingUrl
+  });
 
   return {
     type: 'completion',
-    message: lines.trim().replace(/\n{3,}/g, '\n\n'),
+    message,
     urlMedia: urlMedia || '',
     resi: service.resi,
     invoiceUrl,
@@ -262,6 +393,7 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
   const total = Math.max(0, subtotal - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const warrantyUrl = buildWarrantyUrl(tenant, service);
+  const trackingUrl = buildTrackingUrl(tenant, service);
   const receiptUrl = buildPublicReceiptUrl(tenant, service, 'pickup');
   const warrantyText = meta.warrantyLabel
     ? `${meta.warrantyLabel}${meta.warrantyEnd ? ` — berlaku sampai ${meta.warrantyEnd}` : ''}`
@@ -291,49 +423,34 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
   if (jasaName) repairDetails.push(`Jasa      : ${jasaName}`);
   if (repairResult) repairDetails.push(`Hasil     : ${repairResult}`);
   if (cleanIssueText) repairDetails.push(`Keluhan   : ${cleanIssueText}`);
+  const repairDetailsStr = repairDetails.join('\n');
 
-  const lines = [
-    '🧾 *NOTA PELUNASAN SERVIS*',
-    `*${storeName}*`,
-    storeAddress ? `${storeAddress}` : '',
-    storePhone ? `WA: ${storePhone}` : '',
-    '',
-    '------------------------------------------',
-    `No. Nota  : ${service.resi}`,
-    `Tanggal   : ${formattedDate}`,
-    `Pelanggan : ${service.customer_name || '-'}`,
-    `Perangkat : ${service.device_name || '-'}`,
-    '------------------------------------------',
-    repairDetails.length > 0 ? '*RINCIAN PERBAIKAN*' : '',
-    ...repairDetails,
-    repairDetails.length > 0 ? '------------------------------------------' : '',
-    '*RINCIAN BIAYA*',
-    `Biaya Sparepart : Rp ${partFee.toLocaleString('id-ID')}`,
-    `Biaya Jasa      : Rp ${jasaFee.toLocaleString('id-ID')}`,
-    discount > 0 ? `Subtotal        : Rp ${subtotal.toLocaleString('id-ID')}` : '',
-    discount > 0 ? `Diskon          : - Rp ${discount.toLocaleString('id-ID')}` : '',
-    `*TOTAL LUNAS    : Rp ${total.toLocaleString('id-ID')}*`,
-    '',
-    '==========================================',
-    '*Status: LUNAS • BARANG SUDAH DIAMBIL*',
-    '==========================================',
-    '',
-    '*GARANSI SERVIS*',
-    warrantyText,
-    '',
-    `*${receiptNote}*`,
-    'Barang yang sudah diambil tidak dapat dikembalikan / ditukar.',
-    '------------------------------------------',
-    '🖨 *Nota Pelunasan Digital:*',
-    receiptUrl,
-    '',
-    '🔗 *Link Garansi:*',
-    warrantyUrl,
-  ].filter((val) => typeof val === 'string').join('\n');
+  const template = settings.wa_template_picked || DEFAULT_TEMPLATE_PICKED;
+  
+  const message = resolveWhatsAppTemplate(template, {
+    store_name: storeName,
+    store_address: storeAddress,
+    store_phone: storePhone,
+    resi: service.resi,
+    date: formattedDate,
+    customer_name: service.customer_name || 'Pelanggan',
+    device_name: service.device_name || '-',
+    repair_details: repairDetailsStr,
+    part_fee: partFee.toLocaleString('id-ID'),
+    jasa_fee: jasaFee.toLocaleString('id-ID'),
+    subtotal: subtotal.toLocaleString('id-ID'),
+    discount: discount.toLocaleString('id-ID'),
+    total: total.toLocaleString('id-ID'),
+    warranty_text: warrantyText,
+    receipt_note: receiptNote,
+    receipt_url: receiptUrl,
+    warranty_url: warrantyUrl,
+    tracking_url: trackingUrl
+  });
 
   return {
     type: 'pickup',
-    message: lines.trim().replace(/\n{3,}/g, '\n\n'),
+    message,
     urlMedia: urlMedia || '',
     resi: service.resi,
     warrantyUrl,
@@ -347,13 +464,30 @@ export const buildServiceReceivedMessage = ({ tenant, services = [] } = {}) => {
 
   const storeName = getStoreName(tenant);
   const customer = list[0].customer_name || 'Pelanggan';
+  const trackingUrl = buildTrackingUrl(tenant, list[0]);
+  const formattedDate = new Date(list[0].updated_at || list[0].created_at || Date.now()).toLocaleString('id-ID');
+
+  const customTemplate = tenant?.settings?.wa_template_received;
+  if (customTemplate && list.length === 1) {
+    const service = list[0];
+    return resolveWhatsAppTemplate(customTemplate, {
+      store_name: storeName,
+      resi: service.resi,
+      date: formattedDate,
+      customer_name: customer,
+      device_name: service.device_name || '-',
+      repair_details: service.issue ? String(service.issue).split('| Kelengkapan:')[0].trim() : '',
+      tracking_url: trackingUrl,
+    });
+  }
+
   const unitLines = list.map((service, index) => {
-    const trackingUrl = buildTrackingUrl(tenant, service);
+    const tUrl = buildTrackingUrl(tenant, service);
     return [
       `*${index + 1}. ${service.device_name || 'Perangkat'}*`,
       `No. Resi: ${service.resi}`,
       service.issue ? `Keluhan: ${String(service.issue).split('| Kelengkapan:')[0].trim()}` : '',
-      trackingUrl ? `Lacak: ${trackingUrl}` : '',
+      tUrl ? `Lacak: ${tUrl}` : '',
     ].filter(Boolean).join('\n');
   }).join('\n\n');
 
