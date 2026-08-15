@@ -1214,12 +1214,13 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             {/* ⚠️ EXPIRATION / TRIAL / SUSPENDED WARNING BANNERS */}
             {(() => {
               const s = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant?.settings || {});
-              const activeUntil = s.active_until || s.trial_ends_at;
-              const subStatus = s.subscription_status || (s.trial_ends_at ? 'trial' : 'active');
+              const isLifetimeFree = tenant?.code && ['AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase());
+              const activeUntil = isLifetimeFree ? null : (s.active_until || s.trial_ends_at);
+              const subStatus = isLifetimeFree ? 'active' : (s.subscription_status || (s.trial_ends_at ? 'trial' : 'active'));
               const now = Date.now();
-              const daysLeft = activeUntil ? Math.ceil((activeUntil - now) / (24 * 3600 * 1000)) : 999;
-              const isExp = subStatus === 'expired' || (activeUntil && activeUntil < now);
-              const isSusp = s.is_banned || subStatus === 'suspended';
+              const daysLeft = isLifetimeFree ? 9999 : (activeUntil ? Math.ceil((activeUntil - now) / (24 * 3600 * 1000)) : 999);
+              const isExp = !isLifetimeFree && (subStatus === 'expired' || (activeUntil && activeUntil < now));
+              const isSusp = !isLifetimeFree && (s.is_banned || subStatus === 'suspended');
 
               if (isSusp) {
                 return (

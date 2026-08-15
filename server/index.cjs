@@ -127,6 +127,106 @@ app.post('/api/verify-admin', async (req, res) => {
   return res.json({ valid: true, token });
 });
 
+app.post('/api/send-otp-admin', async (req, res) => {
+  const inputPassword = String(req.body?.password || '');
+  let valid = SUPER_ADMIN_PASSWORD ? passwordMatches(inputPassword, SUPER_ADMIN_PASSWORD) : false;
+
+  if (!valid) {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.rpc('verify_super_admin', { input_password: inputPassword });
+      valid = !error && data === true;
+    }
+  }
+
+  if (!valid) {
+    return res.status(401).json({ error: 'Password tidak valid.' });
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+  let superAdminPhone = '085382535050';
+  let is2faEnabled = true;
+
+  if (supabaseAdmin) {
+    const { data: configPhone } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_phone').maybeSingle();
+    if (configPhone?.value) superAdminPhone = configPhone.value;
+
+    const { data: configEnabled } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_enabled').maybeSingle();
+    if (configEnabled?.value) is2faEnabled = configEnabled.value === 'true';
+  }
+
+  if (!is2faEnabled) {
+    return res.json({ two_factor_required: false });
+  }
+
+  const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+
+  if (supabaseAdmin) {
+    await supabaseAdmin.from('app_config').upsert([
+      { key: 'super_admin_otp', value: otpCode },
+      { key: 'super_admin_otp_expiry', value: String(Date.now() + 5 * 60 * 1000) }
+    ]);
+  }
+
+  const systemConfig = await getSystemWhatsappConfig();
+  const gatewayToken = systemConfig.token || process.env.FONNTE_TOKEN || '';
+
+  if (!gatewayToken) {
+    return res.status(500).json({ error: 'WhatsApp Gateway sistem belum dikonfigurasi.' });
+  }
+
+  const message = `🚨 *KEAMANAN SUPER ADMIN UNITPRO*\n\nKode verifikasi 2-Factor Authentication (2FA) Anda adalah: *${otpCode}*.\n\nKode ini hanya berlaku selama 5 menit. Harap jangan memberikan kode ini kepada siapa pun.`;
+
+  try {
+    await fonnteRequest('send', gatewayToken, { target: superAdminPhone, message });
+    return res.json({ two_factor_required: true, phone: superAdminPhone });
+  } catch (error) {
+    console.error('OTP Send error:', error);
+    return res.status(502).json({ error: `Gagal mengirim kode verifikasi ke ${superAdminPhone}: ${error.message}` });
+  }
+});
+
+app.post('/api/verify-otp-admin', async (req, res) => {
+  const { password, otp } = req.body;
+
+  let valid = SUPER_ADMIN_PASSWORD ? passwordMatches(password, SUPER_ADMIN_PASSWORD) : false;
+  if (!valid) {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.rpc('verify_super_admin', { input_password: password });
+      valid = !error && data === true;
+    }
+  }
+  if (!valid) {
+    return res.status(401).json({ error: 'Password tidak valid.' });
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return res.status(500).json({ error: 'Koneksi database gagal.' });
+  }
+
+  const { data: savedOtp } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_otp').maybeSingle();
+  const { data: savedExpiry } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_otp_expiry').maybeSingle();
+
+  if (!savedOtp?.value || !savedExpiry?.value) {
+    return res.status(400).json({ error: 'Kode verifikasi belum dibuat atau telah kedaluwarsa.' });
+  }
+
+  if (Date.now() > Number(savedExpiry.value)) {
+    return res.status(400).json({ error: 'Kode verifikasi telah kedaluwarsa. Silakan minta kode baru.' });
+  }
+
+  if (String(otp).trim() !== String(savedOtp.value).trim()) {
+    return res.status(400).json({ error: 'Kode verifikasi salah.' });
+  }
+
+  await supabaseAdmin.from('app_config').delete().in('key', ['super_admin_otp', 'super_admin_otp_expiry']);
+
+  const token = jwt.sign({ role: 'super_admin' }, JWT_SECRET, { expiresIn: '8h' });
+  return res.json({ valid: true, token });
+});
+
 app.delete('/api/admin/reviews/:id', requireSuperAdmin, async (req, res) => {
   const reviewId = Number(req.params.id);
   if (!Number.isInteger(reviewId) || reviewId < 1) return res.status(400).json({ error: 'ID komentar tidak valid.' });
@@ -137,6 +237,57 @@ app.delete('/api/admin/reviews/:id', requireSuperAdmin, async (req, res) => {
   const { error } = await supabaseAdmin.from('platform_reviews').delete().eq('id', reviewId);
   if (error) return res.status(500).json({ error: 'Gagal menghapus komentar.' });
   return res.json({ success: true });
+});
+
+app.get('/api/admin/settings', requireSuperAdmin, async (req, res) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return res.status(503).json({ error: 'Supabase service role belum dikonfigurasi di server.' });
+
+  try {
+    let superAdminPhone = '085382535050';
+    let is2faEnabled = true;
+
+    const { data: configPhone } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_phone').maybeSingle();
+    if (configPhone?.value) superAdminPhone = configPhone.value;
+
+    const { data: configEnabled } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_enabled').maybeSingle();
+    if (configEnabled?.value) is2faEnabled = configEnabled.value === 'true';
+
+    return res.json({
+      super_admin_2fa_phone: superAdminPhone,
+      super_admin_2fa_enabled: is2faEnabled
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/settings', requireSuperAdmin, async (req, res) => {
+  const { newPasswordHash, phone2fa, enabled2fa } = req.body;
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return res.status(503).json({ error: 'Supabase service role belum dikonfigurasi di server.' });
+
+  try {
+    const updates = [];
+    if (newPasswordHash) {
+      updates.push({ key: 'super_admin_hash', value: String(newPasswordHash) });
+    }
+    if (phone2fa !== undefined) {
+      updates.push({ key: 'super_admin_2fa_phone', value: String(phone2fa) });
+    }
+    if (enabled2fa !== undefined) {
+      updates.push({ key: 'super_admin_2fa_enabled', value: String(enabled2fa) });
+    }
+
+    if (updates.length > 0) {
+      const { error } = await supabaseAdmin.from('app_config').upsert(updates);
+      if (error) throw error;
+    }
+
+    return res.json({ success: true, message: 'Pengaturan berhasil disimpan.' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 // Middleware to enforce Tenant Isolation (Security)

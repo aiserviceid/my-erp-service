@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { supabase } from '../services/supabase';
-import { ArrowDownCircle, CheckCircle, TrendingUp, Shield, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock, MessageSquareHeart, Handshake, ReceiptText, Activity, Smartphone, LifeBuoy, Bot, Building2, Copy, Download, UserPlus, X } from 'lucide-react';
+import { ArrowDownCircle, CheckCircle, TrendingUp, Shield, Lock, Eye, EyeOff, LogOut, AlertTriangle, Contact, Phone as PhoneIcon, Search, MessageSquare, Star, Trash2, RefreshCw, FileText, CreditCard, Send, Calendar, Clock, MessageSquareHeart, Handshake, ReceiptText, Activity, Smartphone, LifeBuoy, Bot, Building2, Copy, Download, UserPlus, X, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SuperAdminAISettings from '../components/SuperAdminAISettings';
 import SuperAdminWhatsAppSettings from '../components/SuperAdminWhatsAppSettings';
@@ -158,6 +158,10 @@ function SuperAdminLoginGate({ onSuccess }) {
   const [error, setError] = useState('');
   const [locked, setLocked] = useState(false);
   const [lockRemain, setLockRemain] = useState(0);
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [otpPhone, setOtpPhone] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -195,10 +199,32 @@ function SuperAdminLoginGate({ onSuccess }) {
     const isValid = await verifyAdminPassword(input);
     
     if (isValid) {
-      const apiToken = await getAdminServerToken(input);
-      setFailData({ count: 0, lockedUntil: 0 });
-      createSession(apiToken);
-      onSuccess();
+      setSendingOtp(true);
+      try {
+        const resp = await fetch(`${API_BASE_URL}/send-otp-admin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: input })
+        });
+        const result = await resp.json();
+        if (resp.ok && result.two_factor_required) {
+          setOtpRequired(true);
+          setOtpPhone(result.phone);
+        } else {
+          const apiToken = await getAdminServerToken(input);
+          setFailData({ count: 0, lockedUntil: 0 });
+          createSession(apiToken);
+          onSuccess();
+        }
+      } catch (err) {
+        console.error('2FA Send OTP error:', err);
+        const apiToken = await getAdminServerToken(input);
+        setFailData({ count: 0, lockedUntil: 0 });
+        createSession(apiToken);
+        onSuccess();
+      } finally {
+        setSendingOtp(false);
+      }
     } else {
       const fail = getFailData();
       const newCount = (fail.count || 0) + 1;
@@ -213,6 +239,28 @@ function SuperAdminLoginGate({ onSuccess }) {
         setError(`❌ Password salah! Sisa percobaan: ${MAX_ATTEMPTS - newCount} kali.`);
         setInput('');
       }
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const resp = await fetch(`${API_BASE_URL}/verify-otp-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: input, otp: otpInput })
+      });
+      const result = await resp.json();
+      if (resp.ok && result.valid) {
+        setFailData({ count: 0, lockedUntil: 0 });
+        createSession(result.token);
+        onSuccess();
+      } else {
+        setError(result.error || 'Kode verifikasi salah atau kedaluwarsa.');
+      }
+    } catch (err) {
+      setError('Gagal memverifikasi OTP: ' + err.message);
     }
   };
 
@@ -262,6 +310,63 @@ function SuperAdminLoginGate({ onSuccess }) {
               </div>
               <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '0.78rem' }}>Coba lagi setelah countdown selesai</p>
             </div>
+          ) : otpRequired ? (
+            <form onSubmit={handleVerifyOtp}>
+              {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.85rem', color: '#dc2626', fontWeight: '700' }}>
+                  {error}
+                </div>
+              )}
+
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '12px 14px', marginBottom: '1.25rem', color: '#15803d', fontSize: '0.82rem' }}>
+                🔑 Kode verifikasi telah dikirim via WhatsApp ke nomor <strong>{otpPhone}</strong>. Silakan periksa pesan Anda.
+              </div>
+
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '800', color: '#374151', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Kode Verifikasi WhatsApp (OTP)
+              </label>
+              <input
+                type="text"
+                maxLength={6}
+                value={otpInput}
+                onChange={e => { setOtpInput(e.target.value); setError(''); }}
+                placeholder="Masukkan 6 digit kode..."
+                required
+                style={{
+                  width: '100%', padding: '14px', borderRadius: '12px',
+                  border: error ? '2px solid #ef4444' : '2px solid #e2e8f0',
+                  fontSize: '1.2rem', fontWeight: '900', outline: 'none', boxSizing: 'border-box',
+                  textAlign: 'center', letterSpacing: '4px', color: '#0f172a', marginBottom: '20px'
+                }}
+              />
+
+              <button
+                type="submit"
+                disabled={otpInput.length < 5}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+                  background: otpInput.length >= 5 ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : '#e2e8f0',
+                  color: otpInput.length >= 5 ? 'white' : '#94a3b8',
+                  fontSize: '0.95rem', fontWeight: '900', cursor: otpInput.length >= 5 ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: otpInput.length >= 5 ? '0 6px 20px rgba(22, 163, 74, 0.35)' : 'none'
+                }}
+              >
+                Verifikasi & Masuk
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setOtpRequired(false); setError(''); }}
+                style={{
+                  width: '100%', padding: '10px', marginTop: '10px', borderRadius: '12px', border: '1px solid #cbd5e1',
+                  background: 'transparent', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer'
+                }}
+              >
+                ← Kembali ke Input Password
+              </button>
+            </form>
           ) : (
             <form onSubmit={handleLogin}>
               {error && (
@@ -303,7 +408,7 @@ function SuperAdminLoginGate({ onSuccess }) {
 
               <button
                 type="submit"
-                disabled={!input}
+                disabled={!input || sendingOtp}
                 style={{
                   width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
                   background: input ? 'linear-gradient(135deg, #0f172a 0%, #0284c7 100%)' : '#e2e8f0',
@@ -314,7 +419,7 @@ function SuperAdminLoginGate({ onSuccess }) {
                   boxShadow: input ? '0 6px 20px rgba(2, 132, 199, 0.35)' : 'none'
                 }}
               >
-                <Shield size={18} /> Masuk ke Master Dashboard
+                <Shield size={18} /> {sendingOtp ? 'Meminta OTP...' : 'Masuk ke Master Dashboard'}
               </button>
             </form>
           )}
@@ -328,6 +433,7 @@ function SuperAdminLoginGate({ onSuccess }) {
     </div>
   );
 }
+
 
 // ── CUSTOMER SUCCESS — pemilik toko pengguna UnitPro ──
 const TIER_META = {
@@ -546,9 +652,22 @@ export default function SuperAdmin() {
 
   const [waModalTenant, setWaModalTenant] = useState(null);
   const [waMessageType, setWaMessageType] = useState('H-7');
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+
+  // Settings tab states
+  const [settingsPhone2fa, setSettingsPhone2fa] = useState('085382535050');
+  const [settingsEnabled2fa, setSettingsEnabled2fa] = useState(true);
+  const [settingsNewPassword, setSettingsNewPassword] = useState('');
+  const [settingsConfirmPassword, setSettingsConfirmPassword] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState('');
+  const [settingsError, setSettingsError] = useState('');
 
   // Helper untuk menentukan status langganan tenant secara presisi
   const getSubStatus = (tenant) => {
+    const isLifetimeFree = tenant?.code && ['AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase());
+    if (isLifetimeFree) return 'active';
+
     const s = parseTenantSettings(tenant);
     if (s.is_banned || s.subscription_status === 'suspended') return 'suspended';
     const now = Date.now();
@@ -792,6 +911,77 @@ export default function SuperAdmin() {
     if (authenticated) loadStats();
   }, [authenticated]);
 
+  const loadSettings = async () => {
+    try {
+      const resp = await fetch(`${API_BASE_URL}/admin/settings`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(API_TOKEN_KEY)}`
+        }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setSettingsPhone2fa(data.super_admin_2fa_phone || '085382535050');
+        setSettingsEnabled2fa(!!data.super_admin_2fa_enabled);
+      }
+    } catch (e) {
+      console.error('Gagal memuat pengaturan:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'settings' && authenticated) {
+      loadSettings();
+    }
+  }, [activeTab, authenticated]);
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setSettingsMessage('');
+    setSettingsError('');
+
+    if (settingsNewPassword && settingsNewPassword !== settingsConfirmPassword) {
+      setSettingsError('Password baru dan konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setSettingsLoading(true);
+    try {
+      let newPasswordHash = null;
+      if (settingsNewPassword) {
+        const utf8 = new TextEncoder().encode(settingsNewPassword);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        newPasswordHash = hashArray.map((bytes) => bytes.toString(16).padStart(2, '0')).join('');
+      }
+
+      const resp = await fetch(`${API_BASE_URL}/admin/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem(API_TOKEN_KEY)}`
+        },
+        body: JSON.stringify({
+          newPasswordHash,
+          phone2fa: settingsPhone2fa,
+          enabled2fa: settingsEnabled2fa
+        })
+      });
+
+      const result = await resp.json();
+      if (resp.ok && result.success) {
+        setSettingsMessage('Pengaturan berhasil disimpan!');
+        setSettingsNewPassword('');
+        setSettingsConfirmPassword('');
+      } else {
+        setSettingsError(result.error || 'Gagal menyimpan pengaturan.');
+      }
+    } catch (err) {
+      setSettingsError('Gagal menyimpan pengaturan: ' + err.message);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     destroySession();
     setAuthenticated(false);
@@ -1005,7 +1195,12 @@ export default function SuperAdmin() {
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Memuat Data Super Admin...</div>;
 
   const tenantList = stats.tenants || [];
-  const paidTenants = tenantList.filter(t => ['pro', 'enterprise'].includes(String(t.tier || '').toLowerCase()));
+  const paidTenants = tenantList.filter(t => {
+    const isLifetimeFree = t.code && ['AISERVICEID', 'IPUDSERVICE'].includes(String(t.code).toUpperCase());
+    const isTrial = getSubStatus(t) === 'trial';
+    const isPaidTier = ['pro', 'enterprise', 'whitelabel'].includes(String(t.tier || '').toLowerCase());
+    return isPaidTier && !isTrial && !isLifetimeFree;
+  });
   const trialTenants = tenantList.filter(t => getSubStatus(t) === 'trial');
   const expiredTenants = tenantList.filter(t => getSubStatus(t) === 'expired');
   const suspendedTenants = tenantList.filter(t => getSubStatus(t) === 'suspended');
@@ -1014,7 +1209,12 @@ export default function SuperAdmin() {
     const end = Number(s.trial_ends_at || s.active_until || 0);
     return end > Date.now() && end <= Date.now() + (7 * 86400000);
   });
-  const estimatedMrr = paidTenants.reduce((total, tenant) => total + (String(tenant.tier).toLowerCase() === 'enterprise' ? 299000 : 99000), 0);
+  const estimatedMrr = paidTenants.reduce((total, tenant) => {
+    const tier = String(tenant.tier || '').toLowerCase();
+    if (tier === 'enterprise') return total + 299000;
+    if (tier === 'pro') return total + 99000;
+    return total;
+  }, 0);
   const pendingAffiliateCommissions = (affData.commissions || []).filter(c => c.status === 'PENDING');
   const pendingAffiliateAmount = pendingAffiliateCommissions.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
   const pendingWithdrawals = (stats.withdrawals || []).filter((item) => String(item.status || 'PENDING').toUpperCase() === 'PENDING');
@@ -1216,6 +1416,19 @@ export default function SuperAdmin() {
                 {feedbackList.filter(f => f.status === 'unread').length}
               </span>
             )}
+          </button>
+
+          <button className="super-admin-nav-button"
+            onClick={() => setActiveTab('settings')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px',
+              background: activeTab === 'settings' ? '#0f172a' : '#ffffff', color: activeTab === 'settings' ? '#ffffff' : '#334155',
+              fontWeight: '700', fontSize: '0.92rem', cursor: 'pointer', textAlign: 'left',
+              boxShadow: activeTab === 'settings' ? '0 4px 12px rgba(15, 23, 42, 0.3)' : '0 2px 5px rgba(0,0,0,0.03)',
+              border: activeTab === 'settings' ? 'none' : '1px solid #e2e8f0'
+            }}
+          >
+            <Settings size={18} /> Pengaturan Akun
           </button>
         </div>
 
@@ -1514,7 +1727,9 @@ export default function SuperAdmin() {
 
                               {/* MASA AKTIF */}
                               <td style={{ padding: '10px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                                {activeUntilMs ? (
+                                {['AISERVICEID', 'IPUDSERVICE'].includes(String(t.code).toUpperCase()) ? (
+                                  <span style={{ color: '#059669', fontWeight: '800' }}>Gratis Selamanya 👑</span>
+                                ) : activeUntilMs ? (
                                   <div>
                                     <strong style={{ color: activeUntilMs < Date.now() ? '#dc2626' : '#059669' }}>
                                       {new Date(activeUntilMs).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -1543,22 +1758,14 @@ export default function SuperAdmin() {
                               </td>
 
                               {/* AKSI BUTTONS */}
-                              <td style={{ padding: '10px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '300px' }}>
+                              <td style={{ padding: '10px', position: 'relative' }}>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                                   <button
                                     type="button"
                                     onClick={() => setSelectedTenant(t)}
-                                    style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
+                                    style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
                                   >
                                     Detail
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => copyTenantCode(t.code)}
-                                    title="Salin kode toko"
-                                    style={{ background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
-                                  >
-                                    <Copy size={12} /> Kode
                                   </button>
                                   <button 
                                     onClick={() => {
@@ -1568,80 +1775,101 @@ export default function SuperAdmin() {
                                       setPayDays(30);
                                       setPayNotes(`Pembayaran langganan ${t.tier?.toUpperCase() || 'PRO'}`);
                                     }}
-                                    style={{ background: '#059669', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
+                                    style={{ background: '#059669', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800' }}
                                   >
-                                    💳 Catat Bayar
+                                    💳 Bayar
                                   </button>
-
-                                  <button 
-                                    onClick={() => {
-                                      setExtendingTenant(t);
-                                      setExtendDays(30);
-                                      setExtendNote('Pembayaran manual langganan 1 bulan');
-                                    }}
-                                    style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
-                                  >
-                                    📅 Perpanjang
-                                  </button>
-
-                                  {(tSettings.store_wa || t.phone) && (
-                                    <button 
-                                      onClick={() => {
-                                        const subStatusStr = getSubStatus(t);
-                                        let initialType = 'H-7';
-                                        if (subStatusStr === 'expired') initialType = 'EXPIRED';
-                                        else if (activeUntilMs) {
-                                          const days = Math.ceil((activeUntilMs - Date.now()) / (24*3600*1000));
-                                          if (days <= 1) initialType = 'H-1';
-                                          else if (days <= 3) initialType = 'H-3';
-                                        }
-                                        setWaMessageType(initialType);
-                                        setWaModalTenant(t);
-                                      }}
-                                      style={{ background: '#25D366', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700' }}
-                                    >
-                                      💬 Billing WA
-                                    </button>
-                                  )}
-
-                                  <button 
-                                    onClick={() => handleResetPin(t.code)}
-                                    style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#0284c7' }}
-                                  >
-                                    🔑 PIN
-                                  </button>
-
                                   <button
                                     type="button"
-                                    onClick={() => handleSetTrial(t.code)}
-                                    style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', color: '#92400e' }}
+                                    onClick={() => setOpenActionMenuId(openActionMenuId === t.id ? null : t.id)}
+                                    style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800', color: '#475569' }}
                                   >
-                                    ⏳ Trial
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustWallet(t.code)}
-                                    style={{ background: '#ecfeff', border: '1px solid #a5f3fc', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', color: '#0e7490' }}
-                                  >
-                                    💰 Dompet
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleBan(t.code, subStatus === 'suspended')}
-                                    style={{ background: subStatus === 'suspended' ? '#dcfce7' : '#fff7ed', border: `1px solid ${subStatus === 'suspended' ? '#bbf7d0' : '#fed7aa'}`, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', color: subStatus === 'suspended' ? '#166534' : '#c2410c' }}
-                                  >
-                                    {subStatus === 'suspended' ? '✅ Aktifkan' : '🚫 Bekukan'}
-                                  </button>
-
-                                  <button 
-                                    onClick={() => handleDeleteTenant(t.code)}
-                                    style={{ background: '#fee2e2', border: '1px solid #fecaca', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', color: '#dc2626' }}
-                                  >
-                                    🗑️ Hapus
+                                    •••
                                   </button>
                                 </div>
+
+                                {openActionMenuId === t.id && (
+                                  <>
+                                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} onClick={() => setOpenActionMenuId(null)} />
+                                    <div style={{
+                                      position: 'absolute', right: '10px', top: '40px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '12px',
+                                      boxShadow: '0 10px 30px rgba(15,23,42,0.15)', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 999, minWidth: '175px', textAlign: 'left'
+                                    }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => { copyTenantCode(t.code); setOpenActionMenuId(null); }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#334155', display: 'block', width: '100%' }}
+                                      >
+                                        📋 Salin Kode Toko
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                          setExtendingTenant(t);
+                                          setExtendDays(30);
+                                          setExtendNote('Pembayaran manual langganan 1 bulan');
+                                          setOpenActionMenuId(null);
+                                        }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#0284c7', display: 'block', width: '100%' }}
+                                      >
+                                        📅 Perpanjang Manual
+                                      </button>
+                                      {(tSettings.store_wa || t.phone) && (
+                                        <button 
+                                          onClick={() => {
+                                            const subStatusStr = getSubStatus(t);
+                                            let initialType = 'H-7';
+                                            if (subStatusStr === 'expired') initialType = 'EXPIRED';
+                                            else if (activeUntilMs) {
+                                              const days = Math.ceil((activeUntilMs - Date.now()) / (24*3600*1000));
+                                              if (days <= 1) initialType = 'H-1';
+                                              else if (days <= 3) initialType = 'H-3';
+                                            }
+                                            setWaMessageType(initialType);
+                                            setWaModalTenant(t);
+                                            setOpenActionMenuId(null);
+                                          }}
+                                          style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#16a34a', display: 'block', width: '100%' }}
+                                        >
+                                          💬 WhatsApp Billing
+                                        </button>
+                                      )}
+                                      <button 
+                                        onClick={() => { handleResetPin(t.code); setOpenActionMenuId(null); }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#0369a1', display: 'block', width: '100%' }}
+                                      >
+                                        🔑 Reset PIN Owner
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleSetTrial(t.code); setOpenActionMenuId(null); }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#b45309', display: 'block', width: '100%' }}
+                                      >
+                                        ⏳ Set Status Trial
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleAdjustWallet(t.code); setOpenActionMenuId(null); }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#0e7490', display: 'block', width: '100%' }}
+                                      >
+                                        💰 Kelola Dompet
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleToggleBan(t.code, subStatus === 'suspended'); setOpenActionMenuId(null); }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#c2410c', display: 'block', width: '100%' }}
+                                      >
+                                        {subStatus === 'suspended' ? '✅ Aktifkan Toko' : '🚫 Bekukan Toko'}
+                                      </button>
+                                      <div style={{ borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
+                                      <button 
+                                        onClick={() => { handleDeleteTenant(t.code); setOpenActionMenuId(null); }}
+                                        style={{ background: 'transparent', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', textAlign: 'left', fontWeight: '800', color: '#dc2626', display: 'block', width: '100%' }}
+                                      >
+                                        🗑️ Hapus Toko
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
                               </td>
                             </tr>
                           );
@@ -2134,6 +2362,110 @@ export default function SuperAdmin() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div style={{ background: '#ffffff', borderRadius: '24px', padding: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '12px' }}>
+                  <Settings size={24} color="#0f172a" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: '#0f172a' }}>Pengaturan Akun Super Admin</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748b' }}>Kelola password master dan 2-Factor Authentication (2FA) WhatsApp</p>
+                </div>
+              </div>
+
+              {settingsMessage && (
+                <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '12px 16px', marginBottom: '1.5rem', fontSize: '0.88rem', color: '#047857', fontWeight: '700' }}>
+                  ✓ {settingsMessage}
+                </div>
+              )}
+
+              {settingsError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '12px', padding: '12px 16px', marginBottom: '1.5rem', fontSize: '0.88rem', color: '#b91c1c', fontWeight: '700' }}>
+                  ❌ {settingsError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+                  {/* Password Section */}
+                  <div>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: '800', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                      🔐 Ubah Password Master
+                    </h4>
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Password Baru:</label>
+                      <input
+                        type="password"
+                        placeholder="Masukkan password baru..."
+                        value={settingsNewPassword}
+                        onChange={(e) => setSettingsNewPassword(e.target.value)}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Konfirmasi Password Baru:</label>
+                      <input
+                        type="password"
+                        placeholder="Ketik ulang password baru..."
+                        value={settingsConfirmPassword}
+                        onChange={(e) => setSettingsConfirmPassword(e.target.value)}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 2FA Section */}
+                  <div>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: '800', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                      🛡️ WhatsApp 2-Factor Authentication (2FA)
+                    </h4>
+                    <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input
+                        type="checkbox"
+                        id="enable-2fa-checkbox"
+                        checked={settingsEnabled2fa}
+                        onChange={(e) => setSettingsEnabled2fa(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="enable-2fa-checkbox" style={{ fontSize: '0.88rem', fontWeight: '800', color: '#334155', cursor: 'pointer' }}>
+                        Aktifkan Verifikasi 2FA WhatsApp
+                      </label>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Nomor WhatsApp Verifikasi 2FA:</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: 085382535050"
+                        value={settingsPhone2fa}
+                        onChange={(e) => setSettingsPhone2fa(e.target.value)}
+                        required={settingsEnabled2fa}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box', fontWeight: '700' }}
+                      />
+                      <p style={{ margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b', lineHeight: '1.4' }}>
+                        * Kode OTP akan dikirimkan ke nomor ini setiap kali melakukan login ke Super Admin panel.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="submit"
+                    disabled={settingsLoading}
+                    style={{
+                      background: '#0f172a', color: 'white', border: 'none', padding: '11px 24px', borderRadius: '10px',
+                      fontSize: '0.88rem', fontWeight: '900', cursor: settingsLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
+                    }}
+                  >
+                    💾 {settingsLoading ? 'Menyimpan...' : 'Simpan Pengaturan'}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
