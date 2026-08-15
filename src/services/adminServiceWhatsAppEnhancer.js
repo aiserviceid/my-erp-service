@@ -22,7 +22,9 @@ const isAdminPage = () => window.location.pathname === '/admin' || window.locati
 const extractResi = (element) => {
   let node = element;
   for (let depth = 0; node && depth < 9; depth += 1, node = node.parentElement) {
-    const match = String(node.textContent || '').match(/TRX-[A-Z0-9_-]+/i);
+    const explicit = String(node.dataset?.serviceResi || '').trim();
+    if (/^TRX-\d+(?:-\d+)?$/i.test(explicit)) return explicit.toUpperCase();
+    const match = String(node.textContent || '').match(/TRX-\d+(?:-\d+)?/i);
     if (match) return match[0].toUpperCase();
   }
   return '';
@@ -66,59 +68,6 @@ const buildPrintUrl = (resi, tenantCode, type = 'pickup') => {
   const query = new URLSearchParams({ resi, format: 'a4', type });
   if (tenantCode) query.set('tenant_code', tenantCode);
   return `${window.location.origin}/print-nota?${query.toString()}`;
-};
-
-const formatCompletionReceipt = (message, prepared, tenant, resi) => {
-  const storeName = getStoreNameFromPrepared(message, tenant);
-  const noteNo = lineValue(message, 'No. Nota') || resi;
-  const customer = lineValue(message, 'Pelanggan') || '-';
-  const device = lineValue(message, 'Perangkat') || '-';
-  const partName = lineValue(message, 'Sparepart');
-  const serviceName = lineValue(message, 'Jasa');
-  const result = lineValue(message, 'Hasil Perbaikan');
-  const partFee = lineValue(message, 'Biaya Sparepart') || 'Rp 0';
-  const serviceFee = lineValue(message, 'Biaya Jasa') || 'Rp 0';
-  const discount = lineValue(message, 'Diskon');
-  const total = findValue(message, /TOTAL YANG HARUS DIBAYAR:\s*([^\n*]+(?:\.[0-9]{3})*)/i) || 'Rp 0';
-  const payment = lineValue(message, 'Pembayaran');
-  const warranty = lineValue(message, 'Garansi Servis');
-  const warning = findValue(message, /^⚠️\s*(.+)$/mi);
-  const qris = prepared?.urlMedia || '';
-
-  const details = [
-    partName ? `Sparepart : ${partName}` : '',
-    serviceName ? `Jasa      : ${serviceName}` : '',
-    result ? `Hasil     : ${result}` : '',
-  ].filter(Boolean);
-
-  return [
-    '🧾 *NOTA TAGIHAN SERVIS*',
-    `*${storeName}*`,
-    receiptLine,
-    `No. Nota  : ${noteNo}`,
-    `Pelanggan : ${customer}`,
-    `Perangkat : ${device}`,
-    ...(details.length ? [receiptLine, '*RINCIAN PERBAIKAN*', ...details] : []),
-    receiptLine,
-    '*RINCIAN BIAYA*',
-    `Sparepart : ${partFee}`,
-    `Jasa      : ${serviceFee}`,
-    ...(discount ? [`Diskon    : ${discount}`] : []),
-    receiptLine,
-    '*TOTAL TAGIHAN*',
-    `*${total}*`,
-    receiptLine,
-    'Status: *SELESAI • BELUM LUNAS*',
-    '',
-    ...(payment || qris ? ['*PEMBAYARAN*'] : []),
-    ...(payment ? [payment] : []),
-    ...(qris ? [`QRIS: ${qris}`] : []),
-    ...(warranty ? ['', `Garansi: ${warranty}`] : []),
-    ...(warning ? ['', `⚠️ ${warning}`] : []),
-    '',
-    'Silakan lakukan pembayaran atau pengambilan sesuai total tagihan di atas.',
-    'Setelah lunas dan barang diambil, UnitPro akan mengirim Nota Pelunasan serta Link Garansi.',
-  ].filter((line, index, array) => line !== '' || (index > 0 && array[index - 1] !== '')).join('\n').trim();
 };
 
 const formatPickupReceipt = (message, tenant, resi) => {
@@ -192,9 +141,7 @@ const enhanceWhatsAppButtons = () => {
         const prepared = await prepareServiceWhatsAppDelivery({ tenant, message: fallbackMessage });
 
         let finalMessage = prepared.message || fallbackMessage;
-        if (prepared.type === 'completion') {
-          finalMessage = formatCompletionReceipt(finalMessage, prepared, tenant, prepared.resi || resi);
-        } else if (prepared.type === 'pickup') {
+        if (prepared.type === 'pickup') {
           finalMessage = formatPickupReceipt(finalMessage, tenant, prepared.resi || resi);
         }
 
