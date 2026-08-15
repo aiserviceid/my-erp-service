@@ -42,6 +42,7 @@ const getRuntimeTenant = () => {
   return {
     code: localStorage.getItem('TENANT_CODE') || '',
     tenant_code: localStorage.getItem('TENANT_CODE') || '',
+    name: localStorage.getItem('TENANT_NAME') || '',
     settings,
     token: localStorage.getItem('EMPLOYEE_TOKEN') || localStorage.getItem('TENANT_TOKEN') || '',
   };
@@ -49,7 +50,7 @@ const getRuntimeTenant = () => {
 
 const extractResiFromMessage = (message = '') => {
   const text = String(message || '');
-  const direct = text.match(/(?:No\.\s*Nota|Resi)\s*:?\s*\*?([A-Z0-9_-]+)/i);
+  const direct = text.match(/(?:No\.\s*Nota|Resi)\s*:?\s*\*?`?([A-Z0-9_-]+)/i);
   if (direct) return direct[1].toUpperCase();
   const tracking = text.match(/[?&]resi=([A-Z0-9_-]+)/i);
   return tracking ? tracking[1].toUpperCase() : '';
@@ -84,14 +85,6 @@ const parseCompletionMetaFromIssue = (issue = '') => {
   };
 };
 
-const extractRepairDetails = (issue = '') => {
-  const text = String(issue || '');
-  const part = text.match(/\[Sparepart diganti:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
-  const service = text.match(/\[Jasa Servis:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
-  const result = text.match(/\[Hasil Perbaikan:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
-  return { part, service, result };
-};
-
 const looksLikeAccountNumber = (value = '') => {
   const text = String(value || '').trim();
   const digits = text.replace(/\D/g, '');
@@ -103,9 +96,6 @@ const paymentInfoLines = (settings = {}) => {
   let account = String(settings.bank_account || '').trim();
   let holder = String(settings.bank_holder || '').trim();
 
-  // Older settings can have the account number and account holder entered in
-  // reverse fields. Present the payment instruction safely without changing
-  // saved store data.
   if (!looksLikeAccountNumber(account) && looksLikeAccountNumber(holder)) {
     [account, holder] = [holder, account];
   }
@@ -123,6 +113,19 @@ const paymentInfoLines = (settings = {}) => {
   return legacyPayment ? ['🏦 *PEMBAYARAN*', legacyPayment] : [];
 };
 
+const paymentSummary = (settings = {}) => {
+  const bankName = String(settings.bank_name || '').trim();
+  let account = String(settings.bank_account || '').trim();
+  let holder = String(settings.bank_holder || '').trim();
+  if (!looksLikeAccountNumber(account) && looksLikeAccountNumber(holder)) {
+    [account, holder] = [holder, account];
+  }
+  if (bankName || account || holder) {
+    return [bankName, account, holder ? `a.n. ${holder}` : ''].filter(Boolean).join(' ');
+  }
+  return String(settings.store_bank || '').trim();
+};
+
 const isPublicHttpUrl = (value = '') => /^https?:\/\//i.test(String(value || '').trim());
 
 const getStoreName = (tenant = {}) => {
@@ -137,12 +140,71 @@ const joinMessageSections = (...sections) => sections
   .filter(Boolean)
   .join('\n\n');
 
+const safePublicSettings = (settings = {}) => ({
+  storeName: settings.storeName || '',
+  store_name: settings.store_name || '',
+  store_address: settings.store_address || '',
+  address: settings.address || '',
+  store_wa: settings.store_wa || '',
+  logoUrl: settings.logoUrl || '',
+  logo_url: settings.logo_url || '',
+  store_logo: settings.store_logo || '',
+});
+
+const encodePublicPayload = (tenant = {}, service = {}) => {
+  if (typeof window === 'undefined' || !service?.resi) return '';
+  try {
+    const payload = {
+      service: {
+        resi: service.resi,
+        tenant_code: service.tenant_code || tenant?.code || tenant?.tenant_code || '',
+        customer_name: service.customer_name || '',
+        device_name: service.device_name || '',
+        issue: service.issue || '',
+        status: service.status || '',
+        jasa_fee: Number(service.jasa_fee || 0),
+        part_fee: Number(service.part_fee || 0),
+        technician_id: service.technician_id || null,
+        created_at: service.created_at || '',
+        updated_at: service.updated_at || '',
+      },
+      tenant: {
+        code: tenant?.code || tenant?.tenant_code || service.tenant_code || '',
+        name: tenant?.name || getStoreName(tenant),
+        tier: tenant?.tier || 'free',
+        settings: safePublicSettings(tenant?.settings || {}),
+      },
+    };
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    let binary = '';
+    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  } catch {
+    return '';
+  }
+};
+
+const withPublicPayload = (url, tenant, service) => {
+  const encoded = encodePublicPayload(tenant, service);
+  return encoded ? `${url}#payload=${encoded}` : url;
+};
+
 const buildPublicReceiptUrl = (tenant = {}, service = {}, type = 'completion') => {
   if (typeof window === 'undefined' || !service?.resi) return '';
   const query = new URLSearchParams({ resi: service.resi, type, format: 'a4' });
   const tenantCode = tenant?.code || tenant?.tenant_code || service?.tenant_code || '';
   if (tenantCode) query.set('tenant_code', tenantCode);
-  return `${window.location.origin}/print-nota?${query.toString()}`;
+  const baseUrl = `${window.location.origin}/print-nota?${query.toString()}`;
+  return withPublicPayload(baseUrl, tenant, service);
+};
+
+const buildWarrantyUrl = (tenant = {}, service = {}) => {
+  if (typeof window === 'undefined' || !service?.resi) return '';
+  const query = new URLSearchParams({ resi: service.resi });
+  const tenantCode = tenant?.code || tenant?.tenant_code || service?.tenant_code || '';
+  if (tenantCode) query.set('tenant_code', tenantCode);
+  const baseUrl = `${window.location.origin}/garansi?${query.toString()}`;
+  return withPublicPayload(baseUrl, tenant, service);
 };
 
 const fetchServiceByResi = async (tenant, resi) => {
@@ -157,48 +219,40 @@ const fetchServiceByResi = async (tenant, resi) => {
 
 const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   const settings = tenant?.settings || {};
-  const storeName = settings.storeName || settings.store_name || tenant?.name || 'UnitPro';
+  const storeName = getStoreName(tenant);
   const discount = getServiceDiscount(service.issue || '');
   const partFee = Number(service.part_fee || 0);
   const jasaFee = Number(service.jasa_fee || 0);
   const total = Math.max(0, partFee + jasaFee - discount);
-  const details = extractRepairDetails(service.issue || '');
   const meta = parseCompletionMetaFromIssue(service.issue || '');
-  const paymentLines = paymentInfoLines(settings);
   const qrisUrl = settings.qrisUrl || settings.qris_image_url || '';
   const invoiceUrl = buildPublicReceiptUrl(tenant, service, 'completion');
+  const payment = paymentSummary(settings);
+  const pickupWarning = meta.pickupMessage
+    || (meta.pickupDays > 0 ? `Barang yang telah selesai harap diambil maksimal ${meta.pickupDays} hari.` : 'Barang yang telah selesai harap segera dilakukan pembayaran/pengambilan.');
+
+  const lines = [
+    '🧾 *NOTA TAGIHAN SERVIS*',
+    `*${storeName}*`,
+    `No. Nota: ${service.resi}`,
+    `Pelanggan: ${service.customer_name || '-'}`,
+    `Perangkat: ${service.device_name || '-'}`,
+    `Biaya Sparepart: Rp ${partFee.toLocaleString('id-ID')}`,
+    `Biaya Jasa: Rp ${jasaFee.toLocaleString('id-ID')}`,
+    discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
+    `*TOTAL YANG HARUS DIBAYAR: Rp ${total.toLocaleString('id-ID')}*`,
+    '*Status: SERVIS SELESAI — MENUNGGU PEMBAYARAN / PENGAMBILAN*',
+    payment ? `Pembayaran: ${payment}` : '',
+    `⚠️ ${pickupWarning}`,
+    'Silakan lakukan pembayaran/pengambilan sesuai total tagihan di atas.',
+    invoiceUrl ? '🖨 *Nota Tagihan Digital:*' : '',
+    invoiceUrl,
+    'Setelah barang diambil dan lunas, UnitPro akan mengirim Nota Pelunasan serta Link Garansi.',
+  ].filter(Boolean).join('\n');
 
   return {
     type: 'completion',
-    message: joinMessageSections(
-      ['🧾 *NOTA TAGIHAN SERVIS*', `*${storeName}*`, `No. Nota: \`${service.resi}\``],
-      [
-        '*DATA SERVIS*',
-        `Pelanggan : ${service.customer_name || '-'}`,
-        `Perangkat : ${service.device_name || '-'}`,
-        details.part ? `Sparepart  : ${details.part}` : '',
-        details.service ? `Jasa       : ${details.service}` : '',
-        details.result ? `Hasil      : ${details.result}` : '',
-      ],
-      [
-        '───────────────',
-        '*RINCIAN TAGIHAN*',
-        `Sparepart : Rp ${partFee.toLocaleString('id-ID')}`,
-        `Jasa      : Rp ${jasaFee.toLocaleString('id-ID')}`,
-        discount > 0 ? `Diskon    : - Rp ${discount.toLocaleString('id-ID')}` : '',
-        '───────────────',
-        `*TOTAL TAGIHAN: Rp ${total.toLocaleString('id-ID')}*`,
-      ],
-      ['📌 *STATUS SERVIS*', 'Servis telah selesai dan menunggu pembayaran atau pengambilan.'],
-      paymentLines,
-      meta.warrantyLabel ? `Garansi Servis: ${meta.warrantyLabel}${meta.warrantyEnd ? ` — sampai ${meta.warrantyEnd}` : ''}` : '',
-      meta.pickupMessage
-        ? `⚠️ *Batas Pengambilan*\n${meta.pickupMessage}`
-        : (meta.pickupDays > 0 ? `⚠️ *Batas Pengambilan*\nHarap ambil perangkat maksimal ${meta.pickupDays} hari setelah servis selesai.` : ''),
-      'Silakan lakukan pembayaran dan pengambilan sesuai total tagihan di atas.',
-      invoiceUrl ? ['🖨 *Lihat Nota Digital*', invoiceUrl] : [],
-      'Setelah barang diambil dan lunas, kami akan mengirim Nota Pelunasan serta Link Garansi.',
-    ),
+    message: lines,
     urlMedia: urlMedia || (isPublicHttpUrl(qrisUrl) ? qrisUrl : ''),
     resi: service.resi,
     mediaLabel: isPublicHttpUrl(qrisUrl) ? 'QRIS pembayaran' : '',
@@ -206,15 +260,14 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
 };
 
 const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
-  const settings = tenant?.settings || {};
-  const storeName = settings.storeName || settings.store_name || tenant?.name || 'UnitPro';
+  const storeName = getStoreName(tenant);
   const discount = getServiceDiscount(service.issue || '');
-  const subtotal = Number(service.part_fee || 0) + Number(service.jasa_fee || 0);
+  const partFee = Number(service.part_fee || 0);
+  const jasaFee = Number(service.jasa_fee || 0);
+  const subtotal = partFee + jasaFee;
   const total = Math.max(0, subtotal - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
-  const warrantyUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/garansi?resi=${encodeURIComponent(service.resi)}`
-    : '';
+  const warrantyUrl = buildWarrantyUrl(tenant, service);
   const qrUrl = warrantyUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=16&data=${encodeURIComponent(warrantyUrl)}`
     : '';
@@ -224,30 +277,24 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
     ? `${meta.warrantyLabel}${meta.warrantyEnd ? ` — berlaku sampai ${meta.warrantyEnd}` : ''}`
     : 'Tanpa garansi tambahan';
 
-  const lines = joinMessageSections(
-    ['🧾 *NOTA PELUNASAN & GARANSI*', `*${storeName}*`],
-    [
-      '*DATA SERVIS*',
-      `No. Nota  : \`${service.resi}\``,
-      `Pelanggan : ${service.customer_name || '-'}`,
-      `Perangkat : ${service.device_name || '-'}`,
-    ],
-    [
-      '───────────────',
-      '*RINCIAN PELUNASAN*',
-      `Sparepart : Rp ${Number(service.part_fee || 0).toLocaleString('id-ID')}`,
-      `Jasa      : Rp ${Number(service.jasa_fee || 0).toLocaleString('id-ID')}`,
-      discount > 0 ? `Diskon    : - Rp ${discount.toLocaleString('id-ID')}` : '',
-      '───────────────',
-      '*TOTAL LUNAS*',
-      `*Rp ${total.toLocaleString('id-ID')}*`,
-    ],
-    ['✅ *LUNAS • BARANG SUDAH DIAMBIL*'],
-    ['🛡️ *GARANSI SERVIS*', warrantyText],
-    warrantyUrl ? ['🔗 *Kartu Garansi Digital*', warrantyUrl] : [],
-    receiptUrl ? ['🖨 *Nota Pelunasan Digital*', receiptUrl] : [],
-    'Simpan pesan ini sebagai bukti pembayaran, servis, dan garansi.',
-  );
+  const lines = [
+    '🧾 *NOTA PELUNASAN SERVIS (GARANSI)*',
+    `*${storeName}*`,
+    `No. Nota: ${service.resi}`,
+    `Pelanggan: ${service.customer_name || '-'}`,
+    `Perangkat: ${service.device_name || '-'}`,
+    `Biaya Sparepart: Rp ${partFee.toLocaleString('id-ID')}`,
+    `Biaya Jasa: Rp ${jasaFee.toLocaleString('id-ID')}`,
+    discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
+    `*TOTAL LUNAS: Rp ${total.toLocaleString('id-ID')}*`,
+    `Garansi Servis: ${warrantyText}`,
+    '*Status: SUDAH DIAMBIL / LUNAS*',
+    warrantyUrl ? '🔗 *Link Garansi:*' : '',
+    warrantyUrl,
+    receiptUrl ? '🖨 *Nota Garansi Digital:*' : '',
+    receiptUrl,
+    'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
+  ].filter(Boolean).join('\n');
 
   return {
     type: 'pickup',
@@ -481,9 +528,6 @@ export const sendWhatsAppNotification = async ({ tenant, target, message, urlMed
   };
 };
 
-// Beberapa alur lama Admin masih membuka wa.me secara langsung setelah update status.
-// Interceptor ini mengubah pesan lama tersebut menjadi Nota Tagihan saat SELESAI
-// atau Nota Pelunasan + Link Garansi saat DIAMBIL, tanpa mengubah alur WA lain.
 if (typeof window !== 'undefined' && nativeWindowOpen && !window.__UNITPRO_SERVICE_WA_OPEN_INTERCEPTOR__) {
   window.__UNITPRO_SERVICE_WA_OPEN_INTERCEPTOR__ = true;
   window.open = (url, target, features) => {
