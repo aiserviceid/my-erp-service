@@ -156,14 +156,31 @@ canvas {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  #root > div > main {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #root > div > header:not(.mobile-top-bar) {
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .glass-panel,
   .sidebar,
-  .mobile-top-bar,
-  .mobile-bottom-nav {
+  .mobile-bottom-nav,
+  html:not(.native-app) .mobile-top-bar {
     background: var(--unitpro-surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html.native-app .mobile-top-bar {
+    background: linear-gradient(135deg, #071c2b, #0b4f6c) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
