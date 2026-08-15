@@ -6,20 +6,38 @@
 // ─── SERVICE STATUS FLOW ────────────────────────────────
 export const SERVICE_STATUSES = [
   { id: 'PROSES',         label: 'Diterima',        color: '#64748b', bg: '#f1f5f9', icon: '📥', description: 'Barang sudah diterima di toko' },
-  { id: 'DICEK',          label: 'Sedang Dicek',    color: '#3B82F6', bg: '#DBEAFE', icon: '🔍', description: 'Teknisi sedang melakukan pengecekan' },
-  { id: 'DIKERJAKAN',     label: 'Sedang Dikerjakan', color: '#F59E0B', bg: '#FEF3C7', icon: '🔧', description: 'Perbaikan sedang dilakukan' },
+  { id: 'DIKERJAKAN',     label: 'Sedang Dikerjakan', color: '#F59E0B', bg: '#FEF3C7', icon: '🔧', description: 'Perangkat sedang ditangani teknisi' },
+  { id: 'PERSETUJUAN',    label: 'Minta Persetujuan', color: '#8B5CF6', bg: '#EDE9FE', icon: '💬', description: 'Menunggu persetujuan pelanggan untuk tindakan atau biaya servis' },
   { id: 'MENUNGGU_PART',  label: 'Menunggu Part',   color: '#F59E0B', bg: '#FEF3C7', icon: '📦', description: 'Menunggu sparepart yang dipesan' },
   { id: 'SELESAI',        label: 'Selesai',         color: '#10B981', bg: '#D1FAE5', icon: '✅', description: 'Perbaikan selesai, siap diambil' },
   { id: 'DIAMBIL',        label: 'Sudah Diambil',   color: '#10B981', bg: '#D1FAE5', icon: '🤝', description: 'Perangkat sudah diambil pelanggan' },
   { id: 'DIBATALKAN',     label: 'Dibatalkan',      color: '#EF4444', bg: '#FEE2E2', icon: '❌', description: 'Servis dibatalkan' },
 ];
 
+const SERVICE_STATUS_ALIASES = {
+  DITERIMA: 'PROSES',
+  DICEK: 'DIKERJAKAN',
+  SEDANG_DICEK: 'DIKERJAKAN',
+  SEDANG_DIKERJAKAN: 'DIKERJAKAN',
+  MENUNGGUPERSETUJUAN: 'PERSETUJUAN',
+  MENUNGGU_PERSETUJUAN: 'PERSETUJUAN',
+  DI_AMBIL: 'DIAMBIL',
+  BATAL: 'DIBATALKAN',
+};
+
+export const normalizeServiceStatus = (statusId = '') => {
+  const normalized = String(statusId || '').trim().toUpperCase().replace(/\s+/g, '_');
+  return SERVICE_STATUS_ALIASES[normalized] || normalized || 'PROSES';
+};
+
 export const getStatusInfo = (statusId) => {
-  return SERVICE_STATUSES.find(s => s.id === statusId) || SERVICE_STATUSES[0];
+  const normalized = normalizeServiceStatus(statusId);
+  return SERVICE_STATUSES.find(s => s.id === normalized) || SERVICE_STATUSES[0];
 };
 
 export const getNextStatuses = (currentStatus) => {
-  const idx = SERVICE_STATUSES.findIndex(s => s.id === currentStatus);
+  const normalized = normalizeServiceStatus(currentStatus);
+  const idx = SERVICE_STATUSES.findIndex(s => s.id === normalized);
   if (idx === -1) return SERVICE_STATUSES;
   return SERVICE_STATUSES.filter((s, i) => i > idx || s.id === 'DIBATALKAN');
 };

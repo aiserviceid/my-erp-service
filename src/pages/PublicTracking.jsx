@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Package, Clock, CheckCircle, AlertTriangle, ArrowLeft, Sparkles, Phone } from 'lucide-react';
 import { apiService } from '../services/api';
-import { SERVICE_STATUSES, getStatusInfo } from '../config/tierLimits';
+import { SERVICE_STATUSES, getStatusInfo, normalizeServiceStatus } from '../config/tierLimits';
 import { getTenantLogoUrl } from '../utils/branding';
 
 export default function PublicTracking() {
@@ -51,22 +51,18 @@ export default function PublicTracking() {
     }
   }, [searchParams]);
 
-  // Get status index for timeline
+  // Timeline selalu mengikuti konfigurasi status pusat agar Admin, Portal Tim, dan pelanggan sinkron.
   const getStatusIndex = (status) => {
-    // Map legacy statuses
-    const statusMap = {
-      'DITERIMA': 0, 'DICEK': 1, 'SEDANG_DICEK': 1,
-      'DIKERJAKAN': 2, 'SEDANG_DIKERJAKAN': 2,
-      'MENUNGGU_PART': 3, 'MENUNGGU PART': 3,
-      'SELESAI': 4, 'DIAMBIL': 5, 'DI AMBIL': 5, 'DI_AMBIL': 5,
-      'DIBATALKAN': 6, 'BATAL': 6,
-    };
-    return statusMap[status] ?? 0;
+    const normalized = normalizeServiceStatus(status);
+    const flow = SERVICE_STATUSES.filter((item) => item.id !== 'DIBATALKAN');
+    const index = flow.findIndex((item) => item.id === normalized);
+    return index >= 0 ? index : 0;
   };
 
-  const currentStatusIdx = result ? getStatusIndex(result.status) : -1;
-  const isCancelled = result && (result.status === 'DIBATALKAN' || result.status === 'BATAL');
-  const isCompleted = result && (result.status === 'SELESAI' || result.status === 'DIAMBIL' || result.status === 'DI AMBIL' || result.status === 'DI_AMBIL');
+  const normalizedResultStatus = result ? normalizeServiceStatus(result.status) : '';
+  const currentStatusIdx = result ? getStatusIndex(normalizedResultStatus) : -1;
+  const isCancelled = normalizedResultStatus === 'DIBATALKAN';
+  const isCompleted = ['SELESAI', 'DIAMBIL'].includes(normalizedResultStatus);
 
   const sanitizePublicResi = (value = '') => String(value || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
 

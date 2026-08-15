@@ -33,7 +33,7 @@ const TabLoadingSkeleton = () => (
     <p style={{ marginTop: '12px', fontSize: '0.88rem', fontWeight: '600' }}>Memuat modul...</p>
   </div>
 );
-import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
+import { ADMIN_TABS, SERVICE_STATUSES, getStatusInfo, normalizeServiceStatus, hasFeature, isWithinLimit, getUsagePercent } from '../config/tierLimits';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
 import { UNITPRO_LOGO_URL, getTenantLogoUrl } from '../utils/branding';
 import { t, getAppLanguage, setAppLanguage } from '../utils/i18n';
@@ -63,6 +63,7 @@ export default function AdminDashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showEditServiceNota, setShowEditServiceNota] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showServiceRegistration, setShowServiceRegistration] = useState(false);
   const [isCreatingService, setIsCreatingService] = useState(false);
   const serviceSubmissionLockRef = useRef(false);
@@ -342,13 +343,13 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
     const demoServices = [
       { resi: 'TRX-1001', customer_name: 'Hendra Saputra', customer_phone: '081234567890', device_name: 'Laptop ASUS ROG Strix GL553', issue: 'Mati total terkena cairan kopi', status: 'DIKERJAKAN', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*24*2).toISOString() },
-      { resi: 'TRX-1002', customer_name: 'Siti Rahma', customer_phone: '085712345678', device_name: 'MacBook Air M1 2020', issue: 'Layar blank hitam, suara nyala', status: 'DICEK', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*24*1).toISOString() },
+      { resi: 'TRX-1002', customer_name: 'Siti Rahma', customer_phone: '085712345678', device_name: 'MacBook Air M1 2020', issue: 'Layar blank hitam, suara nyala', status: 'DIKERJAKAN', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*24*1).toISOString() },
       { resi: 'TRX-1003', customer_name: 'Bambang Wijaya', customer_phone: '081987654321', device_name: 'Lenovo ThinkPad T480', issue: 'Upgrade SSD 512GB & RAM 16GB', status: 'SELESAI', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*12).toISOString() },
       { resi: 'TRX-1004', customer_name: 'Dewi Lestari', customer_phone: '082133445566', device_name: 'Acer Nitro 5 AN515', issue: 'Kipas berisik & panas lemot', status: 'DIAMBIL', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*5).toISOString() },
       { resi: 'TRX-1005', customer_name: 'Rian Pratama', customer_phone: '087811223344', device_name: 'HP Pavilion Gaming 15', issue: 'Keyboard eror pencet sendiri', status: 'MENUNGGU_PART', technician_id: 'EMP-5', created_at: new Date(Date.now() - 3600000*3).toISOString() },
       { resi: 'TRX-1006', customer_name: 'Fikri Haikal', customer_phone: '081299887766', device_name: 'Dell XPS 13 9360', issue: 'Baterai kembung mati diisi', status: 'PROSES', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*1).toISOString() },
       { resi: 'TRX-1007', customer_name: 'Maya Indah', customer_phone: '085244556677', device_name: 'Asus Vivobook A412F', issue: 'Engsel patah & casing pecah', status: 'DIKERJAKAN', technician_id: 'EMP-1', created_at: new Date(Date.now() - 3600000*4).toISOString() },
-      { resi: 'TRX-1008', customer_name: 'Guntur Pamungkas', customer_phone: '081377889900', device_name: 'PC Desktop Gaming i5-12400F', issue: 'No display vga tidak terbaca', status: 'DICEK', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*8).toISOString() },
+      { resi: 'TRX-1008', customer_name: 'Guntur Pamungkas', customer_phone: '081377889900', device_name: 'PC Desktop Gaming i5-12400F', issue: 'No display vga tidak terbaca', status: 'DIKERJAKAN', technician_id: 'EMP-4', created_at: new Date(Date.now() - 3600000*8).toISOString() },
       { resi: 'TRX-1009', customer_name: 'Tania Putri', customer_phone: '089655443322', device_name: 'Lenovo Ideapad Slim 3', issue: 'Install ulang Windows 11 Original', status: 'SELESAI', technician_id: 'EMP-2', created_at: new Date(Date.now() - 3600000*2).toISOString() },
       { resi: 'TRX-1010', customer_name: 'Eka Kurniawan', customer_phone: '081266778899', device_name: 'MacBook Pro 15" 2017', issue: 'Ganti baterai & cleaning pasta', status: 'SELESAI', technician_id: 'EMP-5', created_at: new Date(Date.now() - 3600000*6).toISOString() }
     ];
@@ -974,7 +975,12 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
   const txLimit = isWithinLimit(tenant?.tier, 'maxTransactionsPerMonth', monthlyTxCount);
 
   const updateServiceStatusFromAction = async (service, newStatus) => {
-    const normalizedStatus = newStatus === 'DI AMBIL' ? 'DIAMBIL' : newStatus;
+    const normalizedStatus = normalizeServiceStatus(newStatus);
+    if (normalizedStatus === 'PERSETUJUAN') {
+      setSelectedService({ ...service, status: normalizeServiceStatus(service.status || 'PROSES') });
+      setShowApprovalModal(true);
+      return;
+    }
     if (normalizedStatus === 'SELESAI') {
       setSelectedService({ ...service, __markSelesaiFromAdmin: true });
       setShowEditServiceNota(true);
@@ -2630,7 +2636,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                   const filteredServices = services.filter((service) => {
                     const matchQuery = (service.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (service.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (service.device_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
                     const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !service.technician_id : service.technician_id === serviceTechTab);
-                    const matchStatus = serviceStatusTab === 'ALL' || service.status === serviceStatusTab;
+                    const matchStatus = serviceStatusTab === 'ALL' || normalizeServiceStatus(service.status) === serviceStatusTab;
                     return matchQuery && matchTech && matchStatus;
                   });
 
@@ -2651,7 +2657,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         <p className="service-mobile-device">{service.device_name}</p>
                         <p className="service-mobile-meta">Teknisi: {technician?.name || 'Belum ditugaskan'}</p>
                         <label className="service-mobile-status-label">Ubah status
-                          <select className="input-field" value={service.status || 'DITERIMA'} onChange={(event) => updateServiceStatusFromAction(service, event.target.value)}>
+                          <select className="input-field" value={normalizeServiceStatus(service.status || 'PROSES')} onChange={(event) => updateServiceStatusFromAction(service, event.target.value)}>
                             {SERVICE_STATUSES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                           </select>
                         </label>
@@ -2675,7 +2681,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                       const filteredServices = services.filter(s => {
                         const matchQuery = (s.resi || '').toLowerCase().includes(serviceSearchQuery.toLowerCase()) || (s.customer_name || '').toLowerCase().includes(serviceSearchQuery.toLowerCase());
                         const matchTech = serviceTechTab === 'ALL' || (serviceTechTab === 'unassigned' ? !s.technician_id : String(s.technician_id) === String(serviceTechTab));
-                        const matchStatus = serviceStatusTab === 'ALL' || s.status === serviceStatusTab;
+                        const matchStatus = serviceStatusTab === 'ALL' || normalizeServiceStatus(s.status) === serviceStatusTab;
                         return matchQuery && matchTech && matchStatus;
                       });
 
@@ -2710,7 +2716,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                               <select 
                                 className="input-field" 
                                 style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: '130px', background: getStatusInfo(s.status)?.bg, color: getStatusInfo(s.status)?.color, fontWeight: 'bold' }}
-                                value={s.status}
+                                value={normalizeServiceStatus(s.status)}
                                 onChange={(e) => updateServiceStatusFromAction(s, e.target.value)}
                               >
                                 {SERVICE_STATUSES.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
@@ -3344,6 +3350,60 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+
+      {showApprovalModal && selectedService && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1110, padding: '1rem' }}>
+          <form className="glass-panel" style={{ width: '100%', maxWidth: '440px', background: 'var(--bg-light)' }} onSubmit={async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
+            const action = String(formData.get('approval_action') || '').trim();
+            const estimate = normalizeMoneyInput(formData.get('approval_estimate'));
+            if (!action) return alert('Isi tindakan/perbaikan yang perlu disetujui pelanggan.');
+            try {
+              const updated = await apiService.post('/services/update', {
+                resi: selectedService.resi,
+                tenant_code: selectedService.tenant_code || tenant.code,
+                status: 'PERSETUJUAN',
+              });
+              const approvalService = { ...selectedService, ...updated, status: 'PERSETUJUAN' };
+              setServices((current) => current.map((item) => item.resi === selectedService.resi ? approvalService : item));
+              setSelectedService(approvalService);
+              if (hasFeature(tenant?.tier, 'whatsappNotif')) {
+                const phoneConflict = findEmployeePhoneConflict(approvalService.customer_phone, users);
+                if (phoneConflict) {
+                  alert(`Status sudah menjadi Minta Persetujuan, tetapi nomor WA pelanggan sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan sebelum mengirim pesan.`);
+                  return;
+                }
+                const notificationResult = await sendWhatsAppNotification({
+                  tenant,
+                  target: approvalService.customer_phone,
+                  message: buildServiceStatusMessage({ tenant, service: approvalService, status: 'PERSETUJUAN', approval: { action, estimate } }),
+                  openManual: true,
+                });
+                if (notificationResult?.status === 'failed') {
+                  alert('Status Minta Persetujuan sudah tersimpan, tetapi WhatsApp belum terkirim. Periksa nomor pelanggan atau WhatsApp Gateway lalu coba lagi.');
+                  return;
+                }
+              }
+              setShowApprovalModal(false);
+              alert(hasFeature(tenant?.tier, 'whatsappNotif') ? 'Status Minta Persetujuan tersimpan dan WhatsApp pelanggan diproses.' : 'Status Minta Persetujuan tersimpan. Hubungi pelanggan untuk meminta persetujuan.');
+            } catch (error) {
+              alert(`Gagal menyimpan permintaan persetujuan: ${error?.message || 'data tidak dapat disimpan'}`);
+            }
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div><h3 style={{ margin: 0 }}>Minta Persetujuan Pelanggan</h3><p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748b' }}>Resi: {selectedService.resi}</p></div>
+              <button type="button" className="btn btn-ghost" onClick={() => setShowApprovalModal(false)}><X size={20}/></button>
+            </div>
+            <label className="label">Tindakan / perbaikan yang perlu disetujui</label>
+            <textarea name="approval_action" className="input-field" rows="3" required placeholder="Contoh: Ganti keyboard karena terjadi short pada jalur keyboard" style={{ resize: 'vertical', marginBottom: '10px' }} />
+            <label className="label">Estimasi total biaya (Rp)</label>
+            <input name="approval_estimate" type="text" inputMode="numeric" className="input-field" placeholder="Contoh: 350.000" onInput={handleMoneyInput} />
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }}>Simpan & Kirim WhatsApp</button>
+          </form>
         </div>
       )}
 
