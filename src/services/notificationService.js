@@ -55,7 +55,15 @@ const extractResiFromMessage = (message = '') => {
   return tracking ? tracking[1].toUpperCase() : '';
 };
 
-const normalizeStatus = (value = '') => String(value || '').toUpperCase().replace(/\s+/g, '');
+const normalizeStatus = (value = '') => {
+  const normalized = String(value || '').trim().toUpperCase().replace(/\s+/g, '_');
+  if (normalized === 'DITERIMA') return 'PROSES';
+  if (normalized === 'DICEK' || normalized === 'SEDANG_DICEK') return 'DIKERJAKAN';
+  if (normalized === 'MENUNGGUPERSETUJUAN' || normalized === 'MENUNGGU_PERSETUJUAN') return 'PERSETUJUAN';
+  if (normalized === 'DI_AMBIL') return 'DIAMBIL';
+  if (normalized === 'BATAL') return 'DIBATALKAN';
+  return normalized;
+};
 
 const getServiceDiscount = (issue = '') => {
   const match = String(issue || '').match(/\[Diskon:\s*Rp\s*([^\]]+)\]/i);
@@ -277,7 +285,7 @@ export const buildServiceReceivedMessage = ({ tenant, services = [] } = {}) => {
     '',
     unitLines,
     '',
-    'Kami akan melakukan pengecekan terlebih dahulu. Bila diperlukan persetujuan biaya, kami akan menghubungi Anda melalui WhatsApp ini.',
+    'Perangkat akan segera diproses oleh teknisi. Jika sebelum perbaikan diperlukan persetujuan tindakan atau biaya, kami akan menghubungi Anda melalui WhatsApp ini.',
     'Simpan nomor resi untuk memantau progres servis kapan saja.',
   ].join('\n');
 };
@@ -294,39 +302,57 @@ export const buildServiceStatusMessage = ({ tenant, service, status, approval = 
   if (normalizedStatus === 'SELESAI') return buildCompletionInvoiceFromService(tenant, { ...service, status: 'SELESAI' }).message;
   if (normalizedStatus === 'DIAMBIL') return buildPickupReceiptFromService(tenant, { ...service, status: 'DIAMBIL' }).message;
 
-  if (normalizedStatus === 'PERSETUJUAN' || normalizedStatus === 'MENUNGGUPERSETUJUAN') {
-    const action = String(approval.action || approval.description || 'perbaikan yang diperlukan').trim();
+  if (normalizedStatus === 'PERSETUJUAN') {
+    const action = String(approval.action || approval.description || 'tindakan servis yang diperlukan').trim();
     const estimate = Number(approval.estimate ?? approval.amount ?? 0);
     return [
       `Halo Kak ${customer},`,
       '',
-      '🛠️ *PERSETUJUAN PERBAIKAN DIPERLUKAN*',
-      `Perangkat: *${service.device_name || '-'}*`,
-      `No. Resi: *${service.resi}*`,
+      '💬 *MINTA PERSETUJUAN SERVIS*',
+      `Perangkat : *${service.device_name || '-'}*`,
+      `No. Resi  : *${service.resi}*`,
       '',
-      `Hasil pengecekan: ${action}`,
-      estimate > 0 ? `Estimasi biaya: *Rp ${estimate.toLocaleString('id-ID')}*` : 'Estimasi biaya akan diinformasikan oleh tim kami.',
+      'Teknisi membutuhkan persetujuan Anda sebelum pekerjaan dilanjutkan.',
+      `Rencana tindakan: ${action}`,
+      estimate > 0 ? `Estimasi biaya: *Rp ${estimate.toLocaleString('id-ID')}*` : 'Estimasi biaya: akan dikonfirmasi oleh tim kami.',
       '',
-      'Mohon balas *SETUJU* bila perbaikan dapat kami lanjutkan, atau hubungi kami bila ingin berkonsultasi terlebih dahulu.',
-      trackingUrl ? `Lacak status servis: ${trackingUrl}` : '',
+      'Mohon balas *SETUJU* bila pekerjaan dapat dilanjutkan, atau *TIDAK SETUJU* bila belum berkenan. Jika ingin berkonsultasi, silakan balas pesan ini.',
+      trackingUrl ? `Lacak progres servis: ${trackingUrl}` : '',
       '',
       `Terima kasih,\n*${storeName}*`,
     ].filter(Boolean).join('\n');
   }
 
-  const statusLabel = normalizedStatus === 'DITERIMA'
-    ? 'SERVIS DITERIMA'
-    : String(status || service.status || 'DIPROSES').replace(/_/g, ' ');
+  const statusCopy = {
+    PROSES: {
+      title: 'SERVIS DITERIMA',
+      body: `Perangkat Anda sudah kami terima di *${storeName}* dan telah masuk antrean pengerjaan.`,
+    },
+    DIKERJAKAN: {
+      title: 'SEDANG DIKERJAKAN',
+      body: 'Teknisi sedang mengerjakan perangkat Anda. Jika diperlukan persetujuan tindakan atau biaya tambahan, kami akan menghubungi Anda.',
+    },
+    MENUNGGU_PART: {
+      title: 'MENUNGGU SPAREPART',
+      body: 'Pengerjaan sementara menunggu sparepart yang diperlukan. Kami akan melanjutkan servis setelah sparepart tersedia.',
+    },
+    DIBATALKAN: {
+      title: 'SERVIS DIBATALKAN',
+      body: 'Proses servis dihentikan/dibatalkan. Silakan hubungi toko jika Anda membutuhkan informasi lebih lanjut.',
+    },
+  };
+  const copy = statusCopy[normalizedStatus] || {
+    title: String(normalizedStatus || 'STATUS SERVIS').replace(/_/g, ' '),
+    body: `Status servis Anda di *${storeName}* telah diperbarui.`,
+  };
   return [
     `Halo Kak ${customer},`,
     '',
-    `📌 *${statusLabel}*`,
-    `Perangkat: *${service.device_name || '-'}*`,
-    `No. Resi: *${service.resi}*`,
+    `📌 *${copy.title}*`,
+    `Perangkat : *${service.device_name || '-'}*`,
+    `No. Resi  : *${service.resi}*`,
     '',
-    normalizedStatus === 'DITERIMA'
-      ? `Perangkat Anda sudah kami terima di *${storeName}* dan akan segera dicek oleh tim.`
-      : `Status servis Anda di *${storeName}* telah diperbarui.`,
+    copy.body,
     trackingUrl ? `Lacak progres: ${trackingUrl}` : '',
     '',
     'Terima kasih atas kepercayaan Anda.',

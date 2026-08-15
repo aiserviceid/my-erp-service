@@ -15,7 +15,7 @@ import AndroidUpdateModal from '../components/AndroidUpdateModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import FeedbackModal from '../components/FeedbackModal';
 import { APP_VERSION, APK_PUBLIC_URL } from '../config/appInfo';
-import { SERVICE_STATUSES } from '../config/tierLimits';
+import { SERVICE_STATUSES, getStatusInfo, normalizeServiceStatus } from '../config/tierLimits';
 import { buildKasbonDescription, isPaidServiceStatus, normalizeKasbonAmount, parseKasbonDescription } from '../utils/financeUtils';
 import { normalizeWhatsAppNumber, findEmployeePhoneConflict, customerPhoneConflictMessage } from '../utils/phoneUtils';
 import { isServiceItem } from '../utils/productCategory';
@@ -431,7 +431,7 @@ export default function EmployeePortal() {
       const code = tenant?.code || employee?.tenant_code;
       if (!code) return;
       const data = await apiService.get(`/services/${code}`);
-      setServices(data);
+      setServices((data || []).map((service) => ({ ...service, status: normalizeServiceStatus(service.status) })));
     } catch (e) {
       console.error(e);
     }
@@ -1308,7 +1308,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         <div className="technician-task-detail" style={{ flex: 1, minWidth: '240px' }}>
                           <div className="technician-task-title" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
                             <strong>{s.device_name}</strong>
-                            <span className="badge badge-info">{s.status || 'PROSES'}</span>
+                            <span className="badge badge-info">{getStatusInfo(s.status)?.label || normalizeServiceStatus(s.status)}</span>
                           </div>
                           <IssueChips issue={s.issue} />
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
@@ -1320,12 +1320,12 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                               <ArrowRightLeft size={14} style={{ marginRight: '5px', display: 'inline' }} /> Alihkan Tugas
                             </button>
                           )}
-                          {(s.status === 'PROSES' || s.status === 'MENUNGGU_PART' || s.status === 'DICEK' || s.status === 'DIKERJAKAN') && (
+                          {normalizeServiceStatus(s.status) === 'PERSETUJUAN' && (
                             <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => {
                               setSelectedService(s);
                               setShowPersetujuanModal(true);
                             }}>
-                              <MessageSquare size={14} style={{ marginRight: '5px', display: 'inline' }} /> WA Persetujuan
+                              <MessageSquare size={14} style={{ marginRight: '5px', display: 'inline' }} /> Kirim Ulang WA
                             </button>
                           )}
                           
@@ -1333,9 +1333,14 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             <select 
                               className="input-field" 
                               style={{ padding: '4px 8px', fontSize: '0.8rem', width: '140px', background: 'white' }}
-                              value={s.status || 'PROSES'}
+                              value={normalizeServiceStatus(s.status || 'PROSES')}
                               onChange={async (e) => {
-                                const newStatus = e.target.value;
+                                const newStatus = normalizeServiceStatus(e.target.value);
+                                if (newStatus === 'PERSETUJUAN') {
+                                  setSelectedService(s);
+                                  setShowPersetujuanModal(true);
+                                  return;
+                                }
                                 if (newStatus === 'SELESAI') {
                                   setSelectedService(s);
                                   setShowSelesaiModal(true);
@@ -1728,20 +1733,34 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             </div>
             <form onSubmit={async (e) => {
               e.preventDefault();
-              const partName = e.target.part.value;
-              const estPrice = e.target.price.value;
-              const waText = buildServiceStatusMessage({
-                tenant,
-                service: selectedService,
-                status: 'PERSETUJUAN',
-                approval: { action: partName, estimate: normalizeMoneyInput(estPrice) },
-              });
-              const result = await sendWhatsAppNotification({ tenant, target: selectedService.customer_phone, message: waText, openManual: true });
-              if (result.status === 'failed') {
-                alert('Pesan persetujuan belum terkirim. Periksa nomor pelanggan dan WhatsApp Gateway.');
-                return;
+              const partName = String(e.target.part.value || '').trim();
+              const estPrice = normalizeMoneyInput(e.target.price.value);
+              if (!partName) return alert('Isi tindakan/perbaikan yang perlu disetujui pelanggan.');
+              try {
+                const tenantCode = employee.tenant_code || tenant.code;
+                const updated = await apiService.post(`/services/${selectedService.resi}/status`, { status: 'PERSETUJUAN', tenant_code: tenantCode });
+                const approvalService = { ...selectedService, ...updated, status: 'PERSETUJUAN' };
+                setServices((current) => current.map((item) => item.resi === selectedService.resi ? approvalService : item));
+                setSelectedService(approvalService);
+                const phoneConflict = findEmployeePhoneConflict(approvalService.customer_phone, users);
+                if (phoneConflict) {
+                  alert(`Status sudah menjadi Minta Persetujuan, tetapi nomor WA pelanggan sama dengan nomor karyawan ${phoneConflict.name}. Perbaiki nomor pelanggan sebelum mengirim pesan.`);
+                  setShowPersetujuanModal(false);
+                  return;
+                }
+                const waText = buildServiceStatusMessage({ tenant, service: approvalService, status: 'PERSETUJUAN', approval: { action: partName, estimate: estPrice } });
+                const result = await sendWhatsAppNotification({ tenant, target: approvalService.customer_phone, message: waText, openManual: true });
+                if (result.status === 'failed') {
+                  alert('Status Minta Persetujuan sudah tersimpan, tetapi pesan WhatsApp belum terkirim. Periksa nomor pelanggan atau WhatsApp Gateway lalu gunakan Kirim Ulang WA.');
+                  setShowPersetujuanModal(false);
+                  return;
+                }
+                setShowPersetujuanModal(false);
+                alert('Status Minta Persetujuan tersimpan dan WhatsApp pelanggan diproses.');
+                fetchServices();
+              } catch (error) {
+                alert(`Gagal meminta persetujuan: ${error?.message || 'data tidak dapat disimpan'}`);
               }
-              setShowPersetujuanModal(false);
             }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Tindakan / Nama Sparepart:</label>
               <input type="text" name="part" className="input-field" placeholder="Misal: Ganti LCD & Baterai" required style={{ marginBottom: '10px' }} />
@@ -1749,7 +1768,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Estimasi Total Biaya (Rp):</label>
               <input type="text" inputMode="numeric" name="price" className="input-field" placeholder="Misal: 450.000" required style={{ marginBottom: '20px' }}  onInput={handleMoneyInput} />
               
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Buka WhatsApp</button>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Simpan & Buka WhatsApp</button>
             </form>
           </div>
         </div>
