@@ -11,11 +11,13 @@ import './services/adminOnlyCustomerDeleteGuard.js'
 import './services/adminServiceWhatsAppEnhancer.js'
 import './services/nativePrintBridge.js'
 import './services/publicServiceLookupEnhancer.js'
+import './services/teamFinanceSyncEnhancer.js'
 import './index.css'
 import './unitpro-ui-polish.css'
 import './unitpro-ui-stability.css'
 import './service-registration-compact.css'
 import './unitpro-dialog-density.css'
+import './unitpro-team-mobile.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
