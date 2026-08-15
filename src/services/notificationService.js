@@ -161,40 +161,89 @@ const fetchServiceByResi = async (tenant, resi) => {
 const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   const settings = tenant?.settings || {};
   const storeName = getStoreName(tenant);
+  const storeAddress = settings.store_address || settings.address || '';
+  const storePhone = settings.store_wa || tenant?.phone || '';
   const discount = getServiceDiscount(service.issue || '');
   const partFee = Number(service.part_fee || 0);
   const jasaFee = Number(service.jasa_fee || 0);
-  const total = Math.max(0, partFee + jasaFee - discount);
+  const subtotal = partFee + jasaFee;
+  const total = Math.max(0, subtotal - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const invoiceUrl = buildPublicReceiptUrl(tenant, service, 'completion');
+  const warrantyUrl = buildWarrantyUrl(tenant, service);
   const payment = paymentSummary(settings);
   const pickupWarning = meta.pickupMessage
     || (meta.pickupDays > 0
       ? `Barang yang telah selesai harap diambil maksimal ${meta.pickupDays} hari.`
       : 'Barang yang telah selesai harap segera dilakukan pembayaran/pengambilan.');
 
+  const receiptNote = settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!';
+  const formattedDate = new Date(service.updated_at || service.created_at || Date.now()).toLocaleString('id-ID');
+
+  // Custom parsers for repair details
+  const issueText = String(service.issue || '');
+  const partName = issueText.match(/\[Sparepart diganti:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  const jasaName = issueText.match(/\[Jasa Servis:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  const repairResult = issueText.match(/\[Hasil Perbaikan:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  
+  const cleanIssueText = issueText
+    .replace(/\n?\[Diskon:[^\]]*\]/gi, '')
+    .replace(/\n?\[Sparepart diganti:[^\]]*\]/gi, '')
+    .replace(/\n?\[Jasa Servis:[^\]]*\]/gi, '')
+    .replace(/\n?\[Hasil Perbaikan:[^\]]*\]/gi, '')
+    .replace(/\n?\[Garansi Servis:[^\]]*\]/gi, '')
+    .replace(/\n?\[Batas Pengambilan:[^\]]*\]/gi, '')
+    .replace(/\n?\[Peringatan Pengambilan:[^\]]*\]/gi, '')
+    .trim();
+
+  const repairDetails = [];
+  if (partName) repairDetails.push(`Sparepart : ${partName}`);
+  if (jasaName) repairDetails.push(`Jasa      : ${jasaName}`);
+  if (repairResult) repairDetails.push(`Hasil     : ${repairResult}`);
+  if (cleanIssueText) repairDetails.push(`Keluhan   : ${cleanIssueText}`);
+
   const lines = [
     '🧾 *NOTA TAGIHAN SERVIS*',
     `*${storeName}*`,
-    `No. Nota: ${service.resi}`,
-    `Pelanggan: ${service.customer_name || '-'}`,
-    `Perangkat: ${service.device_name || '-'}`,
-    `Biaya Sparepart: Rp ${partFee.toLocaleString('id-ID')}`,
-    `Biaya Jasa: Rp ${jasaFee.toLocaleString('id-ID')}`,
-    discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
-    `*TOTAL YANG HARUS DIBAYAR: Rp ${total.toLocaleString('id-ID')}*`,
-    '*Status: SERVIS SELESAI — MENUNGGU PEMBAYARAN / PENGAMBILAN*',
-    payment ? `Pembayaran: ${payment}` : '',
+    storeAddress ? `${storeAddress}` : '',
+    storePhone ? `WA: ${storePhone}` : '',
+    '',
+    '------------------------------------------',
+    `No. Nota  : ${service.resi}`,
+    `Tanggal   : ${formattedDate}`,
+    `Pelanggan : ${service.customer_name || '-'}`,
+    `Perangkat : ${service.device_name || '-'}`,
+    '------------------------------------------',
+    repairDetails.length > 0 ? '*RINCIAN PERBAIKAN*' : '',
+    ...repairDetails,
+    repairDetails.length > 0 ? '------------------------------------------' : '',
+    '*RINCIAN BIAYA*',
+    `Biaya Sparepart : Rp ${partFee.toLocaleString('id-ID')}`,
+    `Biaya Jasa      : Rp ${jasaFee.toLocaleString('id-ID')}`,
+    discount > 0 ? `Subtotal        : Rp ${subtotal.toLocaleString('id-ID')}` : '',
+    discount > 0 ? `Diskon          : - Rp ${discount.toLocaleString('id-ID')}` : '',
+    `*TOTAL TAGIHAN  : Rp ${total.toLocaleString('id-ID')}*`,
+    '',
+    '==========================================',
+    '*Status: SERVIS SELESAI • BELUM LUNAS*',
+    '==========================================',
+    '',
+    payment ? `*INFO REKENING PEMBAYARAN:*\n${payment}\n` : '',
     `⚠️ ${pickupWarning}`,
-    'Silakan lakukan pembayaran/pengambilan sesuai total tagihan di atas.',
+    '',
+    `*${receiptNote}*`,
+    'Barang yang sudah diambil tidak dapat dikembalikan / ditukar.',
+    '------------------------------------------',
     '🖨 *Nota Tagihan Digital:*',
     invoiceUrl,
-    'Setelah barang diambil dan lunas, UnitPro akan mengirim Nota Pelunasan serta Link Garansi.',
-  ].filter(Boolean).join('\n');
+    '',
+    '🔗 *Link Garansi (Aktif setelah Lunas):*',
+    warrantyUrl,
+  ].filter((val) => typeof val === 'string').join('\n');
 
   return {
     type: 'completion',
-    message: lines,
+    message: lines.trim().replace(/\n{3,}/g, '\n\n'),
     urlMedia: urlMedia || '',
     resi: service.resi,
     invoiceUrl,
@@ -202,11 +251,15 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
 };
 
 const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
+  const settings = tenant?.settings || {};
   const storeName = getStoreName(tenant);
+  const storeAddress = settings.store_address || settings.address || '';
+  const storePhone = settings.store_wa || tenant?.phone || '';
   const discount = getServiceDiscount(service.issue || '');
   const partFee = Number(service.part_fee || 0);
   const jasaFee = Number(service.jasa_fee || 0);
-  const total = Math.max(0, partFee + jasaFee - discount);
+  const subtotal = partFee + jasaFee;
+  const total = Math.max(0, subtotal - discount);
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const warrantyUrl = buildWarrantyUrl(tenant, service);
   const receiptUrl = buildPublicReceiptUrl(tenant, service, 'pickup');
@@ -214,28 +267,73 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
     ? `${meta.warrantyLabel}${meta.warrantyEnd ? ` — berlaku sampai ${meta.warrantyEnd}` : ''}`
     : 'Tanpa garansi tambahan';
 
+  const receiptNote = settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!';
+  const formattedDate = new Date(service.updated_at || service.created_at || Date.now()).toLocaleString('id-ID');
+
+  // Custom parsers for repair details
+  const issueText = String(service.issue || '');
+  const partName = issueText.match(/\[Sparepart diganti:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  const jasaName = issueText.match(/\[Jasa Servis:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  const repairResult = issueText.match(/\[Hasil Perbaikan:\s*([^\]]+)\]/i)?.[1]?.trim() || '';
+  
+  const cleanIssueText = issueText
+    .replace(/\n?\[Diskon:[^\]]*\]/gi, '')
+    .replace(/\n?\[Sparepart diganti:[^\]]*\]/gi, '')
+    .replace(/\n?\[Jasa Servis:[^\]]*\]/gi, '')
+    .replace(/\n?\[Hasil Perbaikan:[^\]]*\]/gi, '')
+    .replace(/\n?\[Garansi Servis:[^\]]*\]/gi, '')
+    .replace(/\n?\[Batas Pengambilan:[^\]]*\]/gi, '')
+    .replace(/\n?\[Peringatan Pengambilan:[^\]]*\]/gi, '')
+    .trim();
+
+  const repairDetails = [];
+  if (partName) repairDetails.push(`Sparepart : ${partName}`);
+  if (jasaName) repairDetails.push(`Jasa      : ${jasaName}`);
+  if (repairResult) repairDetails.push(`Hasil     : ${repairResult}`);
+  if (cleanIssueText) repairDetails.push(`Keluhan   : ${cleanIssueText}`);
+
   const lines = [
-    '🧾 *NOTA PELUNASAN SERVIS (GARANSI)*',
+    '🧾 *NOTA PELUNASAN SERVIS*',
     `*${storeName}*`,
-    `No. Nota: ${service.resi}`,
-    `Pelanggan: ${service.customer_name || '-'}`,
-    `Perangkat: ${service.device_name || '-'}`,
-    `Biaya Sparepart: Rp ${partFee.toLocaleString('id-ID')}`,
-    `Biaya Jasa: Rp ${jasaFee.toLocaleString('id-ID')}`,
-    discount > 0 ? `Diskon: - Rp ${discount.toLocaleString('id-ID')}` : '',
-    `*TOTAL LUNAS: Rp ${total.toLocaleString('id-ID')}*`,
-    `Garansi Servis: ${warrantyText}`,
-    '*Status: SUDAH DIAMBIL / LUNAS*',
+    storeAddress ? `${storeAddress}` : '',
+    storePhone ? `WA: ${storePhone}` : '',
+    '',
+    '------------------------------------------',
+    `No. Nota  : ${service.resi}`,
+    `Tanggal   : ${formattedDate}`,
+    `Pelanggan : ${service.customer_name || '-'}`,
+    `Perangkat : ${service.device_name || '-'}`,
+    '------------------------------------------',
+    repairDetails.length > 0 ? '*RINCIAN PERBAIKAN*' : '',
+    ...repairDetails,
+    repairDetails.length > 0 ? '------------------------------------------' : '',
+    '*RINCIAN BIAYA*',
+    `Biaya Sparepart : Rp ${partFee.toLocaleString('id-ID')}`,
+    `Biaya Jasa      : Rp ${jasaFee.toLocaleString('id-ID')}`,
+    discount > 0 ? `Subtotal        : Rp ${subtotal.toLocaleString('id-ID')}` : '',
+    discount > 0 ? `Diskon          : - Rp ${discount.toLocaleString('id-ID')}` : '',
+    `*TOTAL LUNAS    : Rp ${total.toLocaleString('id-ID')}*`,
+    '',
+    '==========================================',
+    '*Status: LUNAS • BARANG SUDAH DIAMBIL*',
+    '==========================================',
+    '',
+    '*GARANSI SERVIS*',
+    warrantyText,
+    '',
+    `*${receiptNote}*`,
+    'Barang yang sudah diambil tidak dapat dikembalikan / ditukar.',
+    '------------------------------------------',
+    '🖨 *Nota Pelunasan Digital:*',
+    receiptUrl,
+    '',
     '🔗 *Link Garansi:*',
     warrantyUrl,
-    '🖨 *Nota Garansi Digital:*',
-    receiptUrl,
-    'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
-  ].filter(Boolean).join('\n');
+  ].filter((val) => typeof val === 'string').join('\n');
 
   return {
     type: 'pickup',
-    message: lines,
+    message: lines.trim().replace(/\n{3,}/g, '\n\n'),
     urlMedia: urlMedia || '',
     resi: service.resi,
     warrantyUrl,

@@ -128,7 +128,7 @@ export default function EmployeeFinanceInsights({ services = [], employee, salar
                 );
               })}
               {completedServices.length === 0 && (
-                <tr><td colSpan="4" style={{ textAlign: 'center', color: '#6B7280', padding: '1.5rem' }}>Belum ada riwayat komisi.</td></tr>
+                <tr className="commission-empty-row"><td colSpan="4" style={{ textAlign: 'center', color: '#6B7280', padding: '1.5rem' }}>Belum ada riwayat komisi.</td></tr>
               )}
             </tbody>
           </table>

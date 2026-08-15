@@ -163,3 +163,228 @@
     grid-column: 1;
   }
 }
+
+/* ==========================================================================
+   Employee Portal Finance Responsive Improvements (Rich Aesthetics)
+   ========================================================================== */
+
+.employee-finance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.employee-finance-card {
+  padding: 20px 16px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+}
+
+.employee-finance-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.employee-finance-label {
+  margin: 0 0 6px 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.employee-finance-value {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.employee-finance-value.value-success {
+  color: #10b981;
+}
+
+.employee-finance-value.value-danger {
+  color: #ef4444;
+}
+
+.employee-finance-sub {
+  font-size: 0.74rem;
+  margin-top: 5px;
+  margin-bottom: 0;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.employee-finance-card--thp {
+  background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.35);
+}
+
+.employee-finance-card--thp .employee-finance-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.employee-finance-card--thp .employee-finance-value {
+  color: #ffffff;
+}
+
+.employee-finance-card--thp .btn-bon {
+  background: #ffffff;
+  color: var(--primary);
+  margin-top: 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.employee-finance-card--thp .btn-bon:hover {
+  opacity: 0.92;
+}
+
+/* Responsive Overrides */
+@media (max-width: 900px) {
+  .employee-finance-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Transforming commission history table into mobile friendly cards */
+  .employee-commission-table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .employee-commission-table thead {
+    display: none;
+  }
+
+  .employee-commission-table tbody {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .employee-commission-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+  }
+
+  .employee-commission-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0 !important;
+    border: none !important;
+    text-align: left !important;
+  }
+
+  .employee-commission-table td::before {
+    margin-bottom: 2px;
+    color: #94a3b8;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Tanggal */
+  .employee-commission-table td:nth-child(1) {
+    order: 2;
+    align-items: flex-end;
+  }
+  .employee-commission-table td:nth-child(1)::before {
+    content: "Tanggal";
+  }
+
+  /* Resi */
+  .employee-commission-table td:nth-child(2) {
+    order: 1;
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.88rem;
+  }
+  .employee-commission-table td:nth-child(2)::before {
+    content: "No. Resi";
+  }
+
+  /* Jasa */
+  .employee-commission-table td:nth-child(3) {
+    order: 3;
+    font-size: 0.82rem;
+    color: #475569;
+  }
+  .employee-commission-table td:nth-child(3)::before {
+    content: "Biaya Jasa";
+  }
+
+  /* Komisi */
+  .employee-commission-table td:nth-child(4) {
+    order: 4;
+    align-items: flex-end;
+    font-size: 0.88rem;
+  }
+  .employee-commission-table td:nth-child(4)::before {
+    content: "Komisi Anda";
+  }
+
+  /* Empty state formatting on mobile */
+  .employee-commission-table tr.commission-empty-row {
+    display: block !important;
+    text-align: center !important;
+    padding: 24px 12px !important;
+  }
+
+  .employee-commission-table tr.commission-empty-row td {
+    display: block !important;
+    text-align: center !important;
+    align-items: center !important;
+    color: #6b7280;
+  }
+
+  .employee-commission-table tr.commission-empty-row td::before {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .employee-finance-card {
+    padding: 16px 10px;
+    border-radius: 12px;
+  }
+  .employee-finance-value {
+    font-size: 1.15rem;
+  }
+  .employee-finance-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+}

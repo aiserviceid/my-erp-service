@@ -1447,25 +1447,25 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <div className="glass-panel">
               <h3 style={{ marginBottom: '1rem' }}>Laporan Keuangan & Gaji</h3>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2rem' }}>
-                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Gaji Pokok</p>
-                  <h2 style={{ margin: 0, color: 'var(--primary)' }}>Rp {mySalary.toLocaleString('id-ID')}</h2>
+              <div className="employee-finance-grid">
+                <div className="employee-finance-card">
+                  <p className="employee-finance-label">Gaji Pokok</p>
+                  <h2 className="employee-finance-value">Rp {mySalary.toLocaleString('id-ID')}</h2>
                 </div>
-                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Komisi ({myCommissionRate}%)</p>
-                  <h2 style={{ margin: 0, color: totalKomisi === 0 ? '#6B7280' : '#10B981' }}>Rp {totalKomisi.toLocaleString('id-ID')}</h2>
-                  <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Dari {myCompletedServices.length} Servis</p>
+                <div className="employee-finance-card">
+                  <p className="employee-finance-label">Total Komisi ({myCommissionRate}%)</p>
+                  <h2 className="employee-finance-value value-success">Rp {totalKomisi.toLocaleString('id-ID')}</h2>
+                  <p className="employee-finance-sub">Dari {myCompletedServices.length} Servis</p>
                 </div>
-                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', color: 'var(--text-muted)' }}>Total Kasbon / Pinjaman</p>
-                  <h2 style={{ margin: 0, color: '#ef4444' }}>Rp {totalBon.toLocaleString('id-ID')}</h2>
-                  <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Dari {myBonTransactions.length} Transaksi</p>
+                <div className="employee-finance-card">
+                  <p className="employee-finance-label">Total Kasbon</p>
+                  <h2 className="employee-finance-value value-danger">Rp {totalBon.toLocaleString('id-ID')}</h2>
+                  <p className="employee-finance-sub">Dari {myBonTransactions.length} Transaksi</p>
                 </div>
-                <div style={{ padding: '1.5rem', background: 'var(--primary)', color: 'white', borderRadius: '12px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px 0', opacity: 0.9 }}>Take Home Pay (THP)</p>
-                  <h2 style={{ margin: 0 }}>Rp {sisaBersih.toLocaleString('id-ID')}</h2>
-                  <button className="btn" style={{ background: 'white', color: 'var(--primary)', marginTop: '10px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={() => setShowBonModal(true)}>
+                <div className="employee-finance-card employee-finance-card--thp">
+                  <p className="employee-finance-label">Take Home Pay (THP)</p>
+                  <h2 className="employee-finance-value">Rp {sisaBersih.toLocaleString('id-ID')}</h2>
+                  <button className="btn btn-bon" onClick={() => setShowBonModal(true)}>
                     <Wallet size={14} style={{ marginRight: '5px', display: 'inline' }}/> Ajukan Kasbon
                   </button>
                 </div>
