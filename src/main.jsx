@@ -13,6 +13,7 @@ import './services/nativePrintBridge.js'
 import './index.css'
 import './unitpro-ui-polish.css'
 import './unitpro-ui-stability.css'
+import './service-registration-compact.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
