@@ -518,16 +518,20 @@ export const apiService = {
 
   recordLedgerTransaction: async (tenantCode, ledgerData) => {
     try {
+      const paymentMethod = ledgerData.payment_method || 'Tunai';
+      const descFormatted = ledgerData.description
+        ? `${ledgerData.description} [Metode: ${paymentMethod}]`
+        : `[Metode: ${paymentMethod}]`;
+
       const payload = {
         tenant_code: tenantCode,
         type: ledgerData.type || 'INCOME',
         amount: Number(ledgerData.amount || 0),
-        description: ledgerData.description || 'Pencatatan Arus Kas',
-        payment_method: ledgerData.payment_method || 'Tunai',
+        description: descFormatted,
         created_at: ledgerData.created_at || new Date().toISOString()
       };
       if (tenantCode === 'DEMO-STORE') {
-        return { id: `LEDGER-${Date.now()}`, ...payload };
+        return { id: `LEDGER-${Date.now()}`, ...payload, payment_method: paymentMethod };
       }
       const { data, error } = await supabase
         .from('transactions')
@@ -535,13 +539,13 @@ export const apiService = {
         .select()
         .single();
       if (error) {
-        console.warn('Ledger transaction insert fallback:', error);
-        return { id: `LEDGER-${Date.now()}`, ...payload };
+        console.error('Ledger transaction insert error:', error);
+        throw error;
       }
       return data;
     } catch (e) {
       console.error('recordLedgerTransaction error:', e);
-      return { id: `LEDGER-${Date.now()}`, tenant_code: tenantCode, ...ledgerData };
+      throw e;
     }
   },
 
@@ -555,12 +559,17 @@ export const apiService = {
         };
         return newTx;
       }
+      
+      const paymentMethod = txData.payment_method || 'Tunai';
+      const descFormatted = txData.description
+        ? `${txData.description} [Metode: ${paymentMethod}]`
+        : `[Metode: ${paymentMethod}]`;
+
       const payload = {
         tenant_code: txData.tenant_code,
         type: txData.type || 'EXPENSE',
         amount: Number(txData.amount || 0),
-        description: txData.description || '',
-        payment_method: txData.payment_method || 'Tunai',
+        description: descFormatted,
         created_at: txData.created_at || new Date().toISOString()
       };
 
@@ -573,12 +582,8 @@ export const apiService = {
       if (error) throw error;
       return data;
     } catch (e) {
-      console.error('createTransaction atomic fallback error:', e);
-      return {
-        id: `TRX-${Date.now()}`,
-        created_at: txData.created_at || new Date().toISOString(),
-        ...txData
-      };
+      console.error('createTransaction error:', e);
+      throw e;
     }
   },
 
@@ -886,10 +891,16 @@ export const apiService = {
           return idempotencyCache.get(idempotencyKey);
         }
 
-        const { idempotency_key, idempotencyKey: ik, ...cleanedBody } = body;
+        const { idempotency_key, idempotencyKey: ik, payment_method, ...cleanedBody } = body;
+
+        const paymentMethod = body?.payment_method || 'Tunai';
+        const descFormatted = body?.description
+          ? `${body?.description} [Metode: ${paymentMethod}]`
+          : `[Metode: ${paymentMethod}]`;
 
         const transactionBody = {
           ...cleanedBody,
+          description: descFormatted,
           amount: String(body?.type || '').toUpperCase().startsWith('BON_')
             ? normalizeKasbonAmount(body?.amount, body?.type)
             : normalizeMoneyInteger(body?.amount),

@@ -20,10 +20,23 @@ export const normalizeKasbonAmount = (value, type = 'BON_PENDING') => {
 };
 
 export const normalizeTransactionAmounts = (transactions = []) => (
-  (transactions || []).map((transaction) => ({
-    ...transaction,
-    amount: normalizeKasbonAmount(transaction?.amount, transaction?.type),
-  }))
+  (transactions || []).map((transaction) => {
+    let paymentMethod = transaction?.payment_method || 'Tunai';
+    let cleanDescription = transaction?.description || '';
+
+    const match = cleanDescription.match(/\[Metode:\s*([^\]]+)\]/);
+    if (match) {
+      paymentMethod = match[1].trim();
+      cleanDescription = cleanDescription.replace(/\[Metode:\s*[^\]]+\]/, '').trim();
+    }
+
+    return {
+      ...transaction,
+      amount: normalizeKasbonAmount(transaction?.amount, transaction?.type),
+      payment_method: paymentMethod,
+      description: cleanDescription,
+    };
+  })
 );
 
 export const allocateServiceDiscount = (partFeeValue = 0, jasaFeeValue = 0, discountValue = 0) => {

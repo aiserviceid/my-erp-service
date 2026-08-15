@@ -1,7 +1,11 @@
-import { AlertTriangle, BarChart3, CheckCircle2, Clock, MessageCircle, PackageSearch, Plus, ShoppingCart, TrendingUp } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, Clock, MessageCircle, PackageSearch, Plus, ShoppingCart, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
-const money = (value = 0) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+const money = (value = 0) => {
+  const val = Number(value || 0);
+  if (val < 0) return `-Rp ${Math.abs(val).toLocaleString('id-ID')}`;
+  return `Rp ${val.toLocaleString('id-ID')}`;
+};
 
 const isToday = (dateValue) => {
   if (!dateValue) return false;
@@ -19,6 +23,12 @@ const isRevenueTransaction = (trx) => {
   return type === 'INCOME' || type.startsWith('INCOME_') || type === 'POS_SALES';
 };
 
+const isExpenseTransaction = (trx) => {
+  const type = String(trx?.type || '').toUpperCase();
+  const desc = String(trx?.description || '').toLowerCase();
+  return type === 'EXPENSE' || type === 'BON_KARYAWAN' || type === 'KASBON' || type === 'CASH_ADVANCE' || type.startsWith('OUT_') || type.includes('PENGELUARAN') || desc.includes('beli') || desc.includes('operasional');
+};
+
 export default function PremiumDashboardSummary({
   services = [],
   transactions = [],
@@ -33,10 +43,18 @@ export default function PremiumDashboardSummary({
   const unfinishedServices = services.filter((service) => serviceIsOpen(service.status));
   const readyServices = services.filter((service) => serviceIsReady(service.status));
   const lowStockProducts = products.filter((product) => isPhysicalProduct(product) && Number(product.stock || 0) <= 3);
+  
   const revenueToday = transactions
     .filter((trx) => isToday(trx.created_at))
     .filter(isRevenueTransaction)
     .reduce((sum, trx) => sum + Number(trx.amount || 0), 0);
+
+  const expenseToday = transactions
+    .filter((trx) => isToday(trx.created_at))
+    .filter(isExpenseTransaction)
+    .reduce((sum, trx) => sum + Number(trx.amount || 0), 0);
+
+  const netProfitToday = revenueToday - expenseToday;
 
   const revenueTrend = Array.from({ length: 7 }).map((_, index) => {
     const date = new Date();
@@ -62,6 +80,8 @@ export default function PremiumDashboardSummary({
 
   const cards = [
     { label: 'Omzet Hari Ini', value: money(revenueToday), hint: 'POS + servis', icon: BarChart3, tone: '#0f766e' },
+    { label: 'Pengeluaran Hari Ini', value: money(expenseToday), hint: 'Total biaya keluar', icon: TrendingDown, tone: '#dc2626' },
+    { label: 'Laba Bersih Hari Ini', value: money(netProfitToday), hint: 'Pemasukan - pengeluaran', icon: DollarSign, tone: netProfitToday >= 0 ? '#16a34a' : '#ef4444' },
     { label: 'Servis Masuk', value: todayServices.length, hint: 'Unit hari ini', icon: Plus, tone: '#2563eb' },
     { label: 'Belum Selesai', value: unfinishedServices.length, hint: 'Perlu dipantau', icon: Clock, tone: '#d97706' },
     { label: 'Siap Diambil', value: readyServices.length, hint: 'Siap ditagih/WA', icon: CheckCircle2, tone: '#16a34a' },
