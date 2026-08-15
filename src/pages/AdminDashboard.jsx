@@ -1953,155 +1953,209 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 )}
 
                 {settingTab === 'wa' && (
-                  <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out', opacity: isFree ? 0.6 : 1 }}>
-                    <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Otomatisasi WhatsApp {isFree && <span className="badge badge-warning">Premium</span>}</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                      Pilih metode pengiriman notifikasi WhatsApp. Anda dapat menggunakan server terpusat sistem kami atau nomor WA toko Anda sendiri.
-                    </p>
-                    <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'rgba(255,255,255,0.5)' }}>
-                      <div style={{ marginBottom: '1.5rem' }}>
-                        <label className="label">Mode Pengiriman WA:</label>
-                        <select 
-                          className="input-field" 
-                          id="waSenderModeInput"
-                          value={tenant?.settings?.wa_sender_mode || 'SYSTEM'} 
-                          disabled={isFree}
-                          onChange={async (e) => {
-                            const mode = e.target.value;
-                            const newSettings = { ...tenant?.settings, wa_sender_mode: mode };
-                            try {
-                              await apiService.updateTenantSettings(tenant.code, newSettings);
-                              updateTenantSettings(newSettings);
-                            } catch(err) { alert('Gagal mengubah mode'); }
-                          }}
-                        >
-                          <option value="SYSTEM">🟢 Server Terpusat AIService.ID (Sistem Global)</option>
-                          <option value="CUSTOM">⚙️ Custom API Key Mandiri (Toko Sendiri)</option>
-                        </select>
-                      </div>
-
-                      {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <label className="label">Token WhatsApp Gateway (Fonnte):</label>
-                          <input 
-                            type="password" 
-                            className="input-field" 
-                            placeholder="Masukkan Token Fonnte/Wablas Toko Anda..."
-                            defaultValue={tenant?.settings?.fonnte_token || ''}
-                            id="fonnteTokenInput"
-                            disabled={isFree}
-                          />
-                          <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '8px' }}>
-                            🔑 Token ini dipakai untuk notifikasi servis, pesan teknisi, kirim satu pelanggan, dan broadcast WhatsApp Marketing.
-                          </span>
-                        </div>
-                      ) : (
-                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px', borderRadius: '10px', color: '#15803d', fontSize: '0.85rem', fontWeight: '800', marginBottom: '1.5rem' }}>
-                          ✓ Layanan WA otomatis aktif menggunakan Server Gateway AIService.ID. Tidak perlu konfigurasi API Key tambahan.
-                        </div>
-                      )}
-
-                      {/* Kustomisasi Template WhatsApp */}
-                      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: '#0f172a', fontSize: '1rem' }}>📝 Kustomisasi Template Pesan</h4>
-                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                          Edit isi pesan otomatis yang dikirim ke pelanggan. Anda dapat menggunakan variabel/tag dinamis di bawah.
+                  <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Otomatisasi WhatsApp {isFree && <span className="badge badge-warning">Premium</span>}</h3>
+                    
+                    <div style={{ display: 'flex', gap: '2rem', flexDirection: window.innerWidth < 1100 ? 'column' : 'row' }}>
+                      <div style={{ flex: 1.2, minWidth: '300px', opacity: isFree ? 0.6 : 1 }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                          Pilih metode pengiriman notifikasi WhatsApp. Anda dapat menggunakan server terpusat sistem kami atau nomor WA toko Anda sendiri.
                         </p>
                         
-                        {/* Placeholder Badges Info */}
-                        <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '1.5rem' }}>
-                          <span style={{ display: 'block', fontSize: '0.76rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Variabel yang Didukung:</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {['{store_name}', '{customer_name}', '{resi}', '{device_name}', '{date}', '{repair_details}', '{part_fee}', '{jasa_fee}', '{discount}', '{subtotal}', '{total}', '{payment_info}', '{pickup_warning}', '{warranty_text}', '{receipt_note}', '{invoice_url}', '{receipt_url}', '{warranty_url}', '{tracking_url}'].map(tag => (
-                              <span key={tag} style={{ fontSize: '0.72rem', background: '#e2e8f0', color: '#334155', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: '700' }}>{tag}</span>
-                            ))}
+                        <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem' }}>
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <label className="label">Mode Pengiriman WA:</label>
+                            <select 
+                              className="input-field" 
+                              id="waSenderModeInput"
+                              value={tenant?.settings?.wa_sender_mode || 'SYSTEM'} 
+                              disabled={isFree}
+                              onChange={async (e) => {
+                                const mode = e.target.value;
+                                const newSettings = { ...tenant?.settings, wa_sender_mode: mode };
+                                try {
+                                  await apiService.updateTenantSettings(tenant.code, newSettings);
+                                  updateTenantSettings(newSettings);
+                                } catch(err) { alert('Gagal mengubah mode'); }
+                              }}
+                            >
+                              <option value="SYSTEM">🟢 Server Terpusat AIService.ID (Sistem Global)</option>
+                              <option value="CUSTOM">⚙️ Custom API Key Mandiri (Toko Sendiri)</option>
+                            </select>
+                          </div>
+
+                          {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
+                            <div style={{ marginBottom: '0' }}>
+                              <label className="label">Token WhatsApp Gateway (Fonnte):</label>
+                              <input 
+                                type="password" 
+                                className="input-field" 
+                                placeholder="Masukkan Token Fonnte/Wablas Toko Anda..."
+                                defaultValue={tenant?.settings?.fonnte_token || ''}
+                                id="fonnteTokenInput"
+                                disabled={isFree}
+                              />
+                              <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '8px' }}>
+                                🔑 Token ini dipakai untuk notifikasi servis, pesan teknisi, kirim satu pelanggan, dan broadcast WhatsApp Marketing.
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px', borderRadius: '10px', color: '#15803d', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0' }}>
+                              ✓ Layanan WA otomatis aktif menggunakan Server Gateway AIService.ID. Tidak perlu konfigurasi API Key tambahan.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Kustomisasi Template WhatsApp */}
+                        <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem' }}>
+                          <h4 style={{ margin: '0 0 10px 0', color: '#0f172a', fontSize: '1rem' }}>📝 Kustomisasi Template Pesan</h4>
+                          <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                            Edit isi pesan otomatis yang dikirim ke pelanggan. Anda dapat menggunakan variabel/tag dinamis di bawah.
+                          </p>
+                          
+                          {/* Placeholder Badges Info */}
+                          <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '1.5rem' }}>
+                            <span style={{ display: 'block', fontSize: '0.76rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Variabel yang Didukung:</span>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {['{store_name}', '{customer_name}', '{resi}', '{device_name}', '{date}', '{repair_details}', '{part_fee}', '{jasa_fee}', '{discount}', '{subtotal}', '{total}', '{payment_info}', '{pickup_warning}', '{warranty_text}', '{receipt_note}', '{invoice_url}', '{receipt_url}', '{warranty_url}', '{tracking_url}'].map(tag => (
+                                <span key={tag} style={{ fontSize: '0.72rem', background: '#e2e8f0', color: '#334155', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: '700' }}>{tag}</span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Received Template */}
+                          <div style={{ marginBottom: '1.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <label className="label" style={{ margin: 0, fontWeight: '700', fontSize: '0.82rem' }}>1. Template Konfirmasi Masuk (Diterima)</label>
+                              <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => {
+                                const input = document.getElementById('waTemplateReceivedInput');
+                                if (input) input.value = DEFAULT_TEMPLATE_RECEIVED;
+                              }}>Reset ke Default</button>
+                            </div>
+                            <textarea 
+                              className="input-field" 
+                              id="waTemplateReceivedInput" 
+                              placeholder="Ketik template pesan masuk..." 
+                              defaultValue={tenant?.settings?.wa_template_received || DEFAULT_TEMPLATE_RECEIVED} 
+                              style={{ width: '100%', minHeight: '120px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
+                              disabled={isFree}
+                            />
+                          </div>
+
+                          {/* Completed Template */}
+                          <div style={{ marginBottom: '1.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <label className="label" style={{ margin: 0, fontWeight: '700', fontSize: '0.82rem' }}>2. Template Nota Tagihan (Selesai)</label>
+                              <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => {
+                                const input = document.getElementById('waTemplateCompletedInput');
+                                if (input) input.value = DEFAULT_TEMPLATE_COMPLETED;
+                              }}>Reset ke Default</button>
+                            </div>
+                            <textarea 
+                              className="input-field" 
+                              id="waTemplateCompletedInput" 
+                              placeholder="Ketik template nota tagihan..." 
+                              defaultValue={tenant?.settings?.wa_template_completed || DEFAULT_TEMPLATE_COMPLETED} 
+                              style={{ width: '100%', minHeight: '180px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
+                              disabled={isFree}
+                            />
+                          </div>
+
+                          {/* Picked Template */}
+                          <div style={{ marginBottom: '0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <label className="label" style={{ margin: 0, fontWeight: '700', fontSize: '0.82rem' }}>3. Template Nota Pelunasan (Diambil)</label>
+                              <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => {
+                                const input = document.getElementById('waTemplatePickedInput');
+                                if (input) input.value = DEFAULT_TEMPLATE_PICKED;
+                              }}>Reset ke Default</button>
+                            </div>
+                            <textarea 
+                              className="input-field" 
+                              id="waTemplatePickedInput" 
+                              placeholder="Ketik template nota pelunasan..." 
+                              defaultValue={tenant?.settings?.wa_template_picked || DEFAULT_TEMPLATE_PICKED} 
+                              style={{ width: '100%', minHeight: '180px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
+                              disabled={isFree}
+                            />
                           </div>
                         </div>
 
-                        {/* Received Template */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <label className="label" style={{ margin: 0, fontWeight: '700', fontSize: '0.82rem' }}>1. Template Konfirmasi Masuk (Diterima)</label>
-                            <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => {
-                              const input = document.getElementById('waTemplateReceivedInput');
-                              if (input) input.value = DEFAULT_TEMPLATE_RECEIVED;
-                            }}>Reset ke Default</button>
-                          </div>
-                          <textarea 
-                            className="input-field" 
-                            id="waTemplateReceivedInput" 
-                            placeholder="Ketik template pesan masuk..." 
-                            defaultValue={tenant?.settings?.wa_template_received || DEFAULT_TEMPLATE_RECEIVED} 
-                            style={{ width: '100%', minHeight: '120px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
-                            disabled={isFree}
-                          />
-                        </div>
+                        <button 
+                          className="btn" 
+                          style={{ background: '#059669', color: 'white', border: 'none', width: '100%', padding: '12px 16px', fontWeight: '800', fontSize: '0.9rem', borderRadius: '10px' }}
+                          disabled={isFree} 
+                          onClick={async () => {
+                            const token = tenant?.settings?.wa_sender_mode === 'CUSTOM' ? document.getElementById('fonnteTokenInput')?.value : (tenant?.settings?.fonnte_token || '');
+                            const tplReceived = document.getElementById('waTemplateReceivedInput')?.value || '';
+                            const tplCompleted = document.getElementById('waTemplateCompletedInput')?.value || '';
+                            const tplPicked = document.getElementById('waTemplatePickedInput')?.value || '';
 
-                        {/* Completed Template */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <label className="label" style={{ margin: 0, fontWeight: '700', fontSize: '0.82rem' }}>2. Template Nota Tagihan (Selesai)</label>
-                            <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => {
-                              const input = document.getElementById('waTemplateCompletedInput');
-                              if (input) input.value = DEFAULT_TEMPLATE_COMPLETED;
-                            }}>Reset ke Default</button>
-                          </div>
-                          <textarea 
-                            className="input-field" 
-                            id="waTemplateCompletedInput" 
-                            placeholder="Ketik template nota tagihan..." 
-                            defaultValue={tenant?.settings?.wa_template_completed || DEFAULT_TEMPLATE_COMPLETED} 
-                            style={{ width: '100%', minHeight: '180px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
-                            disabled={isFree}
-                          />
-                        </div>
-
-                        {/* Picked Template */}
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <label className="label" style={{ margin: 0, fontWeight: '700', fontSize: '0.82rem' }}>3. Template Nota Pelunasan (Diambil)</label>
-                            <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={() => {
-                              const input = document.getElementById('waTemplatePickedInput');
-                              if (input) input.value = DEFAULT_TEMPLATE_PICKED;
-                            }}>Reset ke Default</button>
-                          </div>
-                          <textarea 
-                            className="input-field" 
-                            id="waTemplatePickedInput" 
-                            placeholder="Ketik template nota pelunasan..." 
-                            defaultValue={tenant?.settings?.wa_template_picked || DEFAULT_TEMPLATE_PICKED} 
-                            style={{ width: '100%', minHeight: '180px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
-                            disabled={isFree}
-                          />
-                        </div>
+                            try {
+                              const newSettings = { 
+                                ...tenant?.settings, 
+                                fonnte_token: token,
+                                wa_template_received: tplReceived,
+                                wa_template_completed: tplCompleted,
+                                wa_template_picked: tplPicked
+                              };
+                              await apiService.updateTenantSettings(tenant.code, newSettings);
+                              updateTenantSettings(newSettings);
+                              alert('Pengaturan WhatsApp berhasil disimpan!');
+                            } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                          }}
+                        >
+                          Simpan Pengaturan WA & Template
+                        </button>
                       </div>
 
-                      <button 
-                        className="btn" 
-                        style={{ background: '#059669', color: 'white', border: 'none', width: '100%', padding: '12px', fontWeight: '800' }}
-                        disabled={isFree} 
-                        onClick={async () => {
-                          const token = tenant?.settings?.wa_sender_mode === 'CUSTOM' ? document.getElementById('fonnteTokenInput')?.value : (tenant?.settings?.fonnte_token || '');
-                          const tplReceived = document.getElementById('waTemplateReceivedInput')?.value || '';
-                          const tplCompleted = document.getElementById('waTemplateCompletedInput')?.value || '';
-                          const tplPicked = document.getElementById('waTemplatePickedInput')?.value || '';
+                      {/* Acuan Template Default (The right column card) */}
+                      <div style={{ flex: 0.8, minWidth: '300px' }}>
+                        <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>💡 Acuan Template Default</h4>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <div style={{ background: 'white', padding: '12px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                              <strong style={{ fontSize: '0.78rem', color: '#0f172a', display: 'block', marginBottom: '6px' }}>1. Konfirmasi Masuk (Diterima)</strong>
+                              <pre style={{ margin: 0, fontSize: '0.72rem', color: '#475569', whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#f8fafc', padding: '8px', borderRadius: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                                {DEFAULT_TEMPLATE_RECEIVED}
+                              </pre>
+                            </div>
 
-                          try {
-                            const newSettings = { 
-                              ...tenant?.settings, 
-                              fonnte_token: token,
-                              wa_template_received: tplReceived,
-                              wa_template_completed: tplCompleted,
-                              wa_template_picked: tplPicked
-                            };
-                            await apiService.updateTenantSettings(tenant.code, newSettings);
-                            updateTenantSettings(newSettings);
-                            alert('Pengaturan WhatsApp berhasil disimpan!');
-                          } catch(e) { alert('Gagal menyimpan pengaturan'); }
-                        }}
-                      >
-                        Simpan Pengaturan WA
-                      </button>
+                            <div style={{ background: 'white', padding: '12px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                              <strong style={{ fontSize: '0.78rem', color: '#0f172a', display: 'block', marginBottom: '6px' }}>2. Nota Tagihan (Selesai)</strong>
+                              <pre style={{ margin: 0, fontSize: '0.72rem', color: '#475569', whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#f8fafc', padding: '8px', borderRadius: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                                {DEFAULT_TEMPLATE_COMPLETED}
+                              </pre>
+                            </div>
+
+                            <div style={{ background: 'white', padding: '12px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                              <strong style={{ fontSize: '0.78rem', color: '#0f172a', display: 'block', marginBottom: '6px' }}>3. Nota Pelunasan (Diambil)</strong>
+                              <pre style={{ margin: 0, fontSize: '0.72rem', color: '#475569', whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#f8fafc', padding: '8px', borderRadius: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                                {DEFAULT_TEMPLATE_PICKED}
+                              </pre>
+                            </div>
+                            
+                            <button 
+                              type="button" 
+                              className="btn" 
+                              style={{ width: '100%', background: '#64748b', color: 'white', fontSize: '0.8rem', padding: '10px', border: 'none', fontWeight: '800', borderRadius: '8px', cursor: 'pointer' }}
+                              onClick={() => {
+                                if (window.confirm('Apakah Anda yakin ingin menyetel ulang semua template ke default bawaan sistem?')) {
+                                  const tReceived = document.getElementById('waTemplateReceivedInput');
+                                  const tCompleted = document.getElementById('waTemplateCompletedInput');
+                                  const tPicked = document.getElementById('waTemplatePickedInput');
+                                  if (tReceived) tReceived.value = DEFAULT_TEMPLATE_RECEIVED;
+                                  if (tCompleted) tCompleted.value = DEFAULT_TEMPLATE_COMPLETED;
+                                  if (tPicked) tPicked.value = DEFAULT_TEMPLATE_PICKED;
+                                }
+                              }}
+                            >
+                              🔄 Reset Semua ke Default
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
