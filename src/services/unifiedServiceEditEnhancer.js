@@ -35,13 +35,11 @@ const sameCustomer = (service, base) => {
 };
 
 const extractResi = (button) => {
-  let node = button;
-  for (let depth = 0; node && depth < 8; depth += 1, node = node.parentElement) {
-    const text = node.textContent || '';
-    const found = text.match(/TRX-[A-Z0-9_-]+/i)?.[0];
-    if (found) return found.toUpperCase();
-  }
-  return '';
+  // Never infer a resi from the surrounding card text. On small screens the
+  // status and device label can be adjacent to the resi, turning for example
+  // `TRX-...-01` into `TRX-...-01SELESAILAPTOP`.
+  const resi = String(button?.dataset?.serviceResi || '').trim().toUpperCase();
+  return /^TRX-[A-Z0-9_-]+$/i.test(resi) ? resi : '';
 };
 
 const buttonStyle = (active = false, danger = false) => [
@@ -318,7 +316,7 @@ const enhanceEditButtons = () => {
   cleanLegacyButtons();
   const candidates = [...document.querySelectorAll('button')].filter((button) => {
     if (button.closest('.modal-backdrop')) return false;
-    return /Edit Nota/i.test(button.textContent || '');
+    return Boolean(button.dataset.serviceResi) && /Edit Nota/i.test(button.textContent || '');
   });
 
   candidates.forEach((button) => {
