@@ -1,9 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { decodeTenantCodeFromToken, getBearerToken } from '../../server/serverless-auth.mjs';
 
 const CODE_REGEX = /^[A-Z0-9_-]{3,32}$/;
 const PIN_REGEX = /^[0-9]{4,12}$/;
+const ATTEMPT_LIMIT = 5;
+const LOCK_MS = 15 * 60 * 1000;
+const credentialAttempts = new Map();
 
 const RELATED_TENANT_TABLES = [
   'users',
@@ -36,33 +39,6 @@ const getSupabaseAdmin = () => {
   });
 };
 
-const authenticateTenant = (req, res) => {
-  const secret = String(process.env.JWT_SECRET || '').trim();
-  if (!secret) {
-    res.status(503).json({ error: 'JWT_SECRET belum dikonfigurasi di server.' });
-    return null;
-  }
-
-  const authHeader = String(req.headers.authorization || '');
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  if (!token || token === 'null' || token === 'undefined') {
-    res.status(401).json({ error: 'Sesi toko tidak ditemukan. Silakan login ulang.' });
-    return null;
-  }
-
-  try {
-    const payload = jwt.verify(token, secret);
-    if (payload?.role !== 'tenant' || !payload?.code) {
-      res.status(403).json({ error: 'Token bukan sesi Admin Toko yang valid.' });
-      return null;
-    }
-    return payload;
-  } catch {
-    res.status(401).json({ error: 'Sesi toko tidak valid atau sudah berakhir. Silakan login ulang.' });
-    return null;
-  }
-};
-
 const pinMatches = async (inputPin, storedPin) => {
   const input = String(inputPin || '');
   const stored = String(storedPin || '');
@@ -77,10 +53,18 @@ const pinMatches = async (inputPin, storedPin) => {
   return input === stored;
 };
 
-const isMissingTableError = (error) => {
+const isMissingRelationError = (error) => {
   const code = String(error?.code || '');
   const message = String(error?.message || '').toLowerCase();
-  return code === '42P01' || code === 'PGRST205' || message.includes('could not find the table') || message.includes('does not exist');
+  return [
+    '42P01', // table missing
+    '42703', // column missing
+    'PGRST204',
+    'PGRST205'
+  ].includes(code)
+    || message.includes('could not find the table')
+    || message.includes('could not find the')
+    || message.includes('does not exist');
 };
 
 const moveTenantRelations = async (supabase, oldCode, newCode) => {
@@ -93,7 +77,7 @@ const moveTenantRelations = async (supabase, oldCode, newCode) => {
       .eq('tenant_code', oldCode);
 
     if (error) {
-      if (isMissingTableError(error)) continue;
+      if (isMissingRelationError(error)) continue;
       const err = new Error(`Gagal memindahkan relasi tabel ${table}: ${error.message}`);
       err.movedTables = movedTables;
       throw err;
@@ -117,6 +101,29 @@ const rollbackTenantRelations = async (supabase, tables, fromCode, toCode) => {
   }
 };
 
+const getAttemptKey = (req, tenantCode) => {
+  const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = forwarded || String(req.socket?.remoteAddress || 'unknown');
+  return `${ip}:${tenantCode || 'unknown'}`;
+};
+
+const checkAttemptLock = (key) => {
+  const state = credentialAttempts.get(key);
+  if (!state) return 0;
+  if (state.lockedUntil > Date.now()) return state.lockedUntil - Date.now();
+  if (state.lockedUntil) credentialAttempts.delete(key);
+  return 0;
+};
+
+const registerFailure = (key) => {
+  const current = credentialAttempts.get(key) || { count: 0, lockedUntil: 0 };
+  const count = current.count + 1;
+  credentialAttempts.set(key, {
+    count,
+    lockedUntil: count >= ATTEMPT_LIMIT ? Date.now() + LOCK_MS : 0
+  });
+};
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -126,24 +133,22 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method tidak diizinkan.' });
   }
 
-  const session = authenticateTenant(req, res);
-  if (!session) return;
-
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return res.status(503).json({ error: 'Supabase service role belum dikonfigurasi di server.' });
   }
 
-  const oldCode = String(session.code || '').trim().toUpperCase();
   const body = req.body && typeof req.body === 'object' ? req.body : {};
-  const newCode = String(body.newCode || oldCode).trim().toUpperCase();
+  const requestedNewCode = String(body.newCode || '').trim().toUpperCase();
   const newPin = String(body.newPin || '').trim();
   const currentPin = String(body.currentPin || '').trim();
+  const token = getBearerToken(req);
+  let oldCode = decodeTenantCodeFromToken(token);
 
   if (!currentPin) {
     return res.status(400).json({ error: 'PIN / Password saat ini wajib diisi untuk verifikasi keamanan.' });
   }
-  if (!CODE_REGEX.test(newCode)) {
+  if (requestedNewCode && !CODE_REGEX.test(requestedNewCode)) {
     return res.status(400).json({ error: 'Kode Toko hanya boleh berisi huruf kapital, angka, strip (-), dan underscore (_), 3-32 karakter.' });
   }
   if (newPin && !PIN_REGEX.test(newPin)) {
@@ -151,20 +156,51 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .select('*')
-      .eq('code', oldCode)
-      .maybeSingle();
+    let tenant = null;
 
-    if (tenantError) throw tenantError;
-    if (!tenant) return res.status(404).json({ error: 'Toko tidak ditemukan.' });
+    if (oldCode) {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('code', oldCode)
+        .maybeSingle();
+      if (error) throw error;
+      tenant = data || null;
+    }
+
+    // Token lama bisa menyimpan kode toko sebelum perubahan. Untuk kasus itu,
+    // kode pada form boleh dipakai sebagai kandidat setelah PIN tetap diverifikasi.
+    if (!tenant && requestedNewCode) {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('code', requestedNewCode)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) {
+        tenant = data;
+        oldCode = String(data.code).trim().toUpperCase();
+      }
+    }
+
+    if (!tenant || !oldCode) {
+      return res.status(401).json({ error: 'Sesi toko tidak dapat dikenali. Silakan login ulang lalu coba lagi.' });
+    }
+
+    const attemptKey = getAttemptKey(req, oldCode);
+    const lockedFor = checkAttemptLock(attemptKey);
+    if (lockedFor > 0) {
+      return res.status(429).json({ error: `Terlalu banyak percobaan PIN salah. Coba lagi sekitar ${Math.ceil(lockedFor / 60000)} menit.` });
+    }
 
     const validCurrentPin = await pinMatches(currentPin, tenant.pin);
     if (!validCurrentPin) {
+      registerFailure(attemptKey);
       return res.status(401).json({ error: 'PIN / Password saat ini tidak valid.' });
     }
+    credentialAttempts.delete(attemptKey);
 
+    const newCode = requestedNewCode || oldCode;
     const nextPin = newPin ? await bcrypt.hash(newPin, 10) : tenant.pin;
 
     if (newCode === oldCode) {
@@ -174,16 +210,10 @@ export default async function handler(req, res) {
         .eq('code', oldCode);
       if (updateError) throw updateError;
 
-      const token = jwt.sign(
-        { code: oldCode, role: 'tenant', tier: tenant.tier || 'free' },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
       return res.status(200).json({
         success: true,
         message: newPin ? 'PIN / Password toko berhasil diperbarui.' : 'Kredensial toko terverifikasi.',
-        token,
+        token: null,
         code: oldCode
       });
     }
@@ -222,16 +252,10 @@ export default async function handler(req, res) {
       throw moveError;
     }
 
-    const token = jwt.sign(
-      { code: newCode, role: 'tenant', tier: tenant.tier || 'free' },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
     return res.status(200).json({
       success: true,
       message: 'Kode Toko dan kredensial berhasil diperbarui.',
-      token,
+      token: null,
       code: newCode
     });
   } catch (error) {
