@@ -247,7 +247,7 @@ app.get('/api/admin/settings', requireSuperAdmin, async (req, res) => {
     let superAdminPhone = '085382535050';
     let is2faEnabled = true;
     let freeTenant1 = 'AISERVICE';
-    let freeTenant2 = 'IPUDSERVICE';
+    let freeTenant2 = '';
     let freeTenant3 = '';
 
     const { data: configPhone } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_phone').maybeSingle();
@@ -317,7 +317,7 @@ app.post('/api/admin/settings', requireSuperAdmin, async (req, res) => {
 app.get('/api/public-free-tenants', async (req, res) => {
   const supabaseAdmin = getSupabaseAdmin();
   let slot1 = 'AISERVICE';
-  let slot2 = 'IPUDSERVICE';
+  let slot2 = '';
   let slot3 = '';
 
   if (supabaseAdmin) {
@@ -687,6 +687,103 @@ app.put('/api/tenant/settings', secureRoute, (req, res) => {
   db.run('UPDATE tenants SET settings = ? WHERE code = ?', [JSON.stringify(settings), code], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
+  });
+});
+
+app.put('/api/tenant/credentials', secureRoute, async (req, res) => {
+  const oldCode = req.user.code;
+  let { newCode, newPin, currentPin } = req.body;
+  newCode = String(newCode || '').trim().toUpperCase();
+  newPin = String(newPin || '').trim();
+  currentPin = String(currentPin || '').trim();
+
+  if (!currentPin) {
+    return res.status(400).json({ error: 'PIN saat ini wajib diisi untuk verifikasi keamanan.' });
+  }
+
+  db.get('SELECT * FROM tenants WHERE code = ?', [oldCode], async (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Toko tidak ditemukan.' });
+
+    const isMatch = await bcrypt.compare(currentPin, row.pin || '');
+    if (!isMatch && row.pin !== '') {
+      return res.status(401).json({ error: 'PIN saat ini tidak valid.' });
+    }
+
+    let updateCode = oldCode;
+    let updatePinHash = row.pin;
+
+    if (newCode && newCode !== oldCode) {
+      if (!CODE_REGEX.test(newCode)) {
+        return res.status(400).json({ error: 'Kode Toko baru hanya boleh berisi huruf kapital, angka, strip (-), dan underscore (_), 3-32 karakter.' });
+      }
+      
+      const exists = await new Promise((resolve) => {
+        db.get('SELECT code FROM tenants WHERE code = ?', [newCode], (errEx, rowEx) => {
+          resolve(!!rowEx);
+        });
+      });
+      if (exists) {
+        return res.status(409).json({ error: 'Kode Toko baru sudah terpakai oleh toko lain.' });
+      }
+      updateCode = newCode;
+    }
+
+    if (newPin) {
+      if (!PIN_REGEX.test(newPin)) {
+        return res.status(400).json({ error: 'PIN baru harus berupa 4-6 digit angka.' });
+      }
+      updatePinHash = await bcrypt.hash(newPin, 10);
+    }
+
+    try {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        db.run('UPDATE tenants SET code = ?, pin = ? WHERE code = ?', [updateCode, updatePinHash, oldCode]);
+        
+        if (updateCode !== oldCode) {
+          db.run('UPDATE products SET tenant_code = ? WHERE tenant_code = ?', [updateCode, oldCode]);
+          db.run('UPDATE transactions SET tenant_code = ? WHERE tenant_code = ?', [updateCode, oldCode]);
+          db.run('UPDATE services SET tenant_code = ? WHERE tenant_code = ?', [updateCode, oldCode]);
+          db.run('UPDATE users SET tenant_code = ? WHERE tenant_code = ?', [updateCode, oldCode]);
+        }
+        
+        db.run('COMMIT', async (errCommit) => {
+          if (errCommit) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: 'Gagal memproses transaksi database lokal: ' + errCommit.message });
+          }
+
+          const supabaseAdmin = getSupabaseAdmin();
+          if (supabaseAdmin) {
+            try {
+              const { error: errTenant } = await supabaseAdmin
+                .from('tenants')
+                .update({ code: updateCode, pin: updatePinHash })
+                .eq('code', oldCode);
+              
+              if (errTenant) console.error('Supabase sync credentials warning:', errTenant.message);
+              
+              if (updateCode !== oldCode) {
+                await supabaseAdmin.from('products').update({ tenant_code: updateCode }).eq('tenant_code', oldCode);
+                await supabaseAdmin.from('transactions').update({ tenant_code: updateCode }).eq('tenant_code', oldCode);
+                await supabaseAdmin.from('services').update({ tenant_code: updateCode }).eq('tenant_code', oldCode);
+                await supabaseAdmin.from('users').update({ tenant_code: updateCode }).eq('tenant_code', oldCode);
+              }
+            } catch (errSync) {
+              console.error('Supabase sync credentials exception:', errSync.message);
+            }
+          }
+
+          const token = jwt.sign({ code: updateCode, role: 'tenant', tier: row.tier || 'free' }, JWT_SECRET, { expiresIn: '24h' });
+          return res.json({ success: true, message: 'Kredensial toko berhasil diperbarui.', token, code: updateCode });
+        });
+      });
+    } catch (e) {
+      db.run('ROLLBACK');
+      return res.status(500).json({ error: 'Internal Server Error: ' + e.message });
+    }
   });
 });
 

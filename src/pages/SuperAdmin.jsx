@@ -663,13 +663,13 @@ export default function SuperAdmin() {
   const [settingsMessage, setSettingsMessage] = useState('');
   const [settingsError, setSettingsError] = useState('');
   const [settingsFreeTenant1, setSettingsFreeTenant1] = useState('AISERVICE');
-  const [settingsFreeTenant2, setSettingsFreeTenant2] = useState('IPUDSERVICE');
+  const [settingsFreeTenant2, setSettingsFreeTenant2] = useState('');
   const [settingsFreeTenant3, setSettingsFreeTenant3] = useState('');
 
   // Helper untuk menentukan status langganan tenant secara presisi
   const getSubStatus = (tenant) => {
     const isLifetimeFree = tenant?.code && (
-      ['AISERVICE', 'AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase()) ||
+      ['AISERVICE', 'AISERVICEID'].includes(String(tenant.code).toUpperCase()) ||
       [settingsFreeTenant1, settingsFreeTenant2, settingsFreeTenant3]
         .map(x => String(x || '').trim().toUpperCase())
         .includes(String(tenant.code).trim().toUpperCase())

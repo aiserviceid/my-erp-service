@@ -1567,6 +1567,24 @@ export const apiService = {
     }
   },
 
+  updateTenantCredentials: async (newCode, newPin, currentPin) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tenant/credentials`, {
+        method: 'PUT',
+        headers: apiService.getHeaders(),
+        body: JSON.stringify({ newCode, newPin, currentPin })
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Gagal mengubah kredensial toko.');
+      }
+      return await response.json();
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
+
   resetTenantPin: async (tenantCode, newPin) => {
     try {
       const { data, error } = await supabase

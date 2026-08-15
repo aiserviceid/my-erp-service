@@ -92,34 +92,62 @@ export default function AdminDashboard() {
   const [adminCurrentPin, setAdminCurrentPin] = useState('');
   const [adminNewPin, setAdminNewPin] = useState('');
   const [adminConfirmPin, setAdminConfirmPin] = useState('');
+  const [adminNewUsername, setAdminNewUsername] = useState('');
   const [isSavingAdminPin, setIsSavingAdminPin] = useState(false);
+
+  useEffect(() => {
+    if (tenant?.code && !adminNewUsername) {
+      setAdminNewUsername(tenant.code);
+    }
+  }, [tenant]);
 
   const handleUpdateAdminPin = async (e) => {
     e.preventDefault();
-    if (!adminNewPin || adminNewPin.trim().length < 4) {
+    if (!adminCurrentPin) {
+      alert('PIN / Password saat ini wajib diisi.');
+      return;
+    }
+    if (adminNewPin && adminNewPin.trim().length < 4) {
       alert('PIN / Password Baru minimal 4 karakter.');
       return;
     }
-    if (adminNewPin !== adminConfirmPin) {
+    if (adminNewPin && adminNewPin !== adminConfirmPin) {
       alert('Konfirmasi PIN / Password baru tidak cocok.');
       return;
     }
-    const currentPin = settings.admin_pin || '1234';
-    if (adminCurrentPin && adminCurrentPin !== currentPin) {
-      alert('PIN / Password Saat Ini tidak sesuai.');
-      return;
-    }
+
     setIsSavingAdminPin(true);
     try {
-      const newSettings = { ...tenant?.settings, admin_pin: adminNewPin.trim() };
-      await apiService.updateTenantSettings(tenant.code, newSettings);
-      updateTenantSettings(newSettings);
-      setAdminCurrentPin('');
-      setAdminNewPin('');
-      setAdminConfirmPin('');
-      alert('🔐 PIN / Password Akses Toko berhasil diperbarui!');
+      const res = await apiService.updateTenantCredentials(
+        adminNewUsername.trim().toUpperCase(),
+        adminNewPin.trim(),
+        adminCurrentPin.trim()
+      );
+
+      if (res.success) {
+        if (res.token) {
+          localStorage.setItem('TENANT_TOKEN', res.token);
+        }
+        
+        const updatedTenant = { 
+          ...tenant, 
+          code: res.code, 
+          settings: { 
+            ...tenant.settings, 
+            admin_pin: adminNewPin.trim() || tenant.settings?.admin_pin 
+          } 
+        };
+        setTenant(updatedTenant);
+        
+        setAdminCurrentPin('');
+        setAdminNewPin('');
+        setAdminConfirmPin('');
+        alert('🔒 Kode Toko (Username) & PIN / Password berhasil diperbarui!');
+      } else {
+        alert('Gagal memperbarui kredensial toko.');
+      }
     } catch (err) {
-      alert('Gagal memperbarui PIN Admin: ' + err.message);
+      alert('Gagal memperbarui kredensial toko: ' + err.message);
     } finally {
       setIsSavingAdminPin(false);
     }
@@ -152,7 +180,7 @@ export default function AdminDashboard() {
   const appVersion = APP_VERSION;
   const latestApkUrl = APK_PUBLIC_URL;
 
-  const [freeTenants, setFreeTenants] = useState(['AISERVICE', 'AISERVICEID', 'IPUDSERVICE']);
+  const [freeTenants, setFreeTenants] = useState(['AISERVICE', 'AISERVICEID']);
 
   useEffect(() => {
     fetch(`${apiService.getApiBaseUrl()}/public-free-tenants`)
@@ -1228,7 +1256,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
              {(() => {
               const s = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant?.settings || {});
               const isLifetimeFree = tenant?.code && (
-                ['AISERVICE', 'AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase()) ||
+                ['AISERVICE', 'AISERVICEID'].includes(String(tenant.code).toUpperCase()) ||
                 (freeTenants && freeTenants.includes(String(tenant.code).toUpperCase()))
               );
               const activeUntil = isLifetimeFree ? null : (s.active_until || s.trial_ends_at);
@@ -2420,26 +2448,41 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
                       Perbarui aplikasi Android untuk mendapatkan fitur dan perbaikan terbaru. File dibuka langsung untuk diunduh, tanpa melalui landing page.
                     </p>
-                    <div style={{ border: '1px solid #99f6e4', background: '#f0fdfa', borderRadius: '8px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '1rem' }}>
-                      <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#0f766e', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Smartphone size={24} /></div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: '800', color: '#134e4a' }}>UnitPro Android</div>
-                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi saat ini: v{appVersion}</div>
-                        <div style={{ color: latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, appVersion) ? '#b45309' : '#047857', fontSize: '0.82rem', marginTop: '3px', fontWeight: '800' }}>
-                          {latestVersionInfo?.version
-                            ? (isNewerVersion(latestVersionInfo.version, appVersion) ? `Versi baru tersedia: v${latestVersionInfo.version}` : 'Aplikasi sudah versi terbaru')
-                            : 'Mengecek info versi...'}
-                        </div>
-                        <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
-                          Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                     {latestVersionInfo?.version && !isNewerVersion(latestVersionInfo.version, appVersion) ? (
+                      <div style={{ border: '1px solid #a7f3d0', background: '#ecfdf5', borderRadius: '12px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '1.25rem' }}>
+                        <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#10b981', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Check size={24} /></div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: '800', color: '#065f46', fontSize: '0.95rem' }}>Aplikasi Sudah Versi Terbaru ✨</div>
+                          <div style={{ color: '#047857', fontSize: '0.82rem', marginTop: '3px', fontWeight: '700' }}>
+                            UnitPro Anda berada pada versi paling baru (v{appVersion}). Tidak ada update baru yang tersedia saat ini.
+                          </div>
+                          <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px' }}>
+                            Rilis tanggal: {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <button type="button" className="btn" onClick={openAppUpdate} style={{ width: '100%', justifyContent: 'center', background: '#0f766e', color: '#fff', border: 'none', padding: '12px 16px' }}>
-                      <Download size={18} /> Unduh Update Android
+                    ) : (
+                      <div style={{ border: '1px solid #99f6e4', background: '#f0fdfa', borderRadius: '12px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '1.25rem' }}>
+                        <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#0f766e', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Smartphone size={24} /></div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: '800', color: '#134e4a' }}>UnitPro Android</div>
+                          <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi saat ini: v{appVersion}</div>
+                          <div style={{ color: latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, appVersion) ? '#b45309' : '#047857', fontSize: '0.82rem', marginTop: '3px', fontWeight: '800' }}>
+                            {latestVersionInfo?.version
+                              ? (isNewerVersion(latestVersionInfo.version, appVersion) ? `Versi baru tersedia: v${latestVersionInfo.version}` : 'Aplikasi sudah versi terbaru')
+                              : 'Mengecek info versi...'}
+                          </div>
+                          <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
+                            Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <button type="button" className="btn" onClick={openAppUpdate} style={{ width: '100%', justifyContent: 'center', background: '#0f766e', color: '#fff', border: 'none', padding: '12px 16px', fontWeight: '800' }}>
+                      <Download size={18} /> {latestVersionInfo?.version && !isNewerVersion(latestVersionInfo.version, appVersion) ? 'Unduh Ulang APK Terbaru' : 'Unduh Update Android'}
                     </button>
                     <p style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: '1.5', margin: '12px 0 0' }}>
-                      Setelah selesai diunduh, buka file APK dan pilih Perbarui. Data toko dan akun Anda tetap tersimpan.
+                      Setelah selesai diunduh, buka file APK dan pilih Perbarui. Data toko dan akun Anda tetap tersimpan aman.
                     </p>
                   </div>
                 )}
@@ -2623,24 +2666,39 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
 
                     <form onSubmit={handleUpdateAdminPin} style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: '#ffffff', padding: '20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>PIN / Password Saat Ini</label>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>Kode Toko (Username Login)</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="Masukkan Kode Toko Baru..."
+                          value={adminNewUsername}
+                          onChange={(e) => setAdminNewUsername(e.target.value.toUpperCase())}
+                          required
+                          style={{ textTransform: 'uppercase', fontWeight: '700' }}
+                        />
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                          * Digunakan sebagai username saat masuk ke aplikasi (Hanya huruf kapital, angka, strip, underscore).
+                        </span>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>PIN / Password Saat Ini (Verifikasi)</label>
                         <input
                           type="password"
                           className="input-field"
-                          placeholder="Masukkan PIN lama (default: 1234)"
+                          placeholder="Masukkan PIN saat ini untuk memverifikasi"
                           value={adminCurrentPin}
                           onChange={(e) => setAdminCurrentPin(e.target.value)}
+                          required
                         />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>PIN / Password Baru</label>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>PIN / Password Baru (Kosongkan jika tidak ingin diubah)</label>
                         <input
                           type="password"
                           className="input-field"
                           placeholder="Masukkan PIN baru (min. 4 digit)"
                           value={adminNewPin}
                           onChange={(e) => setAdminNewPin(e.target.value)}
-                          required
                         />
                       </div>
                       <div>
@@ -2651,7 +2709,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                           placeholder="Ketik ulang PIN baru"
                           value={adminConfirmPin}
                           onChange={(e) => setAdminConfirmPin(e.target.value)}
-                          required
                         />
                       </div>
 
@@ -2661,7 +2718,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         disabled={isSavingAdminPin}
                         style={{ marginTop: '10px', background: '#7c3aed', borderColor: '#7c3aed', color: '#fff', padding: '12px 16px', justifyContent: 'center', fontWeight: '800' }}
                       >
-                        {isSavingAdminPin ? 'Menyimpan...' : '🔒 Simpan PIN / Password Baru'}
+                        {isSavingAdminPin ? 'Menyimpan...' : '🔒 Simpan Kredensial Baru'}
                       </button>
                     </form>
                   </div>
