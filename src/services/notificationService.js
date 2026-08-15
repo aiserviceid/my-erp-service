@@ -97,6 +97,19 @@ const paymentInfoText = (settings = {}) => {
 
 const isPublicHttpUrl = (value = '') => /^https?:\/\//i.test(String(value || '').trim());
 
+const getStoreName = (tenant = {}) => {
+  const settings = tenant?.settings || {};
+  return settings.storeName || settings.store_name || tenant?.name || 'UnitPro';
+};
+
+const buildPublicReceiptUrl = (tenant = {}, service = {}, type = 'completion') => {
+  if (typeof window === 'undefined' || !service?.resi) return '';
+  const query = new URLSearchParams({ resi: service.resi, type, format: 'a4' });
+  const tenantCode = tenant?.code || tenant?.tenant_code || service?.tenant_code || '';
+  if (tenantCode) query.set('tenant_code', tenantCode);
+  return `${window.location.origin}/print-nota?${query.toString()}`;
+};
+
 const fetchServiceByResi = async (tenant, resi) => {
   if (!resi) return null;
   let query = supabase.from('services').select('*').eq('resi', resi);
@@ -118,6 +131,7 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
   const meta = parseCompletionMetaFromIssue(service.issue || '');
   const paymentInfo = paymentInfoText(settings);
   const qrisUrl = settings.qrisUrl || settings.qris_image_url || '';
+  const invoiceUrl = buildPublicReceiptUrl(tenant, service, 'completion');
 
   const lines = [
     '🧾 *NOTA TAGIHAN SERVIS*',
@@ -141,6 +155,7 @@ const buildCompletionInvoiceFromService = (tenant, service, urlMedia = '') => {
     meta.pickupMessage ? `⚠️ ${meta.pickupMessage}` : (meta.pickupDays > 0 ? `⚠️ Batas pengambilan: ${meta.pickupDays} hari.` : ''),
     '',
     'Silakan lakukan pembayaran/pengambilan sesuai total tagihan di atas.',
+    invoiceUrl ? `🖨 *Nota Tagihan Digital:*\n${invoiceUrl}` : '',
     'Setelah barang diambil dan lunas, UnitPro akan mengirim Nota Pelunasan beserta Link Garansi.',
   ].filter(Boolean);
 
@@ -166,6 +181,7 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
   const qrUrl = warrantyUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=16&data=${encodeURIComponent(warrantyUrl)}`
     : '';
+  const receiptUrl = buildPublicReceiptUrl(tenant, service, 'pickup');
 
   const lines = [
     '🧾 *NOTA PELUNASAN SERVIS (GARANSI)*',
@@ -183,6 +199,7 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
     '*Status: SUDAH DIAMBIL / LUNAS*',
     '',
     warrantyUrl ? `🔗 *Link Garansi:* ${warrantyUrl}` : '',
+    receiptUrl ? `🖨 *Nota Garansi Digital:* ${receiptUrl}` : '',
     'Simpan nota ini sebagai bukti pembayaran, servis, dan garansi.',
   ].filter(Boolean);
 
@@ -194,6 +211,88 @@ const buildPickupReceiptFromService = (tenant, service, urlMedia = '') => {
     qrUrl,
     warrantyUrl,
   };
+};
+
+export const buildServiceReceivedMessage = ({ tenant, services = [] } = {}) => {
+  const list = (Array.isArray(services) ? services : []).filter((service) => service?.resi);
+  if (!list.length) return '';
+
+  const storeName = getStoreName(tenant);
+  const customer = list[0].customer_name || 'Pelanggan';
+  const unitLines = list.map((service, index) => {
+    const trackingUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/tracking?resi=${encodeURIComponent(service.resi)}`
+      : '';
+    return [
+      `*${index + 1}. ${service.device_name || 'Perangkat'}*`,
+      `No. Resi: ${service.resi}`,
+      service.issue ? `Keluhan: ${String(service.issue).split('| Kelengkapan:')[0].trim()}` : '',
+      trackingUrl ? `Lacak: ${trackingUrl}` : '',
+    ].filter(Boolean).join('\n');
+  }).join('\n\n');
+
+  return [
+    `Halo Kak ${customer},`,
+    '',
+    '📥 *KONFIRMASI SERVIS DITERIMA*',
+    `Terima kasih, ${list.length === 1 ? 'perangkat Anda telah' : `${list.length} perangkat Anda telah`} kami terima di *${storeName}*.`,
+    '',
+    unitLines,
+    '',
+    'Kami akan melakukan pengecekan terlebih dahulu. Bila diperlukan persetujuan biaya, kami akan menghubungi Anda melalui WhatsApp ini.',
+    'Simpan nomor resi untuk memantau progres servis kapan saja.',
+  ].join('\n');
+};
+
+export const buildServiceStatusMessage = ({ tenant, service, status, approval = {} } = {}) => {
+  if (!service?.resi) return '';
+  const normalizedStatus = normalizeStatus(status || service.status);
+  const storeName = getStoreName(tenant);
+  const customer = service.customer_name || 'Pelanggan';
+  const trackingUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/tracking?resi=${encodeURIComponent(service.resi)}`
+    : '';
+
+  if (normalizedStatus === 'SELESAI') return buildCompletionInvoiceFromService(tenant, { ...service, status: 'SELESAI' }).message;
+  if (normalizedStatus === 'DIAMBIL') return buildPickupReceiptFromService(tenant, { ...service, status: 'DIAMBIL' }).message;
+
+  if (normalizedStatus === 'PERSETUJUAN' || normalizedStatus === 'MENUNGGUPERSETUJUAN') {
+    const action = String(approval.action || approval.description || 'perbaikan yang diperlukan').trim();
+    const estimate = Number(approval.estimate ?? approval.amount ?? 0);
+    return [
+      `Halo Kak ${customer},`,
+      '',
+      '🛠️ *PERSETUJUAN PERBAIKAN DIPERLUKAN*',
+      `Perangkat: *${service.device_name || '-'}*`,
+      `No. Resi: *${service.resi}*`,
+      '',
+      `Hasil pengecekan: ${action}`,
+      estimate > 0 ? `Estimasi biaya: *Rp ${estimate.toLocaleString('id-ID')}*` : 'Estimasi biaya akan diinformasikan oleh tim kami.',
+      '',
+      'Mohon balas *SETUJU* bila perbaikan dapat kami lanjutkan, atau hubungi kami bila ingin berkonsultasi terlebih dahulu.',
+      trackingUrl ? `Lacak status servis: ${trackingUrl}` : '',
+      '',
+      `Terima kasih,\n*${storeName}*`,
+    ].filter(Boolean).join('\n');
+  }
+
+  const statusLabel = normalizedStatus === 'DITERIMA'
+    ? 'SERVIS DITERIMA'
+    : String(status || service.status || 'DIPROSES').replace(/_/g, ' ');
+  return [
+    `Halo Kak ${customer},`,
+    '',
+    `📌 *${statusLabel}*`,
+    `Perangkat: *${service.device_name || '-'}*`,
+    `No. Resi: *${service.resi}*`,
+    '',
+    normalizedStatus === 'DITERIMA'
+      ? `Perangkat Anda sudah kami terima di *${storeName}* dan akan segera dicek oleh tim.`
+      : `Status servis Anda di *${storeName}* telah diperbarui.`,
+    trackingUrl ? `Lacak progres: ${trackingUrl}` : '',
+    '',
+    'Terima kasih atas kepercayaan Anda.',
+  ].filter(Boolean).join('\n');
 };
 
 export const prepareServiceWhatsAppDelivery = async ({ tenant, message = '', urlMedia = '' } = {}) => {
