@@ -143,6 +143,9 @@ export default function AdminDashboard() {
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isUpdatingEmployee, setIsUpdatingEmployee] = useState(false);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState(null);
   const [availableUpdateInfo, setAvailableUpdateInfo] = useState(null);
   const [latestVersionInfo, setLatestVersionInfo] = useState(null);
@@ -3223,32 +3226,13 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                          <td>{tenant.settings?.employee_commissions?.[u.id] || 0}%</td>
                          <td>
                             <div style={{ display: 'flex', gap: '5px' }}>
-                              <button className="btn btn-warning" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
-                                const newName = prompt('Nama Karyawan:', u.name);
-                                if (newName === null) return;
-                                const newPhone = prompt('No WhatsApp:', u.phone || '');
-                                if (newPhone === null) return;
-                                const newPin = prompt('PIN Login:', u.pin);
-                                if (newPin === null) return;
-                                const newSalaryStr = prompt('Gaji Pokok/Bulan (Rp):', tenant.settings?.employee_salaries?.[u.id] || 0);
-                                if (newSalaryStr === null) return;
-                                const newCommStr = prompt('Komisi (%):', tenant.settings?.employee_commissions?.[u.id] || 0);
-                                if (newCommStr === null) return;
-
-                                try {
-                                  await apiService.updateUser(u.id, { name: newName, pin: newPin, phone: newPhone });
-                                  
-                                  const currentSettings = tenant.settings || {};
-                                  const employee_commissions = currentSettings.employee_commissions || {};
-                                  const employee_salaries = currentSettings.employee_salaries || {};
-                                  employee_commissions[u.id] = parseInt(newCommStr);
-                                  employee_salaries[u.id] = parseInt(newSalaryStr);
-                                  const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
-                                  await apiService.updateTenantSettings(tenant.code, newSettings);
-                                  updateTenantSettings(newSettings);
-
-                                  setUsers(users.map(x => x.id === u.id ? { ...x, name: newName, pin: newPin, phone: newPhone } : x));
-                                } catch(e) { alert('Gagal edit karyawan'); }
+                              <button className="btn btn-warning" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => {
+                                setEditingEmployee({
+                                  ...u,
+                                  salary: tenant.settings?.employee_salaries?.[u.id] || 0,
+                                  commission: tenant.settings?.employee_commissions?.[u.id] || 0
+                                });
+                                setShowEditEmployeeModal(true);
                               }}>Edit</button>
                               <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={async () => {
                                 if(await (window.UnitProConfirm ? window.UnitProConfirm({ title: 'Hapus anggota tim?', message: 'Akun tim ini akan dihapus dari toko.', confirmText: 'Hapus', tone: 'warning' }) : Promise.resolve(window.confirm('Yakin ingin menghapus karyawan ini?')))) {
@@ -3612,6 +3596,95 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             <label className="label">Kategori</label><select name="category" className="input-field" defaultValue={editingProduct.category || 'SPAREPART'} style={{ marginBottom: '10px' }}><option value="SPAREPART">Sparepart</option><option value="AKSESORIS">Aksesoris</option><option value="JASA">Jasa</option></select>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}><div><label className="label">Harga (Rp)</label><input name="price" type="text" inputMode="numeric" className="input-field" defaultValue={editingProduct.price || 0} onInput={handleMoneyInput} /></div><div><label className="label">Stok</label><input name="stock" type="number" min="0" className="input-field" defaultValue={editingProduct.stock || 0} /></div></div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}><button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowEditProductModal(false); setEditingProduct(null); }}>Batal</button><button type="submit" className="btn btn-primary" disabled={isUpdatingProduct} style={{ flex: 1 }}>{isUpdatingProduct ? 'Menyimpan...' : 'Simpan Perubahan'}</button></div>
+          </form>
+        </div>
+      )}
+
+      {showEditEmployeeModal && editingEmployee && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '1rem' }}>
+          <form onSubmit={async (event) => {
+            event.preventDefault();
+            const fd = new FormData(event.currentTarget);
+            const name = String(fd.get('name') || '').trim();
+            const phone = String(fd.get('phone') || '').trim();
+            const pin = String(fd.get('pin') || '').trim();
+            const role = String(fd.get('role') || 'TEKNISI').toUpperCase();
+            const salary = parseInt(String(fd.get('salary') || '0'), 10) || 0;
+            const commission = parseInt(String(fd.get('commission') || '0'), 10) || 0;
+
+            if (!name || !pin) return alert('Nama dan PIN wajib diisi.');
+            try {
+              setIsUpdatingEmployee(true);
+              await apiService.updateUser(editingEmployee.id, { name, pin, phone, role });
+              
+              const currentSettings = tenant.settings || {};
+              const employee_commissions = currentSettings.employee_commissions || {};
+              const employee_salaries = currentSettings.employee_salaries || {};
+              employee_commissions[editingEmployee.id] = commission;
+              employee_salaries[editingEmployee.id] = salary;
+              const newSettings = { ...currentSettings, employee_commissions, employee_salaries };
+              await apiService.updateTenantSettings(tenant.code, newSettings);
+              updateTenantSettings(newSettings);
+
+              setUsers(users.map(x => x.id === editingEmployee.id ? { ...x, name, pin, phone, role } : x));
+              setShowEditEmployeeModal(false);
+              setEditingEmployee(null);
+              alert('Data anggota tim berhasil diperbarui.');
+            } catch (error) {
+              alert('Gagal memperbarui data tim: ' + (error.message || 'Periksa koneksi Anda.'));
+            } finally {
+              setIsUpdatingEmployee(false);
+            }
+          }} className="glass-panel" style={{ width: '100%', maxWidth: '460px', background: 'var(--bg-light)', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Edit Anggota Tim</h3>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>Perbarui data akun akses, peran, gaji, dan komisi tim.</p>
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => { setShowEditEmployeeModal(false); setEditingEmployee(null); }}><X size={20}/></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label className="label">Nama Anggota Tim</label>
+                <input name="name" type="text" className="input-field" defaultValue={editingEmployee.name || ''} required />
+              </div>
+
+              <div>
+                <label className="label">No WhatsApp (Opsional)</label>
+                <input name="phone" type="text" className="input-field" placeholder="628xxxxxx" defaultValue={editingEmployee.phone || ''} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="label">PIN Login (6 Digit)</label>
+                  <input name="pin" type="password" maxLength={6} className="input-field" placeholder="PIN" defaultValue={editingEmployee.pin || ''} required />
+                </div>
+                <div>
+                  <label className="label">Peran</label>
+                  <select name="role" className="input-field" defaultValue={editingEmployee.role || 'TEKNISI'}>
+                    <option value="TEKNISI">Teknisi</option>
+                    <option value="KASIR">Kasir</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                <div>
+                  <label className="label">Gaji Pokok / Bulan (Rp)</label>
+                  <input name="salary" type="number" min="0" className="input-field" defaultValue={editingEmployee.salary || 0} />
+                </div>
+                <div>
+                  <label className="label">Komisi (%)</label>
+                  <input name="commission" type="number" min="0" max="100" className="input-field" defaultValue={editingEmployee.commission || 0} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowEditEmployeeModal(false); setEditingEmployee(null); }}>Batal</button>
+              <button type="submit" className="btn btn-primary" disabled={isUpdatingEmployee} style={{ flex: 1 }}>{isUpdatingEmployee ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
+            </div>
           </form>
         </div>
       )}
