@@ -1,10 +1,4 @@
-import {
-  generateOtp,
-  getSuperAdmin2FASettings,
-  saveAdminOtp,
-  sendFonnteMessage,
-  verifySuperAdminPassword
-} from '../server/superadmin-serverless.mjs';
+const EDGE_BASE = 'https://jgnyjgzwzksvheqhysye.supabase.co/functions/v1/unitpro-secure-api';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -14,33 +8,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method tidak diizinkan.' });
   }
 
-  const password = String(req.body?.password || '');
-  const valid = await verifySuperAdminPassword(password);
-  if (!valid) return res.status(401).json({ error: 'Password tidak valid.' });
-
   try {
-    const settings = await getSuperAdmin2FASettings();
-    if (!settings.enabled) {
-      return res.status(200).json({ two_factor_required: false });
-    }
-    if (!/^[0-9]{9,15}$/.test(settings.phone)) {
-      return res.status(500).json({ error: 'Nomor WhatsApp 2FA belum valid.' });
-    }
-
-    const otp = generateOtp();
-    await saveAdminOtp(otp);
-
-    const message = `🚨 *KEAMANAN SUPER ADMIN UNITPRO*\n\nKode verifikasi 2-Factor Authentication (2FA) Anda adalah: *${otp}*.\n\nKode ini hanya berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun.`;
-    await sendFonnteMessage({ target: settings.phone, message });
-
-    return res.status(200).json({
-      two_factor_required: true,
-      phone: settings.phone
+    const upstream = await fetch(`${EDGE_BASE}/send-otp-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body || {})
     });
+    const payload = await upstream.json().catch(() => ({ error: 'Respons backend tidak valid.' }));
+    return res.status(upstream.status).json(payload);
   } catch (error) {
-    console.error('send-otp-admin error:', error);
-    return res.status(502).json({
-      error: error?.message || 'Gagal mengirim kode verifikasi WhatsApp.'
-    });
+    console.error('send-otp-admin proxy error:', error);
+    return res.status(502).json({ error: 'Backend keamanan Supabase tidak dapat dihubungi.' });
   }
 }
