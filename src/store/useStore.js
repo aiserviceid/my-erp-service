@@ -114,15 +114,17 @@ export const useStore = create((set) => ({
         storeName: (resolvedSettings && resolvedSettings.storeName) || resolvedName || currentSettings.storeName,
         store_wa: (resolvedSettings && resolvedSettings.store_wa) || resolvedPhone || currentSettings.store_wa
       });
+      const syncedName = String(updatedSettings.storeName || resolvedName || state.tenant?.name || '').trim() || null;
       if (typeof window !== 'undefined') {
         localStorage.setItem('TENANT_SETTINGS', JSON.stringify(updatedSettings));
+        if (syncedName) localStorage.setItem('TENANT_NAME', syncedName);
       }
       return {
         tenant: {
           ...state.tenant,
           ...(source || {}),
           code: resolvedCode || state.tenant?.code || null,
-          name: resolvedName || state.tenant?.name || null,
+          name: syncedName,
           tier: resolvedTier || state.tenant?.tier || 'free',
           token: resolvedToken || state.tenant?.token || null,
           phone: resolvedPhone || state.tenant?.phone || (typeof window !== 'undefined' ? localStorage.getItem('TENANT_PHONE') : null),
@@ -134,10 +136,18 @@ export const useStore = create((set) => ({
   
   updateTenantSettings: (newSettings) => set((state) => {
     const updatedSettings = normalizeLifetimeSettings({ ...(state.tenant?.settings || defaultSettings), ...newSettings });
+    const syncedName = String(updatedSettings.storeName || state.tenant?.name || '').trim() || null;
     if (typeof window !== 'undefined') {
       localStorage.setItem('TENANT_SETTINGS', JSON.stringify(updatedSettings));
+      if (syncedName) localStorage.setItem('TENANT_NAME', syncedName);
     }
-    return { tenant: { ...(state.tenant || {}), settings: updatedSettings } };
+    return {
+      tenant: {
+        ...(state.tenant || {}),
+        name: syncedName,
+        settings: updatedSettings
+      }
+    };
   }),
   
   clearTenant: () => {
