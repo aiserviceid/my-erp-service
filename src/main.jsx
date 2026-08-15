@@ -14,6 +14,7 @@ import './index.css'
 import './unitpro-ui-polish.css'
 import './unitpro-ui-stability.css'
 import './service-registration-compact.css'
+import './unitpro-dialog-density.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
