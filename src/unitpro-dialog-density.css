@@ -1,0 +1,240 @@
+/*
+ * UnitPro dialog density layer.
+ * Shared by admin dashboard, team portal, and Android/Capacitor surfaces.
+ * Goal: dialogs should feel focused, not consume the whole screen, while
+ * preserving reliable one-finger vertical scrolling on touch devices.
+ */
+
+:root {
+  --unitpro-dialog-surface: #ffffff;
+  --unitpro-dialog-border: #dbe5ee;
+  --unitpro-dialog-text: #102a43;
+  --unitpro-dialog-muted: #61758a;
+}
+
+.modal-backdrop,
+.service-wizard-backdrop,
+.service-registration-backdrop,
+.unitpro-update-backdrop {
+  box-sizing: border-box;
+  padding: clamp(18px, 3vh, 30px) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  background: rgba(7, 28, 43, 0.62) !important;
+}
+
+.modal-backdrop > .glass-panel,
+.modal-backdrop > form.glass-panel,
+.service-wizard-backdrop > .service-wizard-dialog,
+.service-registration-backdrop > .service-registration-form,
+.unitpro-update-dialog,
+.glass-panel.animate-fade-in {
+  box-sizing: border-box;
+  max-height: min(82dvh, 680px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  background: var(--unitpro-dialog-surface) !important;
+  border: 1px solid var(--unitpro-dialog-border) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.modal-backdrop > .glass-panel:hover,
+.modal-backdrop > form.glass-panel:hover,
+.service-wizard-dialog:hover,
+.service-registration-form:hover {
+  transform: none !important;
+}
+
+/* Keep operational forms compact and readable on common counter laptops. */
+.modal-backdrop .input-field,
+.service-wizard-dialog .input-field,
+.service-registration-form .input-field {
+  min-height: 40px !important;
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.modal-backdrop textarea.input-field,
+.service-wizard-dialog textarea.input-field,
+.service-registration-form textarea.input-field {
+  min-height: 68px !important;
+  max-height: 140px;
+}
+
+.modal-backdrop .label,
+.service-wizard-dialog .label,
+.service-registration-form .label,
+.service-transfer-label {
+  color: #334155 !important;
+}
+
+.modal-backdrop input::placeholder,
+.modal-backdrop textarea::placeholder,
+.service-wizard-dialog input::placeholder,
+.service-wizard-dialog textarea::placeholder,
+.service-registration-form input::placeholder,
+.service-registration-form textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.service-wizard-header,
+.service-registration-header {
+  margin-bottom: 14px !important;
+}
+
+.service-wizard-header h3,
+.service-registration-header h3,
+.modal-backdrop h3 {
+  color: var(--unitpro-dialog-text) !important;
+  line-height: 1.25 !important;
+}
+
+.service-wizard-header p,
+.service-registration-header p,
+.service-wizard-step > span {
+  color: #087a9a !important;
+}
+
+.service-wizard-step > p,
+.service-registration-header span {
+  color: var(--unitpro-dialog-muted) !important;
+}
+
+.service-wizard-actions,
+.service-registration-submit {
+  margin-top: 14px !important;
+}
+
+/* Android update dialog follows the same density rules. */
+.unitpro-update-dialog {
+  width: min(460px, calc(100vw - 36px)) !important;
+  padding: 22px 20px !important;
+}
+
+.unitpro-update-changelog {
+  max-height: 210px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Short-height laptop screens: reduce dead space further. */
+@media (min-width: 769px) and (max-height: 820px) {
+  .modal-backdrop,
+  .service-wizard-backdrop,
+  .service-registration-backdrop,
+  .unitpro-update-backdrop {
+    padding-top: 18px !important;
+    padding-bottom: 18px !important;
+  }
+
+  .modal-backdrop > .glass-panel,
+  .modal-backdrop > form.glass-panel,
+  .service-wizard-backdrop > .service-wizard-dialog,
+  .service-registration-backdrop > .service-registration-form,
+  .unitpro-update-dialog,
+  .glass-panel.animate-fade-in {
+    max-height: calc(100dvh - 36px) !important;
+  }
+
+  .modal-backdrop > .glass-panel,
+  .modal-backdrop > form.glass-panel,
+  .service-wizard-dialog,
+  .unitpro-update-dialog {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+}
+
+/*
+ * Phones / APK: use a bottom sheet rather than a nearly full-screen centered
+ * card. The sheet intentionally stops below full height so users keep visual
+ * context and can still scroll the form with one finger.
+ */
+@media (max-width: 768px) {
+  .modal-backdrop,
+  .service-wizard-backdrop,
+  .service-registration-backdrop,
+  .unitpro-update-backdrop {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  .modal-backdrop > .glass-panel,
+  .modal-backdrop > form.glass-panel,
+  .service-wizard-backdrop > .service-wizard-dialog,
+  .service-registration-backdrop > .service-registration-form,
+  .unitpro-update-dialog,
+  html.native-app .glass-panel.animate-fade-in {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 88dvh !important;
+    margin: 0 !important;
+    padding: 18px 16px max(20px, env(safe-area-inset-bottom)) !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-radius: 22px 22px 0 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+
+  .modal-backdrop .input-field,
+  .service-wizard-dialog .input-field,
+  .service-registration-form .input-field {
+    min-height: 44px !important;
+  }
+
+  .modal-backdrop textarea.input-field,
+  .service-wizard-dialog textarea.input-field,
+  .service-registration-form textarea.input-field {
+    min-height: 74px !important;
+  }
+
+  .service-wizard-actions {
+    position: sticky;
+    bottom: calc(-20px - env(safe-area-inset-bottom));
+    z-index: 4;
+    margin-left: -16px;
+    margin-right: -16px;
+    margin-bottom: calc(-20px - env(safe-area-inset-bottom));
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .unitpro-update-dialog {
+    width: 100% !important;
+  }
+}
+
+/* Native app: explicitly preserve one-finger pan ownership inside dialogs. */
+html.native-app .modal-backdrop,
+html.native-app .service-wizard-backdrop,
+html.native-app .service-registration-backdrop,
+html.native-app .unitpro-update-backdrop {
+  touch-action: pan-y !important;
+}
+
+html.native-app .modal-backdrop > .glass-panel,
+html.native-app .modal-backdrop > form.glass-panel,
+html.native-app .service-wizard-dialog,
+html.native-app .service-registration-form,
+html.native-app .unitpro-update-dialog {
+  touch-action: pan-y !important;
+  overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
