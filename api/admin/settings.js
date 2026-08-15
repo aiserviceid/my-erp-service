@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
+import { getBearerToken, verifyServerToken } from '../../server/serverless-auth.mjs';
 
 const getSupabaseAdmin = () => {
   const url = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
@@ -11,28 +11,26 @@ const getSupabaseAdmin = () => {
 };
 
 const requireSuperAdmin = (req, res) => {
-  const secret = String(process.env.JWT_SECRET || '').trim();
-  if (!secret) {
-    res.status(503).json({ error: 'JWT_SECRET belum dikonfigurasi di server.' });
-    return null;
-  }
-
-  const authHeader = String(req.headers.authorization || '');
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const token = getBearerToken(req);
   if (!token || token === 'null' || token === 'undefined') {
-    res.status(401).json({ error: 'Sesi Super Admin tidak ditemukan. Silakan login ulang.' });
+    res.status(401).json({ error: 'Sesi Super Admin tidak ditemukan. Silakan logout lalu login kembali.' });
     return null;
   }
 
   try {
-    const payload = jwt.verify(token, secret);
+    const payload = verifyServerToken(token);
     if (payload?.role !== 'super_admin') {
       res.status(403).json({ error: 'Akses khusus Super Admin diperlukan.' });
       return null;
     }
     return payload;
-  } catch {
-    res.status(401).json({ error: 'Sesi Super Admin tidak valid atau sudah berakhir. Silakan login ulang.' });
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (message.includes('Konfigurasi autentikasi server')) {
+      res.status(503).json({ error: 'Konfigurasi autentikasi server belum tersedia. Pastikan Supabase service role aktif.' });
+    } else {
+      res.status(401).json({ error: 'Sesi Super Admin lama tidak lagi valid. Silakan logout lalu login kembali sekali.' });
+    }
     return null;
   }
 };
