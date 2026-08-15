@@ -1,0 +1,187 @@
+/*
+ * UnitPro cross-surface UI stability layer.
+ * Loaded after the existing UI styles so fixes stay small, predictable,
+ * and shared by APK, dashboard, team portal, and public customer pages.
+ */
+
+:root {
+  --unitpro-surface: #ffffff;
+  --unitpro-surface-soft: #f8fafc;
+  --unitpro-border: #e2e8f0;
+  --unitpro-text-muted: #64748b;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: auto;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+#root,
+.dashboard-layout,
+.main-content,
+.employee-portal-content,
+.super-admin-shell,
+.super-admin-main {
+  min-width: 0;
+}
+
+#root,
+.dashboard-layout {
+  overflow-x: hidden;
+}
+
+/*
+ * Improve contrast. Do not touch intentional opacity used for disabled
+ * premium controls, logos, or receipt watermarks.
+ */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: var(--unitpro-border) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.sidebar {
+  background: var(--unitpro-surface) !important;
+  border-color: var(--unitpro-border) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.mobile-bottom-nav {
+  background: var(--unitpro-surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Keep the dark native top bar intact; only remove transparency on web. */
+html:not(.native-app) .mobile-top-bar {
+  background: rgba(255, 255, 255, 0.99) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.main-content,
+.employee-portal-content {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.main-content > *,
+.employee-portal-content > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/*
+ * Capacitor uses #root as the vertical scroller. Explicitly allow regular
+ * one-finger pan gestures without changing the current scroll ownership.
+ */
+html.native-app #root {
+  touch-action: pan-x pan-y pinch-zoom !important;
+  overscroll-behavior-y: auto !important;
+}
+
+html.native-app .dashboard-layout,
+html.native-app .main-content,
+html.native-app .employee-portal-content {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+/* Horizontal regions keep their own scrolling instead of widening the page. */
+.table-container,
+.revenue-source-table-wrap,
+.employee-commission-table-wrap,
+.report-subtabs-nav {
+  max-width: 100%;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+img,
+canvas {
+  max-width: 100%;
+}
+
+/* Customer-facing pages: prevent a child from creating a second page width. */
+#root > div {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .main-content,
+  .employee-portal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Replace the previous 100vw + negative-margin full-bleed table layout. */
+  .table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-left: 1px solid var(--unitpro-border) !important;
+    border-right: 1px solid var(--unitpro-border) !important;
+    border-radius: 12px !important;
+    overflow-x: auto !important;
+  }
+
+  .glass-panel {
+    background: var(--unitpro-surface) !important;
+    border-color: var(--unitpro-border) !important;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  /* Public/customer routes rely on the browser document scroller. */
+  html:not(.native-app),
+  html:not(.native-app) body {
+    min-height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #root > div > main {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #root > div > header:not(.mobile-top-bar) {
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel,
+  .sidebar,
+  .mobile-bottom-nav,
+  html:not(.native-app) .mobile-top-bar {
+    background: var(--unitpro-surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html.native-app .mobile-top-bar {
+    background: linear-gradient(135deg, #071c2b, #0b4f6c) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

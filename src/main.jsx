@@ -12,6 +12,7 @@ import './services/adminServiceWhatsAppEnhancer.js'
 import './services/nativePrintBridge.js'
 import './index.css'
 import './unitpro-ui-polish.css'
+import './unitpro-ui-stability.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
