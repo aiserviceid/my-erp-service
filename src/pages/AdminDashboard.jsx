@@ -152,6 +152,19 @@ export default function AdminDashboard() {
   const appVersion = APP_VERSION;
   const latestApkUrl = APK_PUBLIC_URL;
 
+  const [freeTenants, setFreeTenants] = useState(['AISERVICE', 'AISERVICEID', 'IPUDSERVICE']);
+
+  useEffect(() => {
+    fetch(`${apiService.getApiBaseUrl()}/public-free-tenants`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.free_tenants) {
+          setFreeTenants(d.free_tenants.map(x => String(x).toUpperCase()));
+        }
+      })
+      .catch(e => console.error('Gagal memuat list free tenants:', e));
+  }, []);
+
   useEffect(() => {
     fetchAppVersionInfo()
       .then(data => {
@@ -1212,9 +1225,12 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             </div>
 
             {/* ⚠️ EXPIRATION / TRIAL / SUSPENDED WARNING BANNERS */}
-            {(() => {
+             {(() => {
               const s = typeof tenant?.settings === 'string' ? JSON.parse(tenant.settings || '{}') : (tenant?.settings || {});
-              const isLifetimeFree = tenant?.code && ['AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase());
+              const isLifetimeFree = tenant?.code && (
+                ['AISERVICE', 'AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase()) ||
+                (freeTenants && freeTenants.includes(String(tenant.code).toUpperCase()))
+              );
               const activeUntil = isLifetimeFree ? null : (s.active_until || s.trial_ends_at);
               const subStatus = isLifetimeFree ? 'active' : (s.subscription_status || (s.trial_ends_at ? 'trial' : 'active'));
               const now = Date.now();

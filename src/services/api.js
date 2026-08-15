@@ -40,6 +40,7 @@ const saveProductMetaOverride = (tenantCode, product, patch = {}) => {
 };
 
 export const apiService = {
+  getApiBaseUrl: () => API_BASE_URL,
   // Helper to get headers
   getHeaders: () => {
     const token = localStorage.getItem('TENANT_TOKEN');

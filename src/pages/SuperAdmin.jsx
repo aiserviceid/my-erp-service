@@ -662,10 +662,18 @@ export default function SuperAdmin() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
   const [settingsError, setSettingsError] = useState('');
+  const [settingsFreeTenant1, setSettingsFreeTenant1] = useState('AISERVICE');
+  const [settingsFreeTenant2, setSettingsFreeTenant2] = useState('IPUDSERVICE');
+  const [settingsFreeTenant3, setSettingsFreeTenant3] = useState('');
 
   // Helper untuk menentukan status langganan tenant secara presisi
   const getSubStatus = (tenant) => {
-    const isLifetimeFree = tenant?.code && ['AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase());
+    const isLifetimeFree = tenant?.code && (
+      ['AISERVICE', 'AISERVICEID', 'IPUDSERVICE'].includes(String(tenant.code).toUpperCase()) ||
+      [settingsFreeTenant1, settingsFreeTenant2, settingsFreeTenant3]
+        .map(x => String(x || '').trim().toUpperCase())
+        .includes(String(tenant.code).trim().toUpperCase())
+    );
     if (isLifetimeFree) return 'active';
 
     const s = parseTenantSettings(tenant);
@@ -922,6 +930,9 @@ export default function SuperAdmin() {
         const data = await resp.json();
         setSettingsPhone2fa(data.super_admin_2fa_phone || '085382535050');
         setSettingsEnabled2fa(!!data.super_admin_2fa_enabled);
+        setSettingsFreeTenant1(data.super_admin_free_tenant_1 || 'AISERVICE');
+        setSettingsFreeTenant2(data.super_admin_free_tenant_2 || 'IPUDSERVICE');
+        setSettingsFreeTenant3(data.super_admin_free_tenant_3 || '');
       }
     } catch (e) {
       console.error('Gagal memuat pengaturan:', e);
@@ -963,7 +974,10 @@ export default function SuperAdmin() {
         body: JSON.stringify({
           newPasswordHash,
           phone2fa: settingsPhone2fa,
-          enabled2fa: settingsEnabled2fa
+          enabled2fa: settingsEnabled2fa,
+          freeTenant1: settingsFreeTenant1,
+          freeTenant2: settingsFreeTenant2,
+          freeTenant3: settingsFreeTenant3
         })
       });
 
@@ -2449,6 +2463,48 @@ export default function SuperAdmin() {
                       <p style={{ margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b', lineHeight: '1.4' }}>
                         * Kode OTP akan dikirimkan ke nomor ini setiap kali melakukan login ke Super Admin panel.
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Toko Bebas Masa Aktif Selamanya (Lifetime Free Tenants) */}
+                <div style={{ marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: '800', color: '#1e293b', paddingBottom: '6px' }}>
+                    👑 Akun Toko Gratis Selamanya (Lifetime Free)
+                  </h4>
+                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>
+                    Masukkan kode toko (tenant code) yang ingin dibebaskan dari masa aktif kedaluwarsa. Token ini tidak akan memicu status kedaluwarsa atau pembekuan (suspended) di dasbor admin toko mereka.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Slot 1 (Owner 1):</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: AISERVICE"
+                        value={settingsFreeTenant1}
+                        onChange={(e) => setSettingsFreeTenant1(e.target.value)}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box', fontWeight: '700' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Slot 2 (Owner 2):</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: IPUDSERVICE"
+                        value={settingsFreeTenant2}
+                        onChange={(e) => setSettingsFreeTenant2(e.target.value)}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box', fontWeight: '700' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>Slot 3 (Kustom / Bebas):</label>
+                      <input
+                        type="text"
+                        placeholder="Masukkan kode toko..."
+                        value={settingsFreeTenant3}
+                        onChange={(e) => setSettingsFreeTenant3(e.target.value)}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.88rem', boxSizing: 'border-box', fontWeight: '700' }}
+                      />
                     </div>
                   </div>
                 </div>

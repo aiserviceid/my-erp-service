@@ -246,6 +246,9 @@ app.get('/api/admin/settings', requireSuperAdmin, async (req, res) => {
   try {
     let superAdminPhone = '085382535050';
     let is2faEnabled = true;
+    let freeTenant1 = 'AISERVICE';
+    let freeTenant2 = 'IPUDSERVICE';
+    let freeTenant3 = '';
 
     const { data: configPhone } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_phone').maybeSingle();
     if (configPhone?.value) superAdminPhone = configPhone.value;
@@ -253,9 +256,21 @@ app.get('/api/admin/settings', requireSuperAdmin, async (req, res) => {
     const { data: configEnabled } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_2fa_enabled').maybeSingle();
     if (configEnabled?.value) is2faEnabled = configEnabled.value === 'true';
 
+    const { data: ft1 } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_free_tenant_1').maybeSingle();
+    if (ft1?.value) freeTenant1 = ft1.value;
+
+    const { data: ft2 } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_free_tenant_2').maybeSingle();
+    if (ft2?.value) freeTenant2 = ft2.value;
+
+    const { data: ft3 } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_free_tenant_3').maybeSingle();
+    if (ft3?.value) freeTenant3 = ft3.value;
+
     return res.json({
       super_admin_2fa_phone: superAdminPhone,
-      super_admin_2fa_enabled: is2faEnabled
+      super_admin_2fa_enabled: is2faEnabled,
+      super_admin_free_tenant_1: freeTenant1,
+      super_admin_free_tenant_2: freeTenant2,
+      super_admin_free_tenant_3: freeTenant3
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -263,7 +278,7 @@ app.get('/api/admin/settings', requireSuperAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/settings', requireSuperAdmin, async (req, res) => {
-  const { newPasswordHash, phone2fa, enabled2fa } = req.body;
+  const { newPasswordHash, phone2fa, enabled2fa, freeTenant1, freeTenant2, freeTenant3 } = req.body;
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return res.status(503).json({ error: 'Supabase service role belum dikonfigurasi di server.' });
 
@@ -278,6 +293,15 @@ app.post('/api/admin/settings', requireSuperAdmin, async (req, res) => {
     if (enabled2fa !== undefined) {
       updates.push({ key: 'super_admin_2fa_enabled', value: String(enabled2fa) });
     }
+    if (freeTenant1 !== undefined) {
+      updates.push({ key: 'super_admin_free_tenant_1', value: String(freeTenant1).trim().toUpperCase() });
+    }
+    if (freeTenant2 !== undefined) {
+      updates.push({ key: 'super_admin_free_tenant_2', value: String(freeTenant2).trim().toUpperCase() });
+    }
+    if (freeTenant3 !== undefined) {
+      updates.push({ key: 'super_admin_free_tenant_3', value: String(freeTenant3).trim().toUpperCase() });
+    }
 
     if (updates.length > 0) {
       const { error } = await supabaseAdmin.from('app_config').upsert(updates);
@@ -288,6 +312,31 @@ app.post('/api/admin/settings', requireSuperAdmin, async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
+});
+
+app.get('/api/public-free-tenants', async (req, res) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  let slot1 = 'AISERVICE';
+  let slot2 = 'IPUDSERVICE';
+  let slot3 = '';
+
+  if (supabaseAdmin) {
+    try {
+      const { data: s1 } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_free_tenant_1').maybeSingle();
+      if (s1?.value) slot1 = s1.value.trim().toUpperCase();
+
+      const { data: s2 } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_free_tenant_2').maybeSingle();
+      if (s2?.value) slot2 = s2.value.trim().toUpperCase();
+
+      const { data: s3 } = await supabaseAdmin.from('app_config').select('value').eq('key', 'super_admin_free_tenant_3').maybeSingle();
+      if (s3?.value) slot3 = s3.value.trim().toUpperCase();
+    } catch (e) {
+      console.error('Error fetching public free tenants:', e);
+    }
+  }
+
+  const list = [slot1, slot2, slot3].filter(Boolean);
+  return res.json({ free_tenants: list });
 });
 
 // Middleware to enforce Tenant Isolation (Security)
