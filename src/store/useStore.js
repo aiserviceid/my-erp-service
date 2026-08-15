@@ -65,22 +65,36 @@ export const useStore = create((set) => ({
   
   clearCart: () => set({ cart: [] }),
   
-  setTenant: (code, name, apiUrl, tier = 'free', token = null, phone = null, customSettings = null) => {
+  // Backward-compatible: supports both the original positional arguments
+  // and a complete tenant object. This prevents an object from accidentally
+  // being stored as tenant.code when callers update credentials after rename.
+  setTenant: (codeOrTenant, name, apiUrl, tier = 'free', token = null, phone = null, customSettings = null) => {
+    const objectMode = Boolean(codeOrTenant && typeof codeOrTenant === 'object' && !Array.isArray(codeOrTenant));
+    const source = objectMode ? codeOrTenant : null;
+    const resolvedCode = objectMode ? source.code : codeOrTenant;
+    const resolvedName = objectMode ? source.name : name;
+    const resolvedApiUrl = objectMode ? source.apiUrl : apiUrl;
+    const resolvedTier = objectMode ? (source.tier || 'free') : tier;
+    const resolvedToken = objectMode ? (source.token ?? token) : token;
+    const resolvedPhone = objectMode ? (source.phone ?? phone) : phone;
+    const resolvedSettings = objectMode ? (source.settings || customSettings) : customSettings;
+
     if (typeof window !== 'undefined') {
-      if (code) localStorage.setItem('TENANT_CODE', code);
-      if (name) localStorage.setItem('TENANT_NAME', name);
-      if (apiUrl) localStorage.setItem('TENANT_API_URL', apiUrl);
-      if (tier) localStorage.setItem('TENANT_TIER', tier);
-      if (token) localStorage.setItem('TENANT_TOKEN', token);
-      if (phone) localStorage.setItem('TENANT_PHONE', phone);
+      if (resolvedCode) localStorage.setItem('TENANT_CODE', String(resolvedCode));
+      if (resolvedName) localStorage.setItem('TENANT_NAME', String(resolvedName));
+      if (resolvedApiUrl) localStorage.setItem('TENANT_API_URL', String(resolvedApiUrl));
+      if (resolvedTier) localStorage.setItem('TENANT_TIER', String(resolvedTier));
+      if (resolvedToken) localStorage.setItem('TENANT_TOKEN', String(resolvedToken));
+      if (resolvedPhone) localStorage.setItem('TENANT_PHONE', String(resolvedPhone));
     }
+
     set((state) => {
       const currentSettings = state.tenant?.settings || defaultSettings;
       const updatedSettings = {
         ...currentSettings,
-        ...(customSettings || {}),
-        storeName: (customSettings && customSettings.storeName) || name || currentSettings.storeName,
-        store_wa: (customSettings && customSettings.store_wa) || phone || currentSettings.store_wa
+        ...(resolvedSettings || {}),
+        storeName: (resolvedSettings && resolvedSettings.storeName) || resolvedName || currentSettings.storeName,
+        store_wa: (resolvedSettings && resolvedSettings.store_wa) || resolvedPhone || currentSettings.store_wa
       };
       if (typeof window !== 'undefined') {
         localStorage.setItem('TENANT_SETTINGS', JSON.stringify(updatedSettings));
@@ -88,11 +102,12 @@ export const useStore = create((set) => ({
       return {
         tenant: {
           ...state.tenant,
-          code,
-          name,
-          tier,
-          token,
-          phone: phone || (typeof window !== 'undefined' ? localStorage.getItem('TENANT_PHONE') : null),
+          ...(source || {}),
+          code: resolvedCode || state.tenant?.code || null,
+          name: resolvedName || state.tenant?.name || null,
+          tier: resolvedTier || state.tenant?.tier || 'free',
+          token: resolvedToken || state.tenant?.token || null,
+          phone: resolvedPhone || state.tenant?.phone || (typeof window !== 'undefined' ? localStorage.getItem('TENANT_PHONE') : null),
           settings: updatedSettings
         }
       };
@@ -122,7 +137,7 @@ export const useStore = create((set) => ({
     set({ 
       tenant: { 
         code: null, 
-        name: null, 
+        name: null,
         apiUrl: '',
         tier: 'free',
         settings: defaultSettings
