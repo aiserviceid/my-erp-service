@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 64199)
-Total output lines: 3812
-
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useStore } from '../store/useStore';
 import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck, Clock, MessageSquareHeart } from 'lucide-react';
@@ -1735,7 +1732,632 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
               
               return (
                 <details className="customer-detail-disclosure" style={{ marginTop: '1rem', border: '1px solid #dbeafe', borderRadius: '18px', background: '#ffffff', overflow: 'hidden' }}>
-                  <summary style={{ cursor: 'pointer', listStyle: 'none', padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontWeight: 900, color: '#0f172a', borderBottom: '1px solid…14199 tokens truncated…                            }} 
+                  <summary style={{ cursor: 'pointer', listStyle: 'none', padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontWeight: 900, color: '#0f172a', borderBottom: '1px solid #e2e8f0' }}>
+                    <span>Detail Riwayat Pelanggan <small style={{ display: 'block', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>Lihat daftar pelanggan, nomor WA, status terakhir, dan sumber data.</small></span>
+                    <span style={{ background: '#ecfeff', color: '#0f766e', borderRadius: '999px', padding: '6px 10px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>Buka Detail</span>
+                  </summary>
+                  <div style={{ padding: '16px 18px' }}>
+                  <div className="customer-category-tabs" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '15px', borderBottom: '1px solid var(--border-light)' }}>
+                    <button onClick={() => setCustomerTab('servis')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'servis' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'servis' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Kategori Servis</button>
+                    <button onClick={() => setCustomerTab('pos')} style={{ padding: '6px 12px', border: 'none', background: customerTab === 'pos' ? 'var(--accent)' : '#e2e8f0', color: customerTab === 'pos' ? 'white' : '#475569', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>Pembelian POS</button>
+                  </div>
+
+                  <div className="customer-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+                    <h4 style={{ margin: 0, color: '#0f172a', fontWeight: '800' }}>Daftar Riwayat Pelanggan {customerTab === 'servis' ? 'Servis' : 'POS Toko'}:</h4>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button 
+                        className="btn"
+                        style={{ background: '#e2e8f0', color: '#475569', fontWeight: '600', padding: '6px 12px', fontSize: '0.85rem' }}
+                        onClick={async () => {
+                          const numbers = [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].map(n => n.replace(/^0/, '62')).join(', ');
+                          if(!numbers) return alert('Tidak ada nomor WA yang tersedia di kategori ini.');
+                          if (!await copyText(numbers)) return alert('Nomor tidak dapat disalin. Coba lagi atau tekan lama pada teks nomor.');
+                          alert('Berhasil disalin!\n\nSilakan "Paste" nomor-nomor ini di HP Anda untuk membuat Broadcast List WhatsApp.\n\nTotal: ' + [...new Set(displayedCustomers.map(s => s.customer_phone).filter(Boolean))].length + ' Nomor');
+                        }}
+                      >
+                        📋 Salin Semua Nomor (WhatsApp Marketing)
+                      </button>
+                      <button 
+                        className="btn"
+                        style={{ background: '#25D366', color: 'white', fontWeight: 'bold', padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        onClick={() => {
+                          const msgInput = document.getElementById('waBlastMessage');
+                          const msgText = msgInput ? msgInput.value : `Halo Kak, salam dari ${settings.storeName || tenant?.name || 'Toko Servis'}!`;
+                          
+                          // Hilangkan duplikat nomor HP
+                          const uniqueServices = displayedCustomers.filter((v,i,a)=>a.findIndex(t=>(t.customer_phone === v.customer_phone))===i).filter(s => s.customer_phone);
+                          if(uniqueServices.length === 0) return alert('Tidak ada nomor WA yang valid untuk dikirim.');
+                          
+                          if(!confirm(`PERINGATAN POPUP: Aksi ini akan membuka ${uniqueServices.length} tab WhatsApp secara berurutan.\n\nPastikan fitur "Popup Blocker" di browser Anda sudah DIIZINKAN (Allow Popups) untuk situs ini.\n\nLanjutkan mengirim WhatsApp Marketing?`)) return;
+                          
+                          uniqueServices.forEach((s, idx) => {
+                            setTimeout(() => {
+                              const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
+                              let personalizedMsg = msgText.replace(/{STORE_NAME}/g, settings.storeName || tenant?.name || 'Toko Servis');
+                              sendWhatsAppNotification({ tenant, target: cleanPhone, message: personalizedMsg, openManual: true });
+                            }, idx * 800);
+                          });
+                        }}
+                      >
+                        🚀 Buka WhatsApp Campaign
+                      </button>
+                    </div>
+                  </div>
+                  <div className="customer-table-wrap" style={{ overflowX: 'auto' }}>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Nama Pelanggan</th>
+                          <th>Nomor WhatsApp</th>
+                          <th>Terakhir Transaksi</th>
+                          <th>Aksi WhatsApp Marketing</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayedCustomers.length === 0 ? (
+                          <tr><td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8' }}>Belum ada data pelanggan {customerTab === 'servis' ? 'Servis' : 'POS'} terdaftar. Data otomatis terkumpul dari menu {customerTab === 'servis' ? 'Servis' : 'Kasir'}.</td></tr>
+                        ) : (
+                          displayedCustomers.map(s => {
+                            const cleanPhone = (s.customer_phone || '').replace(/^0/, '62');
+                            return (
+                              <tr key={s.resi}>
+                                <td><strong>{s.customer_name}</strong> <br/><small style={{ color: '#64748b' }}>Kategori: {s.device_name}</small></td>
+                                <td><span className="badge badge-info">{s.customer_phone || '-'}</span></td>
+                                <td>{new Date(s.created_at || Date.now()).toLocaleDateString('id-ID')} ({s.status})</td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      className="btn"
+                                      style={{ padding: '4px 10px', fontSize: '0.78rem', background: '#0284c7', color: 'white', border: 'none', fontWeight: '800' }}
+                                      onClick={() => setSelectedCustomerProfile({
+                                        name: s.customer_name,
+                                        phone: s.customer_phone,
+                                        device: s.device_name,
+                                        resi: s.resi
+                                      })}
+                                    >
+                                      👤 Profil & Timeline
+                                    </button>
+                                    {cleanPhone ? (
+                                      <button 
+                                        className="btn btn-accent"
+                                        style={{ padding: '4px 10px', fontSize: '0.78rem', background: '#25D366', color: 'white', border: 'none' }}
+                                        onClick={() => {
+                                          const msgInput = document.getElementById('waBlastMessage');
+                                          const msgText = msgInput ? msgInput.value : `Halo Kak ${s.customer_name}, salam dari ${settings.storeName || 'Toko Servis'}!`;
+                                          sendWhatsAppNotification({ tenant, target: cleanPhone, message: msgText, openManual: true });
+                                        }}
+                                      >
+                                        Kirim WA 📲
+                                      </button>
+                                    ) : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Tanpa No. WA</span>}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  </div>
+                </details>
+              );
+            })()}
+          </div>
+        ) : activeTab === 'pengaturan' ? (
+          <div className="glass-panel store-settings" style={{ maxWidth: '100%', padding: '0' }}>
+            <div className="store-settings-layout" style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', minHeight: '600px' }}>
+              
+              {/* Sidebar Tabs */}
+              <div className="store-settings-nav" style={{ width: window.innerWidth < 768 ? '100%' : '260px', borderRight: window.innerWidth < 768 ? 'none' : '1px solid var(--border-light)', borderBottom: window.innerWidth < 768 ? '1px solid var(--border-light)' : 'none', padding: '1.5rem', background: 'rgba(248, 250, 252, 0.5)', borderTopLeftRadius: '16px', borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '16px' }}>
+                <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Pengaturan Toko</h3>
+                <div className="store-settings-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button data-setting-tab="umum" aria-expanded={settingTab === 'umum'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('umum')} className={`btn store-settings-tab ${settingTab === 'umum' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'umum' ? 'var(--primary)' : 'transparent', color: settingTab === 'umum' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'umum' ? '800' : '600' }}>Tampilan & Branding</button>
+                  <button data-setting-tab="wa" aria-expanded={settingTab === 'wa'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('wa')} className={`btn store-settings-tab ${settingTab === 'wa' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'wa' ? 'var(--primary)' : 'transparent', color: settingTab === 'wa' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'wa' ? '800' : '600' }}>Koneksi WhatsApp</button>
+                  <button data-setting-tab="rekening" aria-expanded={settingTab === 'rekening'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('rekening')} className={`btn store-settings-tab ${settingTab === 'rekening' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'rekening' ? '#0284c7' : 'transparent', color: settingTab === 'rekening' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'rekening' ? '800' : '600' }}>Kontak & Rekening</button>
+                  <button data-setting-tab="nota" aria-expanded={settingTab === 'nota'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('nota')} className={`btn store-settings-tab ${settingTab === 'nota' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'nota' ? '#0ea5e9' : 'transparent', color: settingTab === 'nota' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'nota' ? '800' : '600' }}>Catatan Nota</button>
+                  <button data-setting-tab="promo" aria-expanded={settingTab === 'promo'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('promo')} className={`btn store-settings-tab ${settingTab === 'promo' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'promo' ? 'var(--primary)' : 'transparent', color: settingTab === 'promo' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'promo' ? '800' : '600' }}>Iklan & Promo</button>
+                  <button data-setting-tab="aplikasi" aria-expanded={settingTab === 'aplikasi'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('aplikasi')} className={`btn store-settings-tab ${settingTab === 'aplikasi' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'aplikasi' ? '#0f766e' : 'transparent', color: settingTab === 'aplikasi' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'aplikasi' ? '800' : '600' }}><Smartphone size={17} /> Update Aplikasi</button>
+                  <button data-setting-tab="bantuan" aria-expanded={settingTab === 'bantuan'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('bantuan')} className={`btn store-settings-tab ${settingTab === 'bantuan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'bantuan' ? '#0284c7' : 'transparent', color: settingTab === 'bantuan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'bantuan' ? '800' : '600' }}><MessageSquareHeart size={17} /> Bantuan & Masukan</button>
+                  <button data-setting-tab="keamanan" aria-expanded={settingTab === 'keamanan'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('keamanan')} className={`btn store-settings-tab ${settingTab === 'keamanan' ? 'btn-primary' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'keamanan' ? '#7c3aed' : 'transparent', color: settingTab === 'keamanan' ? '#fff' : 'var(--text)', border: 'none', textAlign: 'left', fontWeight: settingTab === 'keamanan' ? '800' : '600' }}><KeyRound size={17} /> Ubah PIN / Password</button>
+                  <div className="store-settings-divider" style={{ height: '2px', background: 'var(--border-light)', margin: '10px 0' }}></div>
+                  <button data-setting-tab="danger" aria-expanded={settingTab === 'danger'} aria-controls="store-settings-active-panel" onClick={() => setSettingTab('danger')} className={`btn store-settings-tab ${settingTab === 'danger' ? 'btn-danger' : ''}`} style={{ justifyContent: 'flex-start', padding: '10px 14px', background: settingTab === 'danger' ? '#dc2626' : 'transparent', color: settingTab === 'danger' ? '#fff' : '#dc2626', border: 'none', textAlign: 'left', fontWeight: settingTab === 'danger' ? '800' : '600' }}>Zona Berbahaya</button>
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div id="store-settings-active-panel" data-active-setting={settingTab} className="store-settings-content" style={{ flex: 1, padding: '2rem' }}>
+                
+                {settingTab === 'umum' && (
+                  <div style={{ maxWidth: '500px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Konfigurasi Tema & Branding</h3>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label">Nama Toko</label>
+                      <input type="text" className="input-field" 
+                        value={settings.storeName || ''} 
+                        onChange={(e) => updateTenantSettings({ storeName: e.target.value })} 
+                      />
+                    </div>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label">Logo Toko {canUseCustomBranding ? '(Opsional - Otomatis disesuaikan)' : '(Paket Pro / Enterprise)'}</label>
+                      <input type="file" accept="image/*" className="input-field" disabled={!canUseCustomBranding}
+                        onChange={(e) => {
+                          if (!canUseCustomBranding) return;
+                          const file = e.target.files[0];
+                          if(file) {
+                             handleImageUpload(file, (base64) => {
+                               updateTenantSettings({ logoUrl: base64 });
+                             });
+                          }
+                        }} 
+                      />
+                      {!canUseCustomBranding && (
+                        <div style={{ marginTop: '10px', padding: '12px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.82rem' }}>
+                          Paket Free otomatis memakai watermark UnitPro tipis di logo dan nota.
+                        </div>
+                      )}
+                      {canUseCustomBranding && settings.logoUrl && (
+                        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center' }}>
+                          <img src={settings.logoUrl} alt="Logo" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid #e2e8f0' }} />
+                          <button className="btn" style={{ padding: '4px 10px', marginLeft: '10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }} onClick={() => updateTenantSettings({ logoUrl: '' })}>Hapus Logo</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label">Tema</label>
+                      <select className="input-field" 
+                        value={settings.theme || 'default'} 
+                        onChange={(e) => updateTenantSettings({ theme: e.target.value })}
+                      >
+                        <option value="default">Default (Mode Terang)</option>
+                        <option value="dark">Dark (Mode Gelap)</option>
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <label className="label" style={{ fontWeight: '700' }}>🌐 {t('language_label', 'Bahasa Aplikasi / Language', currentLang)}</label>
+                      <select className="input-field" 
+                        value={settings.language || currentLang} 
+                        onChange={(e) => {
+                          const langVal = e.target.value;
+                          updateTenantSettings({ language: langVal });
+                          setAppLanguage(langVal);
+                          setCurrentLang(langVal);
+                        }}
+                      >
+                        <option value="id">{t('indonesian', '🇮🇩 Bahasa Indonesia', currentLang)}</option>
+                        <option value="en">{t('english', '🇬🇧 English', currentLang)}</option>
+                      </select>
+                    </div>
+
+
+                    <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-primary" onClick={async () => {
+                        try {
+                          await apiService.updateTenantSettings(tenant.code, settings);
+                          alert('Tema & Branding berhasil disimpan!');
+                        } catch(e) {
+                          alert('Gagal menyimpan');
+                        }
+                      }}>Simpan Perubahan</button>
+                    </div>
+                  </div>
+                )}
+
+                {settingTab === 'wa' && (
+                  <div style={{ maxWidth: '600px', animation: 'fadeIn 0.3s ease-out', opacity: isFree ? 0.6 : 1 }}>
+                    <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Otomatisasi WhatsApp {isFree && <span className="badge badge-warning">Premium</span>}</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                      Pilih metode pengiriman notifikasi WhatsApp. Anda dapat menggunakan server terpusat sistem kami atau nomor WA toko Anda sendiri.
+                    </p>
+                    <div style={{ padding: '1.5rem', border: '1px solid var(--border-light)', borderRadius: '12px', background: 'rgba(255,255,255,0.5)' }}>
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label className="label">Mode Pengiriman WA:</label>
+                        <select 
+                          className="input-field" 
+                          id="waSenderModeInput"
+                          value={tenant?.settings?.wa_sender_mode || 'SYSTEM'} 
+                          disabled={isFree}
+                          onChange={async (e) => {
+                            const mode = e.target.value;
+                            const newSettings = { ...tenant?.settings, wa_sender_mode: mode };
+                            try {
+                              await apiService.updateTenantSettings(tenant.code, newSettings);
+                              updateTenantSettings(newSettings);
+                            } catch(err) { alert('Gagal mengubah mode'); }
+                          }}
+                        >
+                          <option value="SYSTEM">🟢 Server Terpusat AIService.ID (Sistem Global)</option>
+                          <option value="CUSTOM">⚙️ Custom API Key Mandiri (Toko Sendiri)</option>
+                        </select>
+                      </div>
+
+                      {tenant?.settings?.wa_sender_mode === 'CUSTOM' ? (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <label className="label">Token WhatsApp Gateway (Fonnte):</label>
+                          <input 
+                            type="password" 
+                            className="input-field" 
+                            placeholder="Masukkan Token Fonnte/Wablas Toko Anda..."
+                            defaultValue={tenant?.settings?.fonnte_token || ''}
+                            id="fonnteTokenInput"
+                            disabled={isFree}
+                          />
+                          <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginTop: '8px' }}>
+                            🔑 Token ini dipakai untuk notifikasi servis, pesan teknisi, kirim satu pelanggan, dan broadcast WhatsApp Marketing.
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px', borderRadius: '10px', color: '#15803d', fontSize: '0.85rem', fontWeight: '800', marginBottom: '1.5rem' }}>
+                          ✓ Layanan WA otomatis aktif menggunakan Server Gateway AIService.ID. Tidak perlu konfigurasi API Key tambahan.
+                        </div>
+                      )}
+
+                      <button 
+                        className="btn" 
+                        style={{ background: '#059669', color: 'white', border: 'none' }}
+                        disabled={isFree} 
+                        onClick={async () => {
+                          const token = tenant?.settings?.wa_sender_mode === 'CUSTOM' ? document.getElementById('fonnteTokenInput')?.value : '';
+                          try {
+                            const newSettings = { ...tenant?.settings, fonnte_token: token };
+                            await apiService.updateTenantSettings(tenant.code, newSettings);
+                            updateTenantSettings(newSettings);
+                            alert('Pengaturan WhatsApp berhasil disimpan!');
+                          } catch(e) { alert('Gagal menyimpan pengaturan'); }
+                        }}
+                      >
+                        Simpan Pengaturan WA
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {settingTab === 'rekening' && (
+                  <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Kontak & Rekening</h3>
+                    
+                    <div style={{ display: 'flex', gap: '2rem', flexDirection: window.innerWidth < 1100 ? 'column' : 'row' }}>
+                      <div style={{ flex: 1, minWidth: '300px', opacity: isFree ? 0.6 : 1 }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                          Lengkapi nomor kontak, rekening, dan gambar QRIS toko agar pelanggan lebih mudah membayar.
+                        </p>
+                        
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <label className="label">Nomor WhatsApp Penerima Order (Dari Katalog)</label>
+                          <input type="text" className="input-field" placeholder="Contoh: 08123456789" defaultValue={tenant?.settings?.store_wa || ''} id="storeWaInput" disabled={isFree} onChange={(e) => updateTenantSettings({ store_wa: e.target.value })} />
+                        </div>
+
+                        <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                          <h5 style={{ margin: '0 0 12px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Info Rekening Pembayaran</h5>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                            <select id="bankNameSelect" className="input-field" disabled={isFree} defaultValue={tenant?.settings?.bank_name || ''} onChange={(e) => updateTenantSettings({ bank_name: e.target.value })}>
+                              <option value="">-- Pilih Bank / E-Wallet --</option>
+                              <optgroup label="Bank Nasional">
+                                <option value="BCA">BCA</option><option value="Mandiri">Mandiri</option><option value="BNI">BNI</option><option value="BRI">BRI</option><option value="BSI">BSI</option><option value="CIMB Niaga">CIMB Niaga</option>
+                              </optgroup>
+                              <optgroup label="Bank Digital">
+                                <option value="Seabank">Seabank</option><option value="Bank Jago">Bank Jago</option><option value="Blu BCA">Blu by BCA</option><option value="Neo Bank">Neo Bank</option>
+                              </optgroup>
+                              <optgroup label="E-Wallet">
+                                <option value="DANA">DANA</option><option value="GoPay">GoPay</option><option value="OVO">OVO</option><option value="ShopeePay">ShopeePay</option><option value="LinkAja">LinkAja</option>
+                              </optgroup>
+                            </select>
+                            <input type="text" id="accNumberInput" className="input-field" placeholder="Nomor Rekening / No. HP" disabled={isFree} defaultValue={tenant?.settings?.bank_account || ''} onChange={(e) => updateTenantSettings({ bank_account: e.target.value })} />
+                            <input type="text" id="accNameInput" className="input-field" placeholder="Atas Nama (A/N)" disabled={isFree} defaultValue={tenant?.settings?.bank_holder || ''} onChange={(e) => updateTenantSettings({ bank_holder: e.target.value })} />
+                          </div>
+                        </div>
+
+                        <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Upload Gambar QRIS Toko</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Unggah QRIS resmi toko agar pelanggan bisa scan langsung dari nota.</p>
+                          <input type="file" accept="image/*" className="input-field" disabled={isFree} onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              handleImageUpload(file, (base64) => updateTenantSettings({ qrisUrl: base64 }));
+                            }
+                          }} />
+                          {qrisImageUrl ? (
+                            <div style={{ marginTop: '10px', display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', alignItems: 'center', gap: '12px' }}>
+                              <img src={qrisImageUrl} alt="QRIS Toko" style={{ width: '160px', height: '160px', objectFit: 'contain', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px' }} />
+                              <button className="btn" style={{ padding: '8px 12px', fontSize: '0.8rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }} onClick={() => updateTenantSettings({ qrisUrl: '' })}>Hapus QRIS</button>
+                            </div>
+                          ) : (
+                            <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>Belum ada gambar QRIS yang diunggah.</p>
+                          )}
+                        </div>
+
+                        <button className="btn" style={{ background: '#0ea5e9', color: 'white', border: 'none', width: '100%', padding: '12px' }} disabled={isFree} onClick={async () => {
+                          const storeWa = document.getElementById('storeWaInput').value;
+                          const bankName = document.getElementById('bankNameSelect').value;
+                          const accNumber = document.getElementById('accNumberInput').value;
+                          const accName = document.getElementById('accNameInput').value;
+                          const qrisUrl = settings.qrisUrl || '';
+                          const bankLine = [bankName, accNumber].filter(Boolean).join(' ').trim();
+                          const storeBank = bankLine ? `${bankLine}${accName ? ` a/n ${accName}` : ''}`.trim() : '';
+                          
+                          try {
+                            const newSettings = { ...tenant?.settings, store_wa: storeWa, store_bank: storeBank, bank_name: bankName, bank_account: accNumber, bank_holder: accName, qrisUrl };
+                            await apiService.updateTenantSettings(tenant.code, newSettings);
+                            updateTenantSettings(newSettings);
+                            alert('Informasi kontak, rekening, dan QRIS berhasil disimpan!');
+                          } catch(e) { alert('Gagal menyimpan'); }
+                        }}>Simpan Perubahan</button>
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: '300px' }}>
+                        <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Kontak & Pembayaran</h4>
+                          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b' }}>
+                            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #e2e8f0' }}>
+                              <div style={{ color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Nomor WhatsApp</div>
+                              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>{settings.store_wa || '-'}</div>
+                            </div>
+                            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #e2e8f0' }}>
+                              <div style={{ color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>Info Rekening</div>
+                              <div style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: '700', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{paymentInfoText || '-'}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: '700', marginBottom: '10px' }}>QRIS Toko</div>
+                              {qrisImageUrl ? (
+                                <>
+                                  <img src={qrisImageUrl} alt="QRIS Toko" style={{ width: '160px', height: '160px', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px', background: '#fff' }} />
+                                  <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#64748b' }}>Scan QRIS ini untuk pembayaran.</div>
+                                </>
+                              ) : (
+                                <div style={{ padding: '24px 12px', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#94a3b8', fontSize: '0.8rem' }}>QRIS belum diunggah.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {settingTab === 'nota' && (
+                  <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '1.5rem', color: '#0f172a' }}>Catatan Nota</h3>
+                    
+                    <div style={{ display: 'flex', gap: '2rem', flexDirection: window.innerWidth < 1100 ? 'column' : 'row' }}>
+                      <div style={{ flex: 1, minWidth: '300px', opacity: isFree ? 0.6 : 1 }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                          Atur catatan kaki untuk nota servis dan struk penjualan kasir.
+                        </p>
+
+                        <div style={{ padding: '1.2rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Catatan Kaki Nota (Servis)</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Garansi servis 1 minggu dari tanggal pengambilan."</p>
+                          <textarea className="input-field" placeholder="Ketik aturan garansi / ucapan terima kasih di sini..." defaultValue={tenant?.settings?.receipt_note_service || tenant?.settings?.receipt_note || ''} id="receiptNoteServiceInput" style={{ width: '100%', minHeight: '80px', resize: 'vertical', marginBottom: '1rem' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_service: e.target.value, receipt_note: e.target.value })} />
+
+                          <h5 style={{ margin: '0 0 8px 0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>Catatan Kaki Nota (Penjualan Kasir)</h5>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0', lineHeight: '1.4' }}>Contoh: "Barang yang sudah dibeli tidak dapat ditukar/dikembalikan."</p>
+                          <textarea className="input-field" placeholder="Ketik ucapan terima kasih / aturan retur di sini..." defaultValue={tenant?.settings?.receipt_note_pos || ''} id="receiptNotePosInput" style={{ width: '100%', minHeight: '80px', resize: 'vertical' }} disabled={isFree} onChange={(e) => updateTenantSettings({ receipt_note_pos: e.target.value })} />
+                        </div>
+
+                        <button className="btn" style={{ background: '#0ea5e9', color: 'white', border: 'none', width: '100%', padding: '12px' }} disabled={isFree} onClick={async () => {
+                          const receiptNoteService = document.getElementById('receiptNoteServiceInput').value;
+                          const receiptNotePos = document.getElementById('receiptNotePosInput').value;
+                          
+                          try {
+                            const newSettings = { ...tenant?.settings, receipt_note_service: receiptNoteService, receipt_note_pos: receiptNotePos, receipt_note: receiptNoteService };
+                            await apiService.updateTenantSettings(tenant.code, newSettings);
+                            updateTenantSettings(newSettings);
+                            alert('Catatan nota berhasil disimpan!');
+                          } catch(e) { alert('Gagal menyimpan'); }
+                        }}>Simpan Catatan</button>
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: '300px' }}>
+                        <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px' }}>
+                          <h4 style={{ margin: '0 0 1rem 0', color: '#334155', textAlign: 'center', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>👀 Live Preview Nota</h4>
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '1rem', justifyContent: 'center' }}>
+                            <button onClick={() => setPreviewTab('servis')} className={`btn ${previewTab === 'servis' ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.8rem', background: previewTab === 'servis' ? '#0ea5e9' : '#e2e8f0', color: previewTab === 'servis' ? 'white' : '#475569', border: 'none', borderRadius: '6px' }}>Servis</button>
+                            <button onClick={() => setPreviewTab('pos')} className={`btn ${previewTab === 'pos' ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.8rem', background: previewTab === 'pos' ? '#0ea5e9' : '#e2e8f0', color: previewTab === 'pos' ? 'white' : '#475569', border: 'none', borderRadius: '6px' }}>Kasir (POS)</button>
+                          </div>
+                          <div style={{ position: 'relative', overflow: 'hidden', background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', fontSize: '0.8rem', color: '#1e293b', fontFamily: 'monospace' }}>
+                            {isFree && <img src={UNITPRO_LOGO_URL} alt="" aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '52%', width: '82%', transform: 'translate(-50%, -50%) rotate(-14deg)', opacity: 0.07, pointerEvents: 'none' }} />}
+                            <div style={{ position: 'relative', zIndex: 1 }}>
+                            {previewTab === 'servis' ? (
+                              <>
+                                <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <img src={tenantLogoUrl} alt="Logo" style={{ maxHeight: '35px', maxWidth: '130px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
+                                    <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  </div>
+                                  <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>NOTA PELUNASAN SERVIS</div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                                  <div><strong>No. Resi</strong><br/>SRV-12345</div>
+                                  <div><strong>Tanggal</strong><br/>{new Date().toLocaleDateString('id-ID')}</div>
+                                </div>
+                                <div style={{ marginBottom: '15px' }}>
+                                  <strong>Rincian Perbaikan:</strong><br/>
+                                  Ganti LCD (Part) - Rp 350.000<br/>
+                                  Jasa Pasang - Rp 100.000<br/>
+                                  <strong>TOTAL: Rp 450.000</strong>
+                                </div>
+                                
+                                {paymentInfoText ? (
+                                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontFamily: 'sans-serif' }}>
+                                    <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                                    {paymentInfoText}
+                                  </div>
+                                ) : null}
+
+                                {qrisImageUrl ? (
+                                  <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                                    <img src={qrisImageUrl} alt="QRIS Pembayaran" style={{ width: '110px', height: '110px', objectFit: 'contain', marginBottom: '5px' }} />
+                                    <p style={{ margin: '0', fontSize: '0.75rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QRIS untuk pembayaran</p>
+                                  </div>
+                                ) : null}
+
+                                <div style={{ textAlign: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '10px', color: '#64748b', fontFamily: 'sans-serif' }}>
+                                  <strong style={{ color: '#0f172a' }}>{settings.receipt_note_service || settings.receipt_note || 'Terima kasih atas kepercayaan Anda!'}</strong><br/>
+                                  Barang yang sudah diambil tidak dapat dikembalikan / ditukar.
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '10px', marginBottom: '15px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <img src={tenantLogoUrl} alt="Logo" style={{ maxHeight: '35px', maxWidth: '130px', objectFit: 'contain', opacity: tenantLogoOpacity }} />
+                                    <h2 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '900', fontFamily: 'sans-serif' }}>{settings.storeName || tenant?.name || 'Toko Servis'}</h2>
+                                  </div>
+                                  <div style={{ color: '#64748b', fontSize: '0.7rem', fontFamily: 'sans-serif' }}>STRUK PENJUALAN</div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                                  <div><strong>No. Transaksi</strong><br/>POS-12345</div>
+                                  <div><strong>Tanggal</strong><br/>{new Date().toLocaleDateString('id-ID')}</div>
+                                </div>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+                                  <thead>
+                                    <tr><th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>Item</th><th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>Qty</th><th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>Total</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td style={{ padding: '6px 0', borderBottom: '1px dotted #eee' }}>Charger Laptop</td><td style={{ textAlign: 'right', padding: '6px 0', borderBottom: '1px dotted #eee' }}>1x</td><td style={{ textAlign: 'right', padding: '6px 0', borderBottom: '1px dotted #eee' }}>Rp 175.000</td></tr>
+                                  </tbody>
+                                </table>
+                                <div style={{ borderTop: '2px dashed #ccc', paddingTop: '10px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Subtotal</span><span>Rp 175.000</span></div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '1.1rem', margin: '10px 0', borderTop: '2px solid #333', borderBottom: '2px solid #333', padding: '8px 0' }}><span>TOTAL</span><span>Rp 175.000</span></div>
+                                </div>
+                                {paymentInfoText ? (
+                                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', margin: '15px 0', fontFamily: 'sans-serif', textAlign: 'center' }}>
+                                    <strong>INFO REKENING PEMBAYARAN:</strong><br/>
+                                    {paymentInfoText}
+                                  </div>
+                                ) : null}
+                                {qrisImageUrl ? (
+                                  <div style={{ textAlign: 'center', margin: '15px 0', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                                    <img src={qrisImageUrl} alt="QRIS Pembayaran" style={{ width: '110px', height: '110px', objectFit: 'contain', marginBottom: '5px' }} />
+                                    <p style={{ margin: '0', fontSize: '0.75rem', color: '#64748b', fontFamily: 'sans-serif' }}>Scan QRIS untuk pembayaran</p>
+                                  </div>
+                                ) : null}
+                                <div style={{ textAlign: 'center', color: '#64748b', fontFamily: 'sans-serif' }}>
+                                  {settings.receipt_note_pos ? <><strong style={{ color: '#0f172a' }}>{settings.receipt_note_pos}</strong></> : <><strong style={{ color: '#0f172a' }}>Terima kasih atas pembelian Anda!</strong><br/>Barang yang sudah dibeli tidak dapat dikembalikan.</>}
+                                </div>
+                              </>
+                            )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {settingTab === 'aplikasi' && (
+                  <div style={{ maxWidth: '580px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '0.5rem', color: '#0f172a' }}>Update Aplikasi UnitPro</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+                      Perbarui aplikasi Android untuk mendapatkan fitur dan perbaikan terbaru. File dibuka langsung untuk diunduh, tanpa melalui landing page.
+                    </p>
+                    <div style={{ border: '1px solid #99f6e4', background: '#f0fdfa', borderRadius: '8px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '1rem' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#0f766e', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Smartphone size={24} /></div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: '800', color: '#134e4a' }}>UnitPro Android</div>
+                        <div style={{ color: '#0f766e', fontSize: '0.82rem', marginTop: '3px' }}>Versi saat ini: v{appVersion}</div>
+                        <div style={{ color: latestVersionInfo?.version && isNewerVersion(latestVersionInfo.version, appVersion) ? '#b45309' : '#047857', fontSize: '0.82rem', marginTop: '3px', fontWeight: '800' }}>
+                          {latestVersionInfo?.version
+                            ? (isNewerVersion(latestVersionInfo.version, appVersion) ? `Versi baru tersedia: v${latestVersionInfo.version}` : 'Aplikasi sudah versi terbaru')
+                            : 'Mengecek info versi...'}
+                        </div>
+                        <div style={{ color: '#475569', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
+                          Terakhir diperbarui {latestVersionInfo?.releaseDate || latestVersionInfo?.release_date || '13 Agustus 2026'}
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" className="btn" onClick={openAppUpdate} style={{ width: '100%', justifyContent: 'center', background: '#0f766e', color: '#fff', border: 'none', padding: '12px 16px' }}>
+                      <Download size={18} /> Unduh Update Android
+                    </button>
+                    <p style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: '1.5', margin: '12px 0 0' }}>
+                      Setelah selesai diunduh, buka file APK dan pilih Perbarui. Data toko dan akun Anda tetap tersimpan.
+                    </p>
+                  </div>
+                )}
+
+                {settingTab === 'promo' && (
+                  <div style={{ maxWidth: '650px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <h3 style={{ marginBottom: '0.5rem', color: '#0f172a' }}>Iklan & Banner Promo Publik {(!((tenant?.tier && tenant.tier.toLowerCase() !== 'free') || tenant?.isTrial || tenant?.settings?.isTrial || String(tenant?.tier || '').toLowerCase().includes('promo') || String(tenant?.tier || '').toLowerCase().includes('trial'))) && <span className="badge badge-warning">Paket Pro & Trial</span>}</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                      Kelola hingga 3 banner promo aktif yang akan tampil secara otomatis di Katalog Publik & Halaman Tracking Resi Pelanggan.
+                    </p>
+
+                    {!((tenant?.tier && tenant.tier.toLowerCase() !== 'free') || tenant?.isTrial || tenant?.settings?.isTrial || String(tenant?.tier || '').toLowerCase().includes('promo') || String(tenant?.tier || '').toLowerCase().includes('trial')) ? (
+                      <UpgradePrompt
+                        mode="card"
+                        featureName="Kelola Banner Promo Publik (Paket Pro & Trial)"
+                        featureDescription="Tampilkan iklan banner promo interaktif di Katalog Publik & Halaman Tracking Resi Pelanggan. Fitur ini tersedia untuk Paket Pro ke atas dan Paket Promo / Trial!"
+                        usageLabel="Fitur Eksklusif Paket Pro, Trial, & Enterprise"
+                      />
+                    ) : (
+                      <div>
+                        {((settings.promoBanners && settings.promoBanners.length > 0) ? settings.promoBanners : (settings.ads || [])).map((ad, index) => (
+                          <div key={ad.id || index} style={{ padding: '1.2rem', border: '1px solid #e2e8f0', borderRadius: '14px', marginBottom: '1rem', background: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h4 style={{ margin: 0, color: '#0284c7', fontSize: '0.95rem' }}>Banner #{index + 1}</h4>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: '700', color: ad.isActive !== false ? '#059669' : '#94a3b8', cursor: 'pointer', background: ad.isActive !== false ? '#dcfce7' : '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={ad.isActive !== false}
+                                    onChange={(e) => {
+                                      const list = [...((settings.promoBanners || settings.ads || []))];
+                                      list[index] = { ...list[index], isActive: e.target.checked };
+                                      updateTenantSettings({ promoBanners: list, ads: list });
+                                    }}
+                                  />
+                                  {ad.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                                </label>
+                              </div>
+                              <button 
+                                type="button"
+                                className="btn"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                                onClick={() => {
+                                  const currentBanners = settings.promoBanners || settings.ads || [];
+                                  const filtered = currentBanners.filter((_, i) => i !== index);
+                                  updateTenantSettings({ promoBanners: filtered, ads: filtered });
+                                }}
+                              >
+                                Hapus Banner
+                              </button>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div>
+                                <label className="label">Judul Promo (Opsional)</label>
+                                <input type="text" className="input-field" placeholder="Contoh: Diskon 20% Ganti LCD" value={ad.title || ''} 
+                                  onChange={(e) => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], title: e.target.value };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} 
+                                />
+                              </div>
+                              <div>
+                                <label className="label">Badge Tag (Opsional)</label>
+                                <input type="text" className="input-field" placeholder="Contoh: Terbatas / Populer" value={ad.badge || ''} 
+                                  onChange={(e) => {
+                                    const list = [...((settings.promoBanners || settings.ads || []))];
+                                    list[index] = { ...list[index], badge: e.target.value };
+                                    updateTenantSettings({ promoBanners: list, ads: list });
+                                  }} 
+                                />
+                              </div>
+                            </div>
+
+                            <div style={{ marginBottom: '10px' }}>
+                              <label className="label">Deskripsi Ringkas Promo</label>
+                              <input type="text" className="input-field" placeholder="Contoh: Khusus pengerjaan hari ini, garansi 30 hari original." value={ad.description || ''} 
+                                onChange={(e) => {
+                                  const list = [...((settings.promoBanners || settings.ads || []))];
+                                  list[index] = { ...list[index], description: e.target.value };
+                                  updateTenantSettings({ promoBanners: list, ads: list });
+                                }} 
                               />
                             </div>
 
