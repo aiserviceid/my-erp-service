@@ -1,0 +1,458 @@
+/*
+ * UnitPro landing mobile refinement
+ * Purpose: tighten hierarchy, spacing, CTA composition and card density on phones.
+ * Loaded after the cinematic layer and fully scoped to .simple-landing.
+ */
+
+@media (max-width: 680px) {
+  .simple-landing {
+    background:
+      radial-gradient(circle at 92% 10%, rgba(56, 189, 248, .10), transparent 15rem),
+      linear-gradient(180deg, #fbfdff 0%, #f5fbff 34%, #f8fcff 100%);
+  }
+
+  .simple-landing::before {
+    height: 470px;
+    opacity: .30;
+    background-size: 40px 40px;
+  }
+
+  .simple-landing .landing-ambient {
+    opacity: .08;
+    filter: blur(76px);
+  }
+
+  /* Compact mobile navigation: brand stays visible without dominating the first fold. */
+  .simple-landing .simple-nav {
+    top: 6px;
+    width: calc(100% - 16px);
+    min-height: 60px;
+    margin-inline: auto;
+    padding: 7px 9px 7px 11px;
+    border-radius: 18px;
+    background: rgba(251, 254, 255, .91);
+    border-color: rgba(186, 230, 253, .42);
+    box-shadow: 0 10px 32px rgba(7, 25, 45, .07);
+  }
+
+  .simple-landing .simple-brand-logo {
+    width: 145px;
+    max-width: 46vw;
+    height: 42px;
+  }
+
+  .simple-landing .simple-nav .nav-login-button {
+    min-height: 40px;
+    padding: 0 13px;
+    border-radius: 13px;
+    font-size: 12px;
+    letter-spacing: -.01em;
+    box-shadow: 0 8px 22px rgba(7, 25, 45, .14);
+  }
+
+  /* Hero: information first, motion second. */
+  .simple-landing .simple-hero {
+    min-height: 0;
+    padding: 38px 18px 28px;
+    gap: 30px;
+  }
+
+  .simple-landing .simple-hero::before {
+    width: 390px;
+    height: 250px;
+    right: -310px;
+    top: 220px;
+    opacity: .38;
+  }
+
+  .simple-landing .simple-kicker {
+    max-width: 100%;
+    margin-bottom: 14px;
+    padding: 7px 10px;
+    gap: 6px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    line-height: 1.2;
+    letter-spacing: .055em;
+    white-space: normal;
+    box-shadow: 0 7px 22px rgba(2,132,199,.055), inset 0 1px 0 #fff;
+  }
+
+  .simple-landing .simple-kicker svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+  }
+
+  .simple-landing .simple-hero h1 {
+    max-width: 11.5ch;
+    font-size: clamp(34px, 9.7vw, 39px);
+    line-height: 1.015;
+    letter-spacing: -.048em;
+    text-wrap: balance;
+  }
+
+  .simple-landing .simple-subtitle {
+    max-width: 34ch;
+    margin-top: 17px;
+    font-size: 15.5px;
+    line-height: 1.58;
+    letter-spacing: -.008em;
+    color: #536a80;
+  }
+
+  /* One obvious primary action, two quieter secondary actions. */
+  .simple-landing .simple-hero-copy > .simple-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 9px;
+    margin-top: 22px;
+  }
+
+  .simple-landing .simple-hero-copy > .simple-actions .simple-btn {
+    width: 100%;
+    min-height: 45px;
+    padding: 0 13px;
+    border-radius: 13px;
+    font-size: 13.5px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .simple-landing .simple-hero-copy > .simple-actions .simple-btn.primary:first-child {
+    grid-column: 1 / -1;
+    min-height: 49px;
+    font-size: 14px;
+    box-shadow: 0 13px 32px rgba(14,165,233,.20);
+  }
+
+  .simple-landing .simple-hero-copy > .simple-actions .simple-btn.secondary {
+    background: rgba(255,255,255,.92);
+    border-color: #d7e9f4;
+    box-shadow: 0 7px 20px rgba(15,23,42,.045);
+  }
+
+  .simple-landing .simple-hero-copy > .simple-actions .simple-btn.ghost {
+    color: #0b6f69;
+    background: rgba(240,253,250,.78);
+    border-color: rgba(94,234,212,.45);
+    box-shadow: none;
+  }
+
+  /* Trust points become supporting microcopy instead of three additional pills. */
+  .simple-landing .hero-trust-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+    margin-top: 18px;
+  }
+
+  .simple-landing .hero-trust-row span {
+    width: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #65798c;
+    font-size: 11.5px;
+    line-height: 1.35;
+    box-shadow: none;
+  }
+
+  .simple-landing .hero-trust-row svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Product preview begins sooner and reads like a product screenshot, not a giant illustration. */
+  .simple-landing .product-stage {
+    width: 100%;
+    min-height: 318px;
+    margin-top: 2px;
+  }
+
+  .simple-landing .product-stage-glow {
+    inset: 18% 7% 9%;
+    opacity: .18;
+    filter: blur(40px);
+  }
+
+  .simple-landing .product-window {
+    margin-top: 10px;
+    border-radius: 16px;
+    box-shadow: 0 24px 55px rgba(7,25,45,.13), 0 8px 20px rgba(14,165,233,.05);
+  }
+
+  .simple-landing .product-window-bar {
+    height: 35px;
+    padding-inline: 11px;
+  }
+
+  .simple-landing .product-window-bar span {
+    font-size: 8px;
+  }
+
+  .simple-landing .product-window-bar small {
+    font-size: 7px;
+  }
+
+  .simple-landing .product-dashboard {
+    grid-template-columns: 40px 1fr;
+    min-height: 255px;
+  }
+
+  .simple-landing .product-sidebar {
+    padding: 10px 5px;
+    gap: 6px;
+  }
+
+  .simple-landing .product-sidebar svg {
+    width: 25px;
+    height: 25px;
+    padding: 6px;
+  }
+
+  .simple-landing .mini-logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+  }
+
+  .simple-landing .product-content {
+    padding: 12px 9px;
+  }
+
+  .simple-landing .product-title strong { font-size: 11px; }
+  .simple-landing .product-title button { padding: 6px 7px; font-size: 7px; }
+  .simple-landing .product-metrics { gap: 5px; margin-top: 11px; }
+  .simple-landing .metric-card { padding: 8px 6px; border-radius: 10px; }
+  .simple-landing .metric-card span { font-size: 7px; }
+  .simple-landing .metric-card strong { margin-top: 3px; font-size: 10px; }
+  .simple-landing .metric-card small { font-size: 6.5px; }
+  .simple-landing .product-chart-card { margin-top: 8px; padding: 9px; border-radius: 11px; }
+  .simple-landing .chart-visual { height: 67px; }
+
+  .simple-landing .floating-status {
+    width: 134px;
+    padding: 8px;
+    gap: 7px;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(7,25,45,.11);
+  }
+
+  .simple-landing .floating-status > svg {
+    width: 28px;
+    height: 28px;
+    padding: 6px;
+  }
+
+  .simple-landing .floating-status strong { font-size: 8px; }
+  .simple-landing .floating-status span { font-size: 6.5px; }
+  .simple-landing .floating-status.one { top: -5px; right: -2px; }
+  .simple-landing .floating-status.two { bottom: 4px; left: -2px; }
+
+  /* Compact capability rail: four facts in two rows. */
+  .simple-landing .simple-proof {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 18px 32px;
+  }
+
+  .simple-landing .simple-proof div {
+    min-height: 76px;
+    padding: 13px;
+    border-radius: 15px;
+    box-shadow: 0 10px 28px rgba(7,25,45,.045);
+  }
+
+  .simple-landing .simple-proof strong { font-size: 14px; }
+  .simple-landing .simple-proof span { margin-top: 3px; font-size: 10.5px; line-height: 1.35; }
+
+  /* Consistent section rhythm across the rest of the landing page. */
+  .simple-landing .simple-section {
+    padding: 46px 18px;
+  }
+
+  .simple-landing .simple-section h2,
+  .simple-landing .simple-demo-strip h2,
+  .simple-landing .simple-final-cta h2 {
+    font-size: clamp(27px, 8vw, 32px);
+    line-height: 1.08;
+    letter-spacing: -.035em;
+  }
+
+  .simple-landing .simple-section-head {
+    margin-bottom: 21px;
+  }
+
+  .simple-landing .simple-two-column {
+    margin: 28px 12px 18px;
+    padding: 28px 18px;
+    border-radius: 24px;
+    box-shadow: 0 24px 60px rgba(7,25,45,.17);
+  }
+
+  .simple-landing .simple-pain-box {
+    margin-top: 6px;
+    padding: 17px;
+    gap: 10px;
+    border-radius: 18px;
+  }
+
+  .simple-landing .simple-pain-box p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .simple-landing .workflow-section {
+    padding-top: 48px;
+    padding-bottom: 44px;
+  }
+
+  .simple-landing .workflow-track {
+    gap: 10px;
+  }
+
+  .simple-landing .workflow-card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .simple-landing #fitur .simple-feature-grid {
+    gap: 10px;
+  }
+
+  .simple-landing #fitur .simple-feature-card {
+    padding: 19px;
+    border-radius: 19px;
+  }
+
+  .simple-landing #fitur .simple-feature-card h3 {
+    margin-top: 14px;
+  }
+
+  .simple-landing .simple-demo-strip {
+    margin: 16px 12px 24px;
+    padding: 25px 18px;
+    border-radius: 23px;
+  }
+
+  .simple-landing .simple-demo-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 7px;
+  }
+
+  .simple-landing .simple-demo-actions button {
+    justify-content: center;
+    min-width: 0;
+    padding: 10px 7px;
+    border-radius: 11px;
+    font-size: 11px;
+  }
+
+  .simple-landing .simple-pricing-section {
+    padding-top: 48px;
+    padding-bottom: 42px;
+  }
+
+  .simple-landing .simple-pricing-grid.four {
+    gap: 11px;
+  }
+
+  .simple-landing .simple-price-card,
+  .simple-landing .simple-price-card.featured {
+    padding: 21px;
+    border-radius: 20px;
+  }
+
+  .simple-landing .simple-price-card h3 { font-size: 20px; }
+  .simple-landing .simple-price { font-size: 32px; }
+
+  .simple-landing .simple-apk-pro-section {
+    padding: 42px 14px;
+  }
+
+  .simple-landing .simple-apk-pro-card {
+    padding: 23px 15px;
+    border-radius: 22px;
+  }
+
+  .simple-landing .simple-apk-pro-header {
+    gap: 12px;
+  }
+
+  .simple-landing .simple-apk-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .simple-landing .simple-apk-pro-header h2 {
+    font-size: 1.45rem;
+  }
+
+  .simple-landing .faq-section {
+    padding-top: 42px;
+  }
+
+  .simple-landing .faq-item {
+    border-radius: 14px;
+  }
+
+  .simple-landing .faq-item > button,
+  .simple-landing .faq-question {
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .simple-landing .simple-final-cta {
+    min-height: 0;
+    margin: 34px 12px 42px;
+    padding: 48px 18px 112px;
+    border-radius: 25px;
+  }
+
+  .simple-landing .simple-final-cta > svg {
+    width: 48px;
+    height: 48px;
+    padding: 11px;
+  }
+
+  .simple-landing .simple-footer-pro {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+/* Extra narrow Android devices. */
+@media (max-width: 390px) {
+  .simple-landing .simple-brand-logo {
+    width: 132px;
+    max-width: 44vw;
+  }
+
+  .simple-landing .simple-nav .nav-login-button {
+    padding-inline: 11px;
+    font-size: 11.5px;
+  }
+
+  .simple-landing .simple-hero {
+    padding-inline: 16px;
+  }
+
+  .simple-landing .simple-hero h1 {
+    font-size: clamp(32px, 9.4vw, 36px);
+  }
+
+  .simple-landing .simple-hero-copy > .simple-actions .simple-btn {
+    font-size: 12.5px;
+  }
+
+  .simple-landing .simple-proof {
+    padding-inline: 16px;
+  }
+}
