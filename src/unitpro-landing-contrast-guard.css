@@ -1,0 +1,41 @@
+/* UnitPro landing contrast guard
+ * Loaded last to protect dark sections from generic heading/text overrides.
+ * Scoped to landing page only.
+ */
+
+.simple-landing .simple-section.simple-two-column h2 {
+  color: #f8fcff;
+}
+
+.simple-landing .simple-section.simple-two-column .simple-kicker {
+  color: #8bdcff;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(139, 220, 255, 0.22);
+}
+
+.simple-landing .simple-section.simple-two-column .simple-pain-box p {
+  color: #e7f1f7;
+}
+
+.simple-landing .simple-final-cta h2 {
+  color: #ffffff;
+}
+
+.simple-landing .simple-final-cta p {
+  color: #bfd0dc;
+}
+
+@media (max-width: 680px) {
+  .simple-landing .simple-section.simple-two-column h2 {
+    color: #f8fcff;
+  }
+
+  .simple-landing .simple-section.simple-two-column .simple-pain-box {
+    background: rgba(255, 255, 255, 0.075);
+    border-color: rgba(125, 211, 252, 0.18);
+  }
+
+  .simple-landing .simple-section.simple-two-column .simple-pain-box p {
+    color: #edf6fb;
+  }
+}
