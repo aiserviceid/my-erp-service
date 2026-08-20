@@ -19,6 +19,7 @@ import './service-registration-compact.css'
 import './unitpro-dialog-density.css'
 import './unitpro-team-mobile.css'
 import './unitpro-landing-cinematic.css'
+import './unitpro-landing-mobile-refine.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
