@@ -18,6 +18,7 @@ import './unitpro-ui-stability.css'
 import './service-registration-compact.css'
 import './unitpro-dialog-density.css'
 import './unitpro-team-mobile.css'
+import './unitpro-landing-professional.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
