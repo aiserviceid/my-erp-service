@@ -16,14 +16,39 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Kredensial signing TIDAK boleh ditulis di file ini (repo publik).
+    // Urutan sumber: environment variable (CI / GitHub Secrets) lalu android/keystore.properties (lokal, di-gitignore).
+    def keystoreProps = new Properties()
+    def keystorePropsFile = rootProject.file('keystore.properties')
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.withInputStream { keystoreProps.load(it) }
+    }
+    def signingValue = { String envName, String propName ->
+        def fromEnv = System.getenv(envName)
+        (fromEnv != null && !fromEnv.trim().isEmpty()) ? fromEnv.trim() : keystoreProps.getProperty(propName)
+    }
+    def releaseStoreFile = signingValue('ANDROID_KEYSTORE_PATH', 'storeFile')
+    def releaseStorePassword = signingValue('ANDROID_KEYSTORE_PASSWORD', 'storePassword')
+    def releaseKeyAlias = signingValue('ANDROID_KEY_ALIAS', 'keyAlias')
+    def releaseKeyPassword = signingValue('ANDROID_KEY_PASSWORD', 'keyPassword')
+    def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it }
+
     signingConfigs {
         release {
-            storeFile file('unitpro-release-key.jks')
-            storePassword 'unitpro2026'
-            keyAlias 'unitpro'
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
             v1SigningEnabled true
             v2SigningEnabled true
-            keyPassword 'unitpro2026'
+        }
+    }
+    gradle.taskGraph.whenReady { graph ->
+        def wantsRelease = graph.allTasks.any { it.name.toLowerCase().contains('release') && it.project == project }
+        if (wantsRelease && !hasReleaseSigning) {
+            throw new GradleException('Kredensial signing rilis belum diatur. Isi ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD atau android/keystore.properties (lihat android/keystore.properties.example).')
         }
     }
     buildTypes {

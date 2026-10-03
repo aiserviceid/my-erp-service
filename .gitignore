@@ -27,3 +27,9 @@ dist-ssr
 
 .vercel
 .env*
+
+# Kredensial signing Android (jangan pernah di-commit)
+*.jks
+*.keystore
+keystore.properties
+signing-lineage*
