@@ -49,17 +49,21 @@ export const useStore = create((set) => ({
   employee: typeof window !== 'undefined' ? safeParseJSON(localStorage.getItem('EMP_SESSION'), null) : null,
   setEmployee: (emp) => {
     if (typeof window !== 'undefined') {
-      if (emp) localStorage.setItem('EMP_SESSION', JSON.stringify(emp));
+      if (emp) {
+        localStorage.setItem('EMP_SESSION', JSON.stringify(emp));
+        if (emp.token) localStorage.setItem('EMPLOYEE_TOKEN', emp.token);
+        localStorage.removeItem('TENANT_TOKEN');
+      }
       else localStorage.removeItem('EMP_SESSION');
     }
-    set({ employee: emp });
+    set(state => ({ employee: emp, ...(emp ? { cart: [], tenant: { ...state.tenant, token: null } } : {}) }));
   },
   clearEmployee: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('EMP_SESSION');
       localStorage.removeItem('EMPLOYEE_TOKEN');
     }
-    set({ employee: null });
+    set({ employee: null, cart: [] });
   },
   cart: [],
   
@@ -98,6 +102,9 @@ export const useStore = create((set) => ({
     const resolvedSettings = objectMode ? (source.settings || customSettings) : customSettings;
 
     if (typeof window !== 'undefined') {
+      if (resolvedCode && resolvedCode !== localStorage.getItem('TENANT_CODE')) {
+        for (const key of ['TENANT_TOKEN', 'TENANT_PHONE', 'EMP_SESSION', 'EMPLOYEE_TOKEN']) localStorage.removeItem(key);
+      }
       if (resolvedCode) localStorage.setItem('TENANT_CODE', String(resolvedCode));
       if (resolvedName) localStorage.setItem('TENANT_NAME', String(resolvedName));
       if (resolvedApiUrl) localStorage.setItem('TENANT_API_URL', String(resolvedApiUrl));
@@ -107,7 +114,8 @@ export const useStore = create((set) => ({
     }
 
     set((state) => {
-      const currentSettings = state.tenant?.settings || defaultSettings;
+      const switchingTenant = Boolean(resolvedCode && resolvedCode !== state.tenant?.code);
+      const currentSettings = switchingTenant ? defaultSettings : state.tenant?.settings || defaultSettings;
       const updatedSettings = normalizeLifetimeSettings({
         ...currentSettings,
         ...(resolvedSettings || {}),
@@ -120,14 +128,15 @@ export const useStore = create((set) => ({
         if (syncedName) localStorage.setItem('TENANT_NAME', syncedName);
       }
       return {
+        ...(switchingTenant ? { cart: [], employee: null } : {}),
         tenant: {
           ...state.tenant,
           ...(source || {}),
           code: resolvedCode || state.tenant?.code || null,
           name: syncedName,
           tier: resolvedTier || state.tenant?.tier || 'free',
-          token: resolvedToken || state.tenant?.token || null,
-          phone: resolvedPhone || state.tenant?.phone || (typeof window !== 'undefined' ? localStorage.getItem('TENANT_PHONE') : null),
+          token: resolvedToken || (switchingTenant ? null : state.tenant?.token) || null,
+          phone: resolvedPhone || (switchingTenant ? null : state.tenant?.phone) || (typeof window !== 'undefined' ? localStorage.getItem('TENANT_PHONE') : null),
           settings: updatedSettings
         }
       };
@@ -163,6 +172,7 @@ export const useStore = create((set) => ({
       localStorage.removeItem('EMP_SESSION');
     }
     set({ 
+      employee: null, cart: [], showOnboarding: false,
       tenant: { 
         code: null, 
         name: null,

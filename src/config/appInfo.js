@@ -187,7 +187,8 @@ if (typeof window !== 'undefined' && !window.__UNITPRO_ADMIN_MULTI_UNIT__) {
             device_name: String(unit.device || '').trim(),
             issue: makeIssue(unit.issue, unit.kelengkapan, unit.estimasi_waktu, unit.estimasi_biaya),
             technician_id: unit.technician_id,
-            status: 'PROSES'
+            status: 'PROSES',
+            ...(i === 0 && form.querySelector('[name="photo_url"]')?.value ? { photo_url: form.querySelector('[name="photo_url"]').value } : {})
           };
           const { data, error } = await supabase.from('services').insert(payload).select().single();
           if (error) throw new Error(`Unit ${i + 1} gagal disimpan: ${error.message || 'database menolak data'}`);

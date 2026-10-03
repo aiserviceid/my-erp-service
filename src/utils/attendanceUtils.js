@@ -12,7 +12,7 @@ export const getLocalDateKey = (value = new Date()) => {
 export const getAttendanceSchedule = (settings = {}) => ({
   start: settings.attendance_start_time || '08:00',
   end: settings.attendance_end_time || '17:00',
-  toleranceMinutes: Math.max(0, Number(settings.attendance_late_tolerance || 10)),
+  toleranceMinutes: Math.max(0, Number(settings.attendance_late_tolerance ?? 10) || 0),
 });
 
 export const getEmployeeAttendance = (transactions = [], employeeId, dateKey = getLocalDateKey()) => {

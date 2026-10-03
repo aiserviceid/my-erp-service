@@ -1,3 +1,4 @@
+import { ServicePhoto } from '../components/ServicePhoto';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useStore } from '../store/useStore';
@@ -458,7 +459,6 @@ export default function EmployeePortal() {
       const code = tenantCode.toUpperCase();
       const data = await apiService.loginEmployee(code, pin);
       const empData = { ...data.user, token: data.token };
-      setEmployee(empData);
       const loginMemory = {
         tenantCode: code,
         tenantName: tenant?.settings?.storeName || tenant?.name || empData.tenant_name || code,
@@ -471,8 +471,9 @@ export default function EmployeePortal() {
       setRecentEmployeeLogin(loginMemory);
       
       if (!tenant?.code || tenant.code !== code) {
-        setTenant(code, empData.tenant_code || code, '', 'free', data.token);
+        setTenant(code, empData.tenant_code || code, '', 'free', '');
       }
+      setEmployee(empData);
     } catch (e) {
       setError(e.message || 'PIN Salah atau terjadi kesalahan');
     }
@@ -1310,7 +1311,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                             <strong>{s.device_name}</strong>
                             <span className="badge badge-info">{getStatusInfo(s.status)?.label || normalizeServiceStatus(s.status)}</span>
                           </div>
-                          <IssueChips issue={s.issue} />
+                          <IssueChips issue={s.issue} /><ServicePhoto src={s.photo_url} />
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>Resi: {s.resi} | Pelanggan: {s.customer_name}</div>
                           {s.customer_phone && <div className="copy-value" style={{ marginTop: '7px' }}><span className="copyable-text">{s.customer_phone}</span><button type="button" className="copy-value__button" onClick={() => handleCopyValue(s.customer_phone, 'Nomor pelanggan')} aria-label={`Salin nomor ${s.customer_name}`}><Copy size={14} /></button></div>}
                         </div>

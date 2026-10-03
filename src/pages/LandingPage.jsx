@@ -88,7 +88,7 @@ const packages = [
     subtitle: 'Untuk mulai coba',
     price: 'Rp0',
     period: '/selamanya',
-    features: ['25 servis/bulan', '50 transaksi kasir/bulan', '50 produk/sparepart', 'Nota & tracking dasar'],
+    features: ['25 servis/bulan', '50 transaksi kasir/bulan', '50 produk/sparepart', '1 anggota tim', 'Nota & tracking dasar'],
     action: 'Mulai gratis',
     type: 'free',
   },

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 // The web deployment needs the downloadable APK in /downloads, but embedding
 // that same file in the Capacitor bundle makes every Android build contain a
 // full copy of itself.
-const downloadableApk = resolve('dist', 'downloads', 'UnitPro.apk');
+const downloadableApk = resolve('dist', 'downloads');
 
-await rm(downloadableApk, { force: true });
+await rm(downloadableApk, { recursive: true, force: true });
 console.log('Android assets ready: downloadable APK excluded from the native bundle.');

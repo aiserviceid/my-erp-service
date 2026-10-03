@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { publicTenant } from '../src/utils/publicTenant.js';
 
 const FALLBACK_SUPABASE_URL = 'https://jgnyjgzwzksvheqhysye.supabase.co';
 const FALLBACK_ANON_KEY = 'sb_publishable_q9maq-FDzXKyyEl27EQXUw_SbuEagqv';
@@ -6,7 +7,7 @@ const FALLBACK_ANON_KEY = 'sb_publishable_q9maq-FDzXKyyEl27EQXUw_SbuEagqv';
 const cleanResi = (value = '') => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 50);
 const cleanTenantCode = (value = '') => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 60);
 
-const getCandidates = () => {
+export const getCandidates = () => {
   const viteUrl = String(process.env.VITE_SUPABASE_URL || '').trim();
   const serverUrl = String(process.env.SUPABASE_URL || '').trim();
   const serviceRole = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
@@ -37,7 +38,7 @@ const findService = async ({ url, key }, resi, tenantCode) => {
   const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   let query = supabase
     .from('services')
-    .select('resi,tenant_code,customer_name,device_name,issue,status,jasa_fee,part_fee,technician_id,created_at,updated_at')
+    .select('resi,tenant_code,customer_name,device_name,issue,status,jasa_fee,part_fee,created_at')
     .eq('resi', resi);
 
   if (tenantCode) query = query.eq('tenant_code', tenantCode);
@@ -62,7 +63,8 @@ const findService = async ({ url, key }, resi, tenantCode) => {
     console.warn('public-service tenant lookup warning:', tenantError.message || tenantError);
   }
 
-  return { service, tenant: tenant || null };
+  if (tenantError) throw tenantError;
+  return { service, tenant: publicTenant(tenant) };
 };
 
 export default async function handler(req, res) {
@@ -79,10 +81,12 @@ export default async function handler(req, res) {
 
   const candidates = getCandidates();
   let lastError = null;
+  let successfulQueries = 0;
 
   for (const candidate of candidates) {
     try {
       const result = await findService(candidate, resi, tenantCode);
+      successfulQueries += 1;
       if (result?.service) return res.status(200).json(result);
     } catch (error) {
       if (error?.code === 'AMBIGUOUS_RESI') return res.status(409).json({ error: error.message });
@@ -91,7 +95,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (lastError && candidates.length === 0) {
+  if (candidates.length === 0 || (lastError && successfulQueries === 0)) {
     return res.status(503).json({ error: 'Layanan nota publik belum tersedia.' });
   }
 

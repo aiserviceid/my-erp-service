@@ -314,6 +314,15 @@ app.post('/api/admin/settings', requireSuperAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/public-tenant', async (req, res) => {
+  try {
+    const { default: publicTenantHandler } = await import('../api/public-tenant.js');
+    return await publicTenantHandler(req, res);
+  } catch {
+    return res.status(503).json({ error: 'Metadata publik toko belum tersedia.' });
+  }
+});
+
 app.get('/api/public-free-tenants', async (req, res) => {
   const supabaseAdmin = getSupabaseAdmin();
   let slot1 = 'AISERVICE';
@@ -341,16 +350,20 @@ app.get('/api/public-free-tenants', async (req, res) => {
 
 // Middleware to enforce Tenant Isolation (Security)
 const enforceTenantAccess = (req, res, next) => {
-  const requestedTenant = req.body.tenant_code || req.params.tenant || req.body.code;
-  const userTenant = req.user.tenant || req.user.code; // Employee uses .tenant, Tenant uses .code
-  
-  if (requestedTenant && userTenant && requestedTenant !== userTenant) {
+  if (req.user?.role === 'super_admin') return next();
+  const userTenant = String(req.user?.tenant || req.user?.code || '').trim().toUpperCase();
+  const requestedTenants = [req.body?.tenant_code, req.params?.tenant, req.body?.code].filter(Boolean);
+  if (!userTenant || requestedTenants.some(value => String(value).trim().toUpperCase() !== userTenant)) {
      return res.status(403).json({ error: 'Akses Ditolak: Anda mencoba mengakses data dari cabang/toko lain!' });
   }
   next();
 };
 
 const secureRoute = [authenticateToken, enforceTenantAccess];
+const requireOwner = (req, res, next) => {
+  if (!['tenant', 'super_admin'].includes(req.user?.role)) return res.status(403).json({ error: 'Hanya pemilik toko yang boleh melakukan tindakan ini.' });
+  next();
+};
 
 const normalizeGatewayPhone = (value = '') => {
   let digits = String(value || '').replace(/\D/g, '');
@@ -645,12 +658,11 @@ app.post('/api/tenant/login', async (req, res) => {
       // Validate PIN
       const isMatch = await bcrypt.compare(pin, row.pin || '');
       
-      // Fallback for legacy users without PIN
+      // Akun lama tanpa PIN harus dipulihkan, bukan boleh diklaim siapa pun.
       if (!isMatch && row.pin !== '') {
         return res.status(401).json({ error: 'PIN Salah!' });
       } else if (row.pin === '') {
-        const hashedPin = await bcrypt.hash(pin, 10);
-        db.run('UPDATE tenants SET pin = ? WHERE code = ?', [hashedPin, code]);
+        return res.status(403).json({ error: 'PIN toko belum diatur. Hubungi Super Admin untuk pemulihan akun.' });
       }
 
       // Lengkapi nomor WA jika sebelumnya belum tersimpan (akun lama)
@@ -660,7 +672,8 @@ app.post('/api/tenant/login', async (req, res) => {
       }
       
       const token = jwt.sign({ code: row.code, role: 'tenant', tier: row.tier || 'free' }, JWT_SECRET, { expiresIn: '24h' });
-      res.json({ ...row, token });
+      const { pin: privatePin, ...publicRow } = row;
+      res.json({ ...publicRow, token });
     } else {
       // Registrasi toko baru — validasi Nama & No. WhatsApp wajib untuk pendaftaran
       if (!name || !NAME_REGEX.test(name)) {
@@ -682,7 +695,7 @@ app.post('/api/tenant/login', async (req, res) => {
   });
 });
 
-app.put('/api/tenant/settings', secureRoute, (req, res) => {
+app.put('/api/tenant/settings', secureRoute, requireOwner, (req, res) => {
   const { code, settings } = req.body;
   db.run('UPDATE tenants SET settings = ? WHERE code = ?', [JSON.stringify(settings), code], (err) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -690,7 +703,7 @@ app.put('/api/tenant/settings', secureRoute, (req, res) => {
   });
 });
 
-app.put('/api/tenant/credentials', secureRoute, async (req, res) => {
+app.put('/api/tenant/credentials', secureRoute, requireOwner, async (req, res) => {
   const oldCode = req.user.code;
   let { newCode, newPin, currentPin } = req.body;
   newCode = String(newCode || '').trim().toUpperCase();
@@ -788,14 +801,14 @@ app.put('/api/tenant/credentials', secureRoute, async (req, res) => {
 });
 
 // API: Products (Master Barang)
-app.get('/api/products/:tenant', (req, res) => {
+app.get('/api/products/:tenant', secureRoute, (req, res) => {
   db.all('SELECT * FROM products WHERE tenant_code = ?', [req.params.tenant], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/products', (req, res) => {
+app.post('/api/products', secureRoute, requireOwner, (req, res) => {
   const { tenant_code, name, price, stock } = req.body;
   db.run('INSERT INTO products (tenant_code, name, price, stock) VALUES (?, ?, ?, ?)', [tenant_code, name, price, stock], function(err) {
     if (err) return res.status(500).json({ error: err.message });
@@ -806,7 +819,8 @@ app.post('/api/products', (req, res) => {
 const idempotencyStore = new Map();
 
 // API: Transactions (POS Checkout)
-app.post('/api/transactions', (req, res) => {
+app.post('/api/transactions', secureRoute, (req, res) => {
+  if (!['tenant', 'super_admin', 'KASIR'].includes(req.user?.role)) return res.status(403).json({ error: 'Akses transaksi ditolak.' });
   const { tenant_code, type, amount, description, idempotency_key } = req.body;
   if (idempotency_key && idempotencyStore.has(idempotency_key)) {
     console.log('⚡ [Backend Idempotency] Prevented duplicate transaction:', idempotency_key);
@@ -825,54 +839,39 @@ app.post('/api/transactions', (req, res) => {
 });
 
 // API: Users / Employees
-app.get('/api/users/:tenant', (req, res) => {
+app.get('/api/users/:tenant', secureRoute, requireOwner, (req, res) => {
   db.all('SELECT id, name, role, phone FROM users WHERE tenant_code = ?', [req.params.tenant], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/users', authenticateToken, requirePremiumFeature, async (req, res) => {
+app.post('/api/users', authenticateToken, async (req, res) => {
   const { tenant_code, name, role, pin, phone = '' } = req.body;
+  if (req.user.role !== 'super_admin' && (req.user.role !== 'tenant' || req.user.code !== tenant_code)) return res.status(403).json({ error: 'Akses toko ditolak' });
+  if (!name || !pin || !['TEKNISI', 'KASIR'].includes(role)) return res.status(400).json({ error: 'Nama, PIN dan peran wajib valid' });
   const hashedPin = await bcrypt.hash(pin, 10);
   db.run('INSERT INTO users (tenant_code, name, role, pin, phone) VALUES (?, ?, ?, ?, ?)', [tenant_code, name, role, hashedPin, phone], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return res.status(err.message.includes('maksimal 1') ? 409 : 500).json({ error: err.message });
     res.json({ id: this.lastID, name, role, phone });
   });
 });
 
+let employeeLoginHandler;
 app.post('/api/employee/login', async (req, res) => {
-  const { tenant_code, pin } = req.body;
-  if (!tenant_code || !pin) return res.status(400).json({ error: 'Kode Toko dan PIN wajib diisi' });
-
-  db.all('SELECT * FROM users WHERE tenant_code = ?', [tenant_code], async (err, users) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    // Iterate to check hash since PIN is hashed
-    let loggedInUser = null;
-    for (let u of users) {
-      const match = await bcrypt.compare(pin, u.pin);
-      if (match || u.pin === pin) { // Fallback if plain text pin exists from before
-        loggedInUser = u;
-        if (u.pin === pin) {
-           const hashedPin = await bcrypt.hash(pin, 10);
-           db.run('UPDATE users SET pin = ? WHERE id = ?', [hashedPin, u.id]);
-        }
-        break;
-      }
+  try {
+    if (!employeeLoginHandler) {
+      const { createEmployeeLoginHandler } = await import('./employee-login-handler.mjs');
+      employeeLoginHandler = createEmployeeLoginHandler({ secret: () => JWT_SECRET });
     }
-
-    if (loggedInUser) {
-      const token = jwt.sign({ id: loggedInUser.id, role: loggedInUser.role, tenant: tenant_code }, JWT_SECRET, { expiresIn: '8h' });
-      res.json({ id: loggedInUser.id, name: loggedInUser.name, role: loggedInUser.role, token });
-    } else {
-      res.status(401).json({ error: 'PIN Salah!' });
-    }
-  });
+    return await employeeLoginHandler(req, res);
+  } catch {
+    return res.status(503).json({ error: 'Login pegawai belum tersedia.' });
+  }
 });
 
 // API: Upload Image
-app.post('/api/upload', upload.single('image'), (req, res) => {
+app.post('/api/upload', secureRoute, requireOwner, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   const imageUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
   res.json({ url: imageUrl });
@@ -1053,7 +1052,7 @@ app.post('/api/wallet/sawer', (req, res) => {
   });
 });
 
-app.get('/api/wallet/balance/:tenant', (req, res) => {
+app.get('/api/wallet/balance/:tenant', secureRoute, requireOwner, (req, res) => {
   db.get('SELECT wallet_balance, bank_details FROM tenants WHERE code = ?', [req.params.tenant], (err, tenant) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
@@ -1065,8 +1064,9 @@ app.get('/api/wallet/balance/:tenant', (req, res) => {
   });
 });
 
-app.post('/api/wallet/withdraw', (req, res) => {
+app.post('/api/wallet/withdraw', secureRoute, requireOwner, (req, res) => {
   const { tenant_code, amount, bank_name, account_number, account_name } = req.body;
+  if (!Number.isSafeInteger(Number(amount)) || Number(amount) <= 0) return res.status(400).json({ error: 'Nominal penarikan harus bilangan bulat positif.' });
   
   db.get('SELECT wallet_balance FROM tenants WHERE code = ?', [tenant_code], (err, tenant) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -1089,7 +1089,7 @@ app.post('/api/wallet/withdraw', (req, res) => {
   });
 });
 
-app.post('/api/wallet/bank', (req, res) => {
+app.post('/api/wallet/bank', secureRoute, requireOwner, (req, res) => {
   const { tenant_code, bank_details } = req.body;
   db.run('UPDATE tenants SET bank_details = ? WHERE code = ?', [JSON.stringify(bank_details), tenant_code], (err) => {
     if (err) return res.status(500).json({ error: err.message });

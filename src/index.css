@@ -1971,3 +1971,6 @@ html.native-app .customer-detail-disclosure summary { align-items: flex-start !i
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep the optional photo controls reachable on short mobile screens. */
+.service-registration-form { max-height: calc(100dvh - 2rem); overflow-y: auto; }

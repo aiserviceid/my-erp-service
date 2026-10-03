@@ -545,7 +545,7 @@ export default function Login() {
                   {selectedTier === 'free' ? 'Free cocok untuk coba dulu' : selectedTier === 'pro' ? 'Pro untuk toko servis aktif' : 'Enterprise untuk banyak outlet'}
                 </div>
                 <div style={{ color: '#475569', fontSize: '0.76rem', lineHeight: 1.55, fontWeight: '650' }}>
-                  {selectedTier === 'free' && 'Batas 25 servis/bulan, 50 transaksi POS/bulan, 50 produk, tanpa akun karyawan/teknisi, tanpa WA Marketing, tanpa export Excel.'}
+                  {selectedTier === 'free' && 'Batas 25 servis/bulan, 50 transaksi POS/bulan, 50 produk, maksimal 1 anggota tim, tanpa WA Marketing, tanpa export Excel.'}
                   {selectedTier === 'pro' && 'Servis, POS, dan produk unlimited. Tim teknisi aktif, WhatsApp pelanggan/CRM, katalog, laporan owner, dan export Excel aktif.'}
                   {selectedTier === 'enterprise' && 'Untuk multi outlet: hingga 5 cabang, 50 karyawan, laporan cabang, dan prioritas setup.'}
                 </div>

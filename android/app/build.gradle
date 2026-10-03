@@ -7,8 +7,8 @@ android {
         applicationId "com.trackingservice.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 12
-        versionName "1.2.13"
+        versionCode 26
+        versionName "1.2.15"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -21,6 +21,8 @@ android {
             storeFile file('unitpro-release-key.jks')
             storePassword 'unitpro2026'
             keyAlias 'unitpro'
+            v1SigningEnabled true
+            v2SigningEnabled true
             keyPassword 'unitpro2026'
         }
     }

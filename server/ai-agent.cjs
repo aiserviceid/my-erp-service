@@ -5,8 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_local_testing_secret_key_2026';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const ENV_GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const ENV_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const aiConfig = require('./ai-config.cjs');
 const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || '';
 const AI_CONFIG_KEY = 'unitpro_ai_config';
 const CHAT_KEY_PREFIX = 'unitpro_ai_chat:';
@@ -125,110 +124,15 @@ async function writeAppConfig(key, value) {
   if (error) throw new Error(`Penyimpanan app_config gagal: ${error.message}`);
 }
 
-function encryptionKey() {
-  return crypto.createHash('sha256').update(JWT_SECRET).digest();
-}
-
-function encryptSecret(value) {
-  if (!value) return '';
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
-  const ciphertext = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `enc:v1:${iv.toString('base64')}:${tag.toString('base64')}:${ciphertext.toString('base64')}`;
-}
-
-function decryptSecret(value) {
-  if (!value) return '';
-  const text = String(value);
-  if (!text.startsWith('enc:v1:')) return text;
-  const [, , ivB64, tagB64, ciphertextB64] = text.split(':');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(ivB64, 'base64'));
-  decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
-  return Buffer.concat([decipher.update(Buffer.from(ciphertextB64, 'base64')), decipher.final()]).toString('utf8');
-}
-
-async function getGlobalAiConfig() {
-  const defaults = {
-    enabled: Boolean(ENV_GEMINI_API_KEY),
-    model: ENV_GEMINI_MODEL,
-    apiKey: ENV_GEMINI_API_KEY,
-    customInstruction: '',
-    source: ENV_GEMINI_API_KEY ? 'environment' : 'none',
-  };
-  const raw = await readAppConfig(AI_CONFIG_KEY);
-  if (!raw) return defaults;
-  try {
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    const storedKey = parsed?.api_key_enc ? decryptSecret(parsed.api_key_enc) : '';
-    return {
-      enabled: parsed?.enabled !== false,
-      model: String(parsed?.model || defaults.model),
-      apiKey: storedKey || defaults.apiKey,
-      customInstruction: String(parsed?.custom_instruction || ''),
-      source: storedKey ? 'super_admin' : defaults.source,
-    };
-  } catch {
-    return defaults;
-  }
-}
-
-async function saveGlobalAiConfig(next = {}) {
-  const currentRaw = await readAppConfig(AI_CONFIG_KEY);
-  let current = {};
-  try { current = currentRaw ? JSON.parse(currentRaw) : {}; } catch { current = {}; }
-  const candidateKey = String(next.api_key || '').trim();
-  const payload = {
-    enabled: next.enabled !== false,
-    model: String(next.model || current.model || ENV_GEMINI_MODEL || 'gemini-2.5-flash').trim(),
-    api_key_enc: next.clear_api_key ? '' : (candidateKey ? encryptSecret(candidateKey) : (current.api_key_enc || '')),
-    custom_instruction: String(next.custom_instruction ?? current.custom_instruction ?? '').slice(0, 8000),
-    updated_at: new Date().toISOString(),
-  };
-  await writeAppConfig(AI_CONFIG_KEY, JSON.stringify(payload));
-  return getGlobalAiConfig();
-}
-
-function publicAiConfig(config) {
-  const key = String(config.apiKey || '');
-  return {
-    enabled: Boolean(config.enabled),
-    model: config.model || 'gemini-2.5-flash',
-    has_api_key: Boolean(key),
-    masked_key: key ? `••••••••${key.slice(-4)}` : '',
-    custom_instruction: config.customInstruction || '',
-    source: config.source || 'none',
-    built_in_prompt_locked: true,
-  };
-}
-
-async function callGeminiText({ apiKey, model, systemInstruction, contents, maxOutputTokens = 1200 }) {
-  if (!apiKey) throw new Error('Gemini API Key belum dikonfigurasi.');
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemInstruction }] },
-      contents,
-      generationConfig: { maxOutputTokens },
-      store: false,
-    }),
+const getGlobalAiConfig = () => aiConfig.readConfig();
+const publicAiConfig = aiConfig.publicConfig;
+const callGeminiText = aiConfig.callGeminiText;
+function aiErrorResponse(res, error) {
+  const known = error instanceof aiConfig.AiConfigError;
+  return res.status(known ? error.status : 503).json({
+    error: known ? error.message : 'Layanan konfigurasi AI tidak dapat diakses.',
+    code: known ? error.code : 'AI_CONFIG_UNAVAILABLE',
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const reason = payload?.error?.message || `HTTP ${response.status}`;
-    throw new Error(reason);
-  }
-  const text = (payload?.candidates || [])
-    .flatMap((candidate) => candidate?.content?.parts || [])
-    .map((part) => part?.text || '')
-    .join('\n')
-    .trim();
-  if (!text) throw new Error('Gemini tidak mengembalikan teks.');
-  return text;
 }
 
 async function getTenantRecord(tenantCode) {
@@ -421,46 +325,19 @@ async function listConversationRows(tenantCode) {
 
 function registerAiAgentRoutes(app) {
   app.get('/api/admin/ai-config', requireSuperAdmin, async (req, res) => {
-    try {
-      return res.json(publicAiConfig(await getGlobalAiConfig()));
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    res.setHeader('Cache-Control', 'no-store');
+    try { return res.json(publicAiConfig(await getGlobalAiConfig())); }
+    catch (error) { return aiErrorResponse(res, error); }
   });
-
   app.put('/api/admin/ai-config', requireSuperAdmin, async (req, res) => {
-    try {
-      const model = String(req.body?.model || '').trim();
-      if (model && !/^gemini-[a-z0-9.-]+$/i.test(model)) return res.status(400).json({ error: 'Nama model Gemini tidak valid.' });
-      const config = await saveGlobalAiConfig({
-        enabled: req.body?.enabled !== false,
-        model: model || ENV_GEMINI_MODEL,
-        api_key: req.body?.api_key || '',
-        clear_api_key: Boolean(req.body?.clear_api_key),
-        custom_instruction: req.body?.custom_instruction || '',
-      });
-      return res.json({ success: true, ...publicAiConfig(config) });
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    res.setHeader('Cache-Control', 'no-store');
+    try { return res.json({ success: true, ...publicAiConfig(await aiConfig.saveConfig(req.body || {})) }); }
+    catch (error) { return aiErrorResponse(res, error); }
   });
-
   app.post('/api/admin/ai-config/test', requireSuperAdmin, async (req, res) => {
-    try {
-      const current = await getGlobalAiConfig();
-      const apiKey = String(req.body?.api_key || '').trim() || current.apiKey;
-      const model = String(req.body?.model || current.model || ENV_GEMINI_MODEL).trim();
-      const text = await callGeminiText({
-        apiKey,
-        model,
-        systemInstruction: 'Balas hanya dengan teks: UNITPRO_GEMINI_OK',
-        contents: [{ role: 'user', parts: [{ text: 'Tes koneksi UnitPro.' }] }],
-        maxOutputTokens: 32,
-      });
-      return res.json({ success: /UNITPRO_GEMINI_OK/i.test(text), model, response: text.slice(0, 80) });
-    } catch (error) {
-      return res.status(502).json({ error: `Tes Gemini gagal: ${error.message}` });
-    }
+    res.setHeader('Cache-Control', 'no-store');
+    try { return res.json(await aiConfig.testConfig(req.body || {})); }
+    catch (error) { return aiErrorResponse(res, error); }
   });
 
   app.post('/api/ai/copywriting', requireTenant, async (req, res) => {

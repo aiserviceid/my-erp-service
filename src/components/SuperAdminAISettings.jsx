@@ -3,6 +3,14 @@ import { Bot, CheckCircle, Eye, EyeOff, KeyRound, RefreshCw, Save, ShieldCheck, 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
 const API_TOKEN_KEY = 'SA_API_TOKEN';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
+const MODEL_OPTIONS = [
+  { id: DEFAULT_MODEL, label: 'Gemini 3.8 Flash — rekomendasi' },
+  { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite — cepat & hemat' },
+  { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — akses akun lama' },
+  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro — akses akun lama' },
+];
 
 const fieldStyle = {
   width: '100%',
@@ -21,9 +29,10 @@ export default function SuperAdminAISettings() {
   const [testing, setTesting] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
   const [config, setConfig] = useState({
-    enabled: true,
-    model: 'gemini-2.5-flash',
+    enabled: false,
+    model: DEFAULT_MODEL,
     has_api_key: false,
     masked_key: '',
     custom_instruction: '',
@@ -44,21 +53,27 @@ export default function SuperAdminAISettings() {
         ...(options.headers || {}),
       },
     });
-    const payload = await response.json().catch(() => ({}));
+    let payload;
+    try { payload = await response.json(); }
+    catch { throw new Error(`Endpoint AI tidak mengembalikan JSON (HTTP ${response.status}). Periksa route/deployment backend.`); }
     if (!response.ok) throw new Error(payload.error || `Request gagal (${response.status}).`);
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Respons backend AI tidak valid.');
     return payload;
   };
 
-  const normalizeModel = (m) => (!m || m === 'gemini-2.0-flash' ? 'gemini-2.5-flash' : m);
+  const normalizeModel = (m) => (!m || /^gemini-(1\.5|2\.0)(-|$)/.test(m) ? DEFAULT_MODEL : m);
 
   const loadConfig = async () => {
     setLoading(true);
     setStatus('');
     try {
       const result = await request('/admin/ai-config');
+      if (typeof result.has_api_key !== 'boolean' || typeof result.model !== 'string') throw new Error('Respons konfigurasi backend tidak lengkap.');
       const cleanModel = normalizeModel(result.model);
       setConfig((current) => ({ ...current, ...result, model: cleanModel }));
+      setLoadFailed(false);
     } catch (error) {
+      setLoadFailed(true);
       setStatus(`❌ ${error.message}`);
     } finally {
       setLoading(false);
@@ -70,6 +85,7 @@ export default function SuperAdminAISettings() {
   }, []);
 
   const saveConfig = async () => {
+    if (loadFailed || saving || testing) return;
     setSaving(true);
     setStatus('');
     try {
@@ -82,6 +98,7 @@ export default function SuperAdminAISettings() {
           ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
         }),
       });
+      if (result.success !== true || typeof result.has_api_key !== 'boolean') throw new Error('Backend belum mengonfirmasi bahwa konfigurasi tersimpan.');
       const cleanModel = normalizeModel(result.model);
       setConfig((current) => ({ ...current, ...result, model: cleanModel }));
       setApiKey('');
@@ -94,6 +111,7 @@ export default function SuperAdminAISettings() {
   };
 
   const testConnection = async () => {
+    if (loadFailed || testing || saving) return;
     setTesting(true);
     setStatus('');
     try {
@@ -123,16 +141,17 @@ export default function SuperAdminAISettings() {
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(255,255,255,.12)', display: 'grid', placeItems: 'center' }}><Bot size={24} /></div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900' }}>AI & Automation</h2>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: '#fff' }}>AI & Automation</h2>
               <p style={{ margin: '5px 0 0', color: '#c7d2fe', fontSize: '0.86rem', lineHeight: 1.5 }}>Satu Gemini API Key global untuk AI Copywriter, AI Agent WhatsApp, CRM context, campaign barang/jasa, dan smart follow-up seluruh UnitPro.</p>
             </div>
           </div>
           <button
             type="button"
+            disabled={loadFailed || saving || testing}
             onClick={() => setConfig((current) => ({ ...current, enabled: !current.enabled }))}
             style={{ border: 'none', borderRadius: 999, padding: '8px 14px', cursor: 'pointer', fontWeight: '900', background: config.enabled ? '#22c55e' : '#475569', color: '#fff' }}
           >
-            {config.enabled ? '🟢 Gemini Global ON' : '⚪ Gemini Global OFF'}
+            {loadFailed ? '⚠️ Status belum dapat dimuat' : config.enabled ? '🟢 Gemini Global ON' : '⚪ Gemini Global OFF'}
           </button>
         </div>
       </div>
@@ -144,11 +163,12 @@ export default function SuperAdminAISettings() {
           {config.has_api_key && <span style={{ marginLeft: 'auto', fontSize: '0.75rem', background: '#dcfce7', color: '#166534', padding: '4px 9px', borderRadius: 999, fontWeight: 800 }}><CheckCircle size={12} style={{ display: 'inline', marginRight: 4 }} />Key tersedia</span>}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px,1fr) minmax(220px,.65fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12 }}>
           <div>
-            <label style={{ display: 'block', fontWeight: 800, fontSize: '0.78rem', color: '#475569', marginBottom: 5 }}>API Key Gemini</label>
+            <label htmlFor="unitpro-gemini-key" style={{ display: 'block', fontWeight: 800, fontSize: '0.78rem', color: '#475569', marginBottom: 5 }}>API Key Gemini</label>
             <div style={{ position: 'relative' }}>
               <input
+                id="unitpro-gemini-key"
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
@@ -156,7 +176,7 @@ export default function SuperAdminAISettings() {
                 autoComplete="off"
                 style={{ ...fieldStyle, paddingRight: 44 }}
               />
-              <button type="button" onClick={() => setShowKey((value) => !value)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b' }}>
+              <button type="button" aria-label={showKey ? 'Sembunyikan API key' : 'Tampilkan API key'} onClick={() => setShowKey((value) => !value)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b' }}>
                 {showKey ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
@@ -164,14 +184,12 @@ export default function SuperAdminAISettings() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 800, fontSize: '0.78rem', color: '#475569', marginBottom: 5 }}>Model</label>
-            <select value={config.model} onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))} style={fieldStyle}>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash — rekomendasi stabil</option>
-              <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite — cepat & hemat</option>
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro — analisis cerdas</option>
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash (legacy)</option>
+            <label htmlFor="unitpro-gemini-model" style={{ display: 'block', fontWeight: 800, fontSize: '0.78rem', color: '#475569', marginBottom: 5 }}>Model</label>
+            <select id="unitpro-gemini-model" value={config.model} onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))} style={fieldStyle}>
+              {(config.available_models || MODEL_OPTIONS).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+              {!(config.available_models || MODEL_OPTIONS).some((model) => model.id === config.model) && <option value={config.model}>{config.model} — konfigurasi tersimpan</option>}
             </select>
-            <small style={{ color: '#64748b' }}>Model dapat diganti tanpa mengubah aplikasi tenant.</small>
+            <small style={{ color: '#64748b' }}>Akses model bergantung pada API key. Gunakan Tes Koneksi sebelum menyimpan. Model 1.5/2.0 sudah tidak dipakai.</small>
           </div>
         </div>
       </div>
@@ -191,13 +209,14 @@ export default function SuperAdminAISettings() {
         />
       </div>
 
-      {status && <div style={{ padding: '11px 13px', borderRadius: 12, background: status.startsWith('✅') ? '#f0fdf4' : '#fff7ed', border: `1px solid ${status.startsWith('✅') ? '#86efac' : '#fed7aa'}`, fontSize: '0.84rem', fontWeight: 700 }}>{status}</div>}
+      {status && <div role="status" aria-live="polite" style={{ padding: '11px 13px', borderRadius: 12, background: status.startsWith('✅') ? '#f0fdf4' : '#fff7ed', border: `1px solid ${status.startsWith('✅') ? '#86efac' : '#fed7aa'}`, fontSize: '0.84rem', fontWeight: 700 }}>{status}</div>}
+      {loadFailed && <button type="button" onClick={loadConfig} style={{ padding: 10, cursor: 'pointer' }}>Muat ulang konfigurasi</button>}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button type="button" onClick={testConnection} disabled={testing} style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 800, cursor: testing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
+        <button type="button" onClick={testConnection} disabled={testing || saving || loadFailed} style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 800, cursor: testing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
           <RefreshCw size={16} /> {testing ? 'Menguji Gemini...' : 'Tes Koneksi'}
         </button>
-        <button type="button" onClick={saveConfig} disabled={saving} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#2563eb)', color: '#fff', fontWeight: 900, cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
+        <button type="button" onClick={saveConfig} disabled={saving || testing || loadFailed} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#2563eb)', color: '#fff', fontWeight: 900, cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
           <Save size={16} /> {saving ? 'Menyimpan...' : 'Simpan Konfigurasi'}
         </button>
       </div>

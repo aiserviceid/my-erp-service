@@ -1,18 +1,16 @@
 {
-  "version": "1.2.14",
-  "buildNumber": 25,
-  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.14/UnitPro-Android-v1.2.14.apk",
-  "apkFileName": "UnitPro-Android-v1.2.14.apk",
-  "releaseTitle": "UnitPro Android v1.2.14",
-  "description": "Sinkronisasi gaji dan komisi Portal Tim, pencatatan komisi servis otomatis, serta perbaikan tampilan Manajemen Tim dan area bawah layar pada HP.",
+  "version": "1.2.15",
+  "buildNumber": 26,
+  "apkUrl": "https://github.com/aiserviceid/my-erp-service/releases/download/v1.2.15/UnitPro-Android-v1.2.15.apk",
+  "apkFileName": "UnitPro-Android-v1.2.15.apk",
+  "releaseTitle": "UnitPro Android v1.2.15",
+  "description": "Akun Free 1 anggota tim, foto kondisi unit opsional dan perbaikan ukuran APK.",
   "minRequiredVersion": "1.0.0",
-  "releaseDate": "15 Agustus 2026",
+  "releaseDate": "3 Oktober 2026",
   "changelog": [
-    "Menyinkronkan pengaturan gaji dan persentase komisi dari data toko ke Portal Tim saat karyawan masuk.",
-    "Mencatat komisi teknisi otomatis sebagai pengeluaran keuangan saat servis sudah diambil/lunas, dihitung dari jasa bersih setelah diskon dan tidak dari sparepart.",
-    "Melakukan sinkronisasi awal untuk servis yang sudah diambil tetapi belum memiliki catatan komisi, dengan pengaman agar transaksi tidak tercatat dua kali.",
-    "Menambah ruang aman di bawah Portal Tim agar Take Home Pay dan tombol Ajukan Kasbon tidak tertutup navigasi bawah.",
-    "Mengubah daftar karyawan pada layar HP menjadi kartu responsif agar nama, WhatsApp, peran, gaji, komisi, Edit, dan Hapus tidak melebar keluar layar."
+    "Akun Free dapat menambahkan maksimal 1 anggota tim.",
+    "Foto kondisi unit opsional melalui kamera atau galeri, diperkecil sebelum disimpan.",
+    "Mencegah APK lama ikut dibundel dan memverifikasi ukuran serta tanda tangan sebelum rilis."
   ],
   "forceUpdate": false
 }

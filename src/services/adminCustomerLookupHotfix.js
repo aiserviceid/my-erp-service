@@ -1,3 +1,4 @@
+import { escapeHtml } from '../utils/safeHtml';
 import { apiService } from './api';
 import {
   buildCustomerDirectory,
@@ -82,7 +83,7 @@ const renderPanel = (form, panel, customers, loading = false, error = '') => {
     return;
   }
   if (error) {
-    panel.innerHTML = `<div style="font-size:12px;font-weight:800;color:#b45309">Data pelanggan belum dapat dimuat. ${error}</div>`;
+    panel.innerHTML = `<div style="font-size:12px;font-weight:800;color:#b45309">Data pelanggan belum dapat dimuat. ${escapeHtml(error)}</div>`;
     return;
   }
 
@@ -98,10 +99,10 @@ const renderPanel = (form, panel, customers, loading = false, error = '') => {
     const button = document.createElement('button');
     button.type = 'button';
     button.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;background:#fff;border:1px solid #dbeafe;border-radius:11px;padding:10px 11px;color:#0f172a;';
-    button.innerHTML = `<span style="min-width:0"><strong style="display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${customer.name || 'Pelanggan'}</strong><span style="font-size:12px;color:#64748b">${localPhone(customer.phone) || 'Nomor belum tersedia'}</span></span><small style="color:#0369a1;font-weight:800;white-space:nowrap">${customer.serviceCount} servis</small>`;
+    button.innerHTML = `<span style="min-width:0"><strong style="display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(customer.name || 'Pelanggan')}</strong><span style="font-size:12px;color:#64748b">${escapeHtml(localPhone(customer.phone) || 'Nomor belum tersedia')}</span></span><small style="color:#0369a1;font-weight:800;white-space:nowrap">${escapeHtml(customer.serviceCount)} servis</small>`;
     button.addEventListener('click', () => {
       applyCustomer(form, customer);
-      panel.innerHTML = `<div style="font-size:12px;font-weight:900;color:#047857">✓ Pelanggan lama dipilih: ${customer.name} — ${localPhone(customer.phone) || 'tanpa nomor'}</div>`;
+      panel.innerHTML = `<div style="font-size:12px;font-weight:900;color:#047857">✓ Pelanggan lama dipilih: ${escapeHtml(customer.name)} — ${escapeHtml(localPhone(customer.phone) || 'tanpa nomor')}</div>`;
       panel.style.display = 'block';
     });
     list.appendChild(button);

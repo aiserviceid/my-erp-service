@@ -187,6 +187,7 @@ export const getWhatsAppSenderConfig = (tenant) => {
 };
 
 const getApiAuthToken = (tenant) => {
+  if (typeof window !== 'undefined' && localStorage.getItem('EMP_SESSION')) return localStorage.getItem('EMPLOYEE_TOKEN') || '';
   if (tenant?.token) return tenant.token;
   if (typeof window === 'undefined') return '';
   return localStorage.getItem('TENANT_TOKEN') || localStorage.getItem('EMPLOYEE_TOKEN') || '';
@@ -609,9 +610,9 @@ const sendThroughBackendGateway = async ({ tenant, target, message, mode, token,
       ...(mode === 'CUSTOM' && token ? { gateway_token: token } : {}),
     }),
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `WhatsApp Gateway gagal (${response.status}).`);
-  return { status: payload.status || 'sent', provider: payload.provider || 'fonnte', target: payload.target || target };
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || payload.status !== 'sent') throw new Error(payload?.error || `WhatsApp Gateway belum mengonfirmasi pengiriman (HTTP ${response.status}).`);
+  return { status: 'sent', provider: payload.provider || 'fonnte', target: payload.target || target };
 };
 
 const sendDirectCustomGatewayFallback = async ({ target, message, token, urlMedia = '' }) => {
@@ -622,7 +623,7 @@ const sendDirectCustomGatewayFallback = async ({ target, message, token, urlMedi
   });
   if (response.status === 401 || response.status === 403) throw new Error('Token Fonnte tidak valid atau kadaluarsa. Periksa kembali token di Pengaturan WhatsApp Gateway.');
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload?.status === false) throw new Error(payload?.reason || payload?.detail || payload?.message || `WhatsApp Gateway Fonnte gagal (Status ${response.status}).`);
+  if (!response.ok || payload?.status !== true) throw new Error(payload?.reason || payload?.detail || payload?.message || `WhatsApp Gateway Fonnte gagal (Status ${response.status}).`);
   return { status: 'sent', provider: 'fonnte', target };
 };
 

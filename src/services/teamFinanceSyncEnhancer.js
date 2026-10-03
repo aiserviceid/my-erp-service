@@ -1,3 +1,4 @@
+import { commissionPaidAt } from '../utils/commissionDate';
 import { apiService } from './api';
 import { useStore } from '../store/useStore';
 import {
@@ -31,7 +32,7 @@ const getFreshTenantSettings = async (tenantCode) => {
   const code = normalizeTenantCode(tenantCode);
   if (!code || code === 'DEMO-STORE') return null;
 
-  const tenantData = await apiService.getTenantPublic(code);
+  const tenantData = await apiService.getTenantForSession(code);
   if (!tenantData) return null;
 
   const state = useStore.getState();
@@ -54,7 +55,7 @@ const getFreshTenantSettings = async (tenantCode) => {
   return tenantData;
 };
 
-const buildCommissionTransaction = ({ tenantCode, service, settings, users = [], isBackfill = false }) => {
+const buildCommissionTransaction = ({ tenantCode, service, settings, users = [], isBackfill = false, paidAt }) => {
   const employeeId = normalizeEmployeeId(service?.technician_id);
   if (!employeeId || !service?.resi) return null;
 
@@ -80,7 +81,7 @@ const buildCommissionTransaction = ({ tenantCode, service, settings, users = [],
     type: COMMISSION_TYPE,
     amount,
     description: `Komisi Teknisi${employeeLabel} | ${commissionEmployeeMarker(employeeId)} | Resi ${service.resi} | ${rate}% dari jasa bersih Rp ${jasaAfterDiscount.toLocaleString('id-ID')}${syncLabel}`,
-    created_at: service?.updated_at || service?.created_at || new Date().toISOString(),
+    created_at: paidAt,
     idempotency_key: `KOMISI_${tenantCode}_${service.resi}_${employeeId}`,
   };
 };
@@ -95,10 +96,12 @@ const ensureCommissionTransaction = async ({
 }) => {
   if (!service || !isPaidServiceStatus(service.status)) return null;
 
-  const row = buildCommissionTransaction({ tenantCode, service, settings, users, isBackfill });
-  if (!row) return null;
-
   const existingTransactions = transactions || await apiService.getTransactions(tenantCode);
+  const paidAt = commissionPaidAt(service, existingTransactions);
+  // Historical records lacking payment evidence must be reconciled, not dated at intake.
+  if (!paidAt) return null;
+  const row = buildCommissionTransaction({ tenantCode, service, settings, users, isBackfill, paidAt });
+  if (!row) return null;
   const alreadyExists = existingTransactions.some((transaction) => (
     isCommissionTransactionForService(transaction, service.resi, service.technician_id)
   ));
@@ -120,7 +123,7 @@ const backfillCommissionLedger = async (tenantCode, tenantData = null) => {
     apiService.getServices(code),
     apiService.getTransactions(code),
     apiService.getUsers(code),
-    tenantData ? Promise.resolve(tenantData) : apiService.getTenantPublic(code),
+    tenantData ? Promise.resolve(tenantData) : apiService.getTenantForSession(code),
   ]);
 
   const settings = freshTenant?.settings || useStore.getState().tenant?.settings || {};
@@ -170,7 +173,7 @@ if (typeof window !== 'undefined' && !window[ENHANCER_FLAG]) {
       const code = normalizeTenantCode(payload?.tenant_code || result?.service?.tenant_code);
       if (code && code !== 'DEMO-STORE' && result?.service) {
         const [tenantData, users, transactions] = await Promise.all([
-          apiService.getTenantPublic(code),
+          apiService.getTenantForSession(code),
           apiService.getUsers(code),
           apiService.getTransactions(code),
         ]);

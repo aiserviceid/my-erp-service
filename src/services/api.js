@@ -1,3 +1,4 @@
+import { publicTenant } from '../utils/publicTenant';
 import { supabase } from './supabase';
 import { compressImageFile } from '../utils/imageCompressor';
 import { allocateServiceDiscount, normalizeKasbonAmount, normalizeMoneyInteger, normalizeTransactionAmounts, transactionMatchesServiceResi } from '../utils/financeUtils';
@@ -43,22 +44,27 @@ export const apiService = {
   getApiBaseUrl: () => API_BASE_URL,
   // Helper to get headers
   getHeaders: () => {
-    const token = localStorage.getItem('TENANT_TOKEN');
+    const token = localStorage.getItem('EMP_SESSION') ? localStorage.getItem('EMPLOYEE_TOKEN') : localStorage.getItem('TENANT_TOKEN');
     return {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
   },
 
+  // Private screen compatibility only. Database RLS must enforce actual authorization.
+  getTenantForSession: async (tenantCode) => {
+    const { data, error } = await supabase.from('tenants').select('name, code, settings, tier').eq('code', tenantCode).maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
   getTenantPublic: async (tenantCode) => {
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('name, code, settings, tier')
-        .eq('code', tenantCode)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const query = new URLSearchParams({ tenant_code: String(tenantCode || '') });
+      const response = await fetch(`${API_BASE_URL}/public-tenant?${query}`, { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || 'Metadata publik toko tidak tersedia.');
+      return publicTenant(result);
     } catch (e) {
       console.error('getTenantPublic error', e);
       return null;
@@ -68,104 +74,19 @@ export const apiService = {
   // 1. Login / Register Tenant (Store) — Express Backend Auth + Supabase Sync
   loginTenant: async (code, name = '', pin = '', phone = '') => {
     const cleanCode = (code || '').trim().toUpperCase();
-    let resultTenant = null;
-    let resultToken = null;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/tenant/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cleanCode, name, pin, phone })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Gagal login toko. Periksa Kode Toko atau PIN.');
-      }
-
-      const resData = await response.json();
-      resultToken = resData.token;
-      resultTenant = resData;
-      if (resultToken) {
-        localStorage.setItem('TENANT_TOKEN', resultToken);
-      }
-    } catch (e) {
-      console.error('Login tenant via backend API failed, attempting fallback...', e);
-      // Fallback if local backend server is not running
-      const { data: existing, error } = await supabase
-        .from('tenants')
-        .select('code, name, tier, settings, pin')
-        .eq('code', cleanCode)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') console.error('Supabase fallback error:', error);
-
-      if (!existing) {
-        if (!name) throw new Error('Kode Toko tidak terdaftar. Silakan daftar terlebih dahulu.');
-        const newStore = { 
-          code: cleanCode, 
-          name: name || cleanCode, 
-          tier: 'free', 
-          settings: { storeName: name || cleanCode, store_wa: phone || '', qrisUrl: '' }, 
-          pin: pin || '' 
-        };
-        await supabase.from('tenants').insert(newStore);
-        resultToken = `dev_token_${cleanCode}`;
-        resultTenant = { ...newStore, phone: phone || '' };
-      } else {
-        resultToken = `dev_token_${cleanCode}`;
-        resultTenant = existing;
-      }
-    }
-
-    // Always ensure tenant record is synced/upserted to Supabase for Super Admin visibility & cloud persistence
-    if (resultTenant && resultTenant.code) {
-      try {
-        const settingsToSave = typeof resultTenant.settings === 'string'
-          ? JSON.parse(resultTenant.settings)
-          : (resultTenant.settings || {});
-        
-        if (!settingsToSave.storeName && (name || resultTenant.name)) {
-          settingsToSave.storeName = name || resultTenant.name;
-        }
-        if (!settingsToSave.store_wa && (phone || resultTenant.phone)) {
-          settingsToSave.store_wa = phone || resultTenant.phone;
-        }
-        if (typeof settingsToSave.qrisUrl === 'undefined') {
-          settingsToSave.qrisUrl = '';
-        }
-
-        const nowMs = Date.now();
-        const trialEndsAtMs = nowMs + (30 * 24 * 60 * 60 * 1000);
-        if (!settingsToSave.trial_started_at) {
-          settingsToSave.trial_started_at = nowMs;
-        }
-        if (!settingsToSave.trial_ends_at) {
-          settingsToSave.trial_ends_at = trialEndsAtMs;
-        }
-        if (!settingsToSave.active_until) {
-          settingsToSave.active_until = trialEndsAtMs;
-        }
-        if (!settingsToSave.subscription_status) {
-          settingsToSave.subscription_status = 'trial';
-        }
-
-        const supabaseRecord = {
-          code: resultTenant.code,
-          name: name || resultTenant.name || resultTenant.code,
-          tier: resultTenant.tier || 'free',
-          settings: settingsToSave
-        };
-        if (pin) supabaseRecord.pin = pin;
-
-        await supabase.from('tenants').upsert(supabaseRecord, { onConflict: 'code' });
-        resultTenant.settings = settingsToSave;
-      } catch (syncErr) {
-        console.warn('Syncing tenant to Supabase warning:', syncErr);
-      }
-    }
-
-    return { token: resultToken, tenant: resultTenant };
+    if (!cleanCode || !String(pin || '').trim()) throw new Error('Kode Toko dan PIN wajib diisi.');
+    // Server rejection/network failure must never fall back to direct database access.
+    const response = await fetch(API_BASE_URL + '/tenant/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: cleanCode, name, pin, phone }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(result?.error || 'Gagal login toko. Periksa Kode Toko atau PIN.');
+    if (!result?.token || !result?.code || String(result.code).toUpperCase() !== cleanCode || /^(dev_token_|EMP_)/.test(result.token)) throw new Error('Respons autentikasi server tidak valid.');
+    const { token, pin: ignoredPin, ...tenant } = result;
+    localStorage.removeItem('EMPLOYEE_TOKEN'); localStorage.removeItem('EMP_SESSION');
+    localStorage.setItem('TENANT_TOKEN', token);
+    return { token, tenant };
   },
 
   // 2. Login Employee — Express Backend Auth
@@ -186,34 +107,22 @@ export const apiService = {
         throw new Error('PIN atau Kode Toko Salah!');
       }
       
-      // Attempt to resolve real tenant_code if they accidentally typed the tenant name
-      const { data: tenantSearch } = await supabase
-        .from('tenants')
-        .select('code')
-        .or(`code.eq.${cleanCode},name.ilike.${cleanCode}`)
-        .maybeSingle();
-
-      if (tenantSearch && tenantSearch.code) {
-        cleanCode = tenantSearch.code;
-      }
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('tenant_code', cleanCode)
-        .eq('pin', pin)
-        .single();
-
-      if (error || !data) {
-        throw new Error('PIN atau Kode Toko Salah!');
-      }
-
-      const fakeToken = `EMP_${data.id}_${Date.now()}`;
-      localStorage.setItem('EMPLOYEE_TOKEN', fakeToken);
-      return { token: fakeToken, user: data };
+      if (!/^[A-Z0-9_-]{1,60}$/.test(cleanCode) || !/^[0-9]{4,12}$/.test(String(pin || ''))) throw new Error('Kode toko dan PIN wajib valid.');
+      const response = await fetch(API_BASE_URL + '/employee/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_code: cleanCode, pin: String(pin) }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || 'Login pegawai gagal.');
+      const token = payload?.token;
+      const user = payload?.user;
+      if (typeof token !== 'string' || ! /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) || token.startsWith('EMP_') || token.startsWith('dev_token_') || !user?.id || user.tenant_code !== cleanCode || !['TEKNISI', 'KASIR'].includes(user.role)) throw new Error('Respons autentikasi pegawai tidak valid.');
+      const { pin: ignoredPin, ...safeUser } = user;
+      localStorage.setItem('EMPLOYEE_TOKEN', token);
+      return { token, user: safeUser };
     } catch (e) {
       console.error('Login employee error:', e);
-      throw new Error('PIN atau Kode Toko Salah!');
+      throw new Error(e.message || 'Login pegawai gagal.');
     }
   },
 
@@ -438,6 +347,7 @@ export const apiService = {
         }
       }
 
+      if (!updated?.id) throw updateErr || new Error('Pembaruan barang tidak berhasil.');
       if (cleanStock !== undefined && currentStock !== null) {
         const diff = cleanStock - Number(currentStock);
         if (diff !== 0 && (updated?.id || id)) {
@@ -464,7 +374,7 @@ export const apiService = {
       };
     } catch (e) {
       console.error('updateProduct exception:', e);
-      return { id, ...productData };
+      throw e;
     }
   },
 
@@ -929,6 +839,13 @@ export const apiService = {
         return data;
       }
       if (endpoint === '/users') {
+        const { data: store, error: storeError } = await supabase.from('tenants').select('tier').eq('code', body.tenant_code).single();
+        if (storeError) throw storeError;
+        if (!store.tier || store.tier.toLowerCase() === 'free') {
+          const { count, error: countError } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('tenant_code', body.tenant_code);
+          if (countError) throw countError;
+          if (count >= 1) throw new Error('Akun Free maksimal 1 anggota tim.');
+        }
         const { data, error } = await supabase.from('users').insert(body).select().single();
         if (error) throw error;
         return data;
@@ -1202,6 +1119,7 @@ export const apiService = {
   sawerTeknisi: async (solverTenantCode, amount) => {
     try {
       const amt = Number(amount);
+      if (!Number.isSafeInteger(amt) || amt <= 0) throw new Error('Nominal tip harus bilangan bulat positif.');
       const feePlatform = Math.floor(amt * 0.01);
       const feeDev = Math.floor(amt * 0.06);
       const netToTechnician = amt - feePlatform - feeDev;
@@ -1254,6 +1172,7 @@ export const apiService = {
     try {
       const { tenant_code, amount, bank_name, account_number, account_name } = data;
       const amt = Number(amount);
+      if (!Number.isSafeInteger(amt) || amt <= 0) throw new Error('Nominal penarikan harus bilangan bulat positif.');
 
       const { data: tenant } = await supabase.from('tenants').select('wallet_balance').eq('code', tenant_code).maybeSingle();
       if (!tenant || (tenant.wallet_balance || 0) < amt) {
@@ -1874,11 +1793,11 @@ export const apiService = {
 
   resetTenantData: async (tenantCode, options = { keepUsers: true }) => {
     try {
-      await supabase.from('transactions').delete().eq('tenant_code', tenantCode);
-      await supabase.from('services').delete().eq('tenant_code', tenantCode);
-      await supabase.from('products').delete().eq('tenant_code', tenantCode);
+      { const result = await supabase.from('transactions').delete().eq('tenant_code', tenantCode); if (result.error) throw result.error; }
+      { const result = await supabase.from('services').delete().eq('tenant_code', tenantCode); if (result.error) throw result.error; }
+      { const result = await supabase.from('products').delete().eq('tenant_code', tenantCode); if (result.error) throw result.error; }
       if (!options.keepUsers) {
-        await supabase.from('users').delete().eq('tenant_code', tenantCode);
+        { const result = await supabase.from('users').delete().eq('tenant_code', tenantCode); if (result.error) throw result.error; }
       }
       return { success: true };
     } catch (e) {

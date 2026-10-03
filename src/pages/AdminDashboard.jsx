@@ -1,3 +1,5 @@
+import { escapeHtml, safeImageUrl } from '../utils/safeHtml';
+import { ServicePhotoInput, ServicePhoto } from '../components/ServicePhoto';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useStore } from '../store/useStore';
 import { LogOut, LayoutDashboard, ShoppingCart, Wrench, Package, Users, TrendingUp, Settings, MessageCircle, MessageSquare, DollarSign, X, Trash, Plus, Wallet, Building2, Check, ExternalLink, Gift, Printer, Camera, AlertTriangle, Download, Smartphone, Image as ImageIcon, Edit, Upload, RefreshCw, Lock, KeyRound, ShieldCheck, Clock, MessageSquareHeart } from 'lucide-react';
@@ -66,6 +68,10 @@ export default function AdminDashboard() {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showServiceRegistration, setShowServiceRegistration] = useState(false);
   const [isCreatingService, setIsCreatingService] = useState(false);
+  const [servicePhoto, setServicePhoto] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [addingEmployee, setAddingEmployee] = useState(false);
+  const employeeSubmissionLock = useRef(false);
   const serviceSubmissionLockRef = useRef(false);
   const [selectedService, setSelectedService] = useState(null);
   const [printType, setPrintType] = useState('pendaftaran');
@@ -233,7 +239,7 @@ export default function AdminDashboard() {
   const handleCreateService = async (event) => {
     event.preventDefault();
 
-    if (serviceSubmissionLockRef.current) {
+    if (photoBusy || serviceSubmissionLockRef.current) {
       alert('Servis sedang disimpan. Jangan tekan tombol dua kali.');
       return;
     }
@@ -305,7 +311,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
         device_name: deviceName,
         issue: issueText,
         technician_id: fd.get('technician_id'),
-        status: 'PROSES'
+        status: 'PROSES',
+        ...(servicePhoto ? { photo_url: servicePhoto } : {})
       };
       await apiService.post('/services', newService);
       if (hasFeature(tenant?.tier, 'whatsappNotif')) {
@@ -318,10 +325,11 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       }
       alert(`Servis berhasil didaftarkan.\nResi: ${resiGenerated}\n\nTugas sudah dikirim ke teknisi yang dipilih.`);
       form.reset();
+      setServicePhoto(null);
       setShowServiceRegistration(false);
       apiService.getServices(tenant.code).then(setServices);
     } catch (error) {
-      alert('Gagal mendaftarkan servis. Periksa koneksi lalu coba lagi.');
+      alert(servicePhoto ? 'Gagal menyimpan servis beserta foto. Foto tetap ada di formulir; periksa koneksi lalu coba lagi.' : 'Gagal mendaftarkan servis. Periksa koneksi lalu coba lagi.');
     } finally {
       releaseSubmissionLock();
     }
@@ -585,8 +593,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
     `;
     
     const activeLogoUrl = getTenantLogoUrl(tenant?.tier, tenant?.settings);
-    const freeWatermarkHtml = isFree ? `<img src="${UNITPRO_LOGO_URL}" class="free-watermark" alt="" />` : '';
-    const logoHtml = `<img src="${activeLogoUrl}" class="logo" alt="Logo" />`;
+    const freeWatermarkHtml = isFree ? `<img src="${safeImageUrl(UNITPRO_LOGO_URL)}" class="free-watermark" alt="" />` : '';
+    const logoHtml = `<img src="${safeImageUrl(activeLogoUrl)}" class="logo" alt="Logo" />`;
 
     const isBillingReceipt = printType === 'tagihan';
     if (printType === 'pendaftaran') {
@@ -596,32 +604,32 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           <div class="header">
             <div class="header-title-row">
               ${logoHtml}
-              <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
+              <h2>${escapeHtml(tenant?.settings?.storeName || tenant?.name || 'Toko Servis')}</h2>
             </div>
             <p>NOTA PENDAFTARAN SERVIS</p>
           </div>
           <div class="divider"></div>
           <div class="info-grid">
-            <div class="info-item"><strong>No. Resi</strong> <span>${selectedService.resi}</span></div>
+            <div class="info-item"><strong>No. Resi</strong> <span>${escapeHtml(selectedService.resi)}</span></div>
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
-            <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
-            <div class="info-item"><strong>No. HP</strong> <span>${selectedService.customer_phone}</span></div>
-            <div class="info-item" style="grid-column: 1 / -1;"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
+            <div class="info-item"><strong>Pelanggan</strong> <span>${escapeHtml(selectedService.customer_name)}</span></div>
+            <div class="info-item"><strong>No. HP</strong> <span>${escapeHtml(selectedService.customer_phone)}</span></div>
+            <div class="info-item" style="grid-column: 1 / -1;"><strong>Perangkat</strong> <span>${escapeHtml(selectedService.device_name)}</span></div>
           </div>
           <div><strong style="color: #64748b; font-size: 0.85em; text-transform: uppercase;">Keluhan & Kelengkapan:</strong></div>
-          <div class="issue-box">${selectedService.issue}</div>
+          <div class="issue-box">${escapeHtml(selectedService.issue)}</div>
           
           <div class="qr-section">
-            <img src="${qrCodeUrl}" alt="QR Code Tracking" />
-            <p>Scan QR untuk cek status servis<br/>atau kunjungi: <strong>${trackingUrl}</strong></p>
+            <img src="${safeImageUrl(qrCodeUrl)}" alt="QR Code Tracking" />
+            <p>Scan QR untuk cek status servis<br/>atau kunjungi: <strong>${escapeHtml(trackingUrl)}</strong></p>
           </div>
 
-          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
-          ${qrisImageUrl ? `<div class="qr-section"><img src="${qrisImageUrl}" alt="QRIS Pembayaran" /><p>Scan QRIS untuk pembayaran</p></div>` : ''}
+          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${escapeHtml(paymentInfoText).replace(/\n/g, '<br/>')}</div>` : ''}
+          ${qrisImageUrl ? `<div class="qr-section"><img src="${safeImageUrl(qrisImageUrl)}" alt="QRIS Pembayaran" /><p>Scan QRIS untuk pembayaran</p></div>` : ''}
           
           <div class="divider"></div>
           <div class="footer">
-            ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note_service.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>`}
+            ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${escapeHtml(tenant.settings.receipt_note_service).replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Simpan struk ini sebagai bukti pengambilan.</p>`}
             <p style="margin: 0;">Terima kasih atas kepercayaan Anda.</p>
           </div>
         </div>
@@ -640,21 +648,21 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           <div class="header">
             <div class="header-title-row">
               ${logoHtml}
-              <h2>${tenant?.settings?.storeName || tenant?.name || 'Toko Servis'}</h2>
+              <h2>${escapeHtml(tenant?.settings?.storeName || tenant?.name || 'Toko Servis')}</h2>
             </div>
             <p>${isBillingReceipt ? 'NOTA TAGIHAN SERVIS' : 'NOTA PELUNASAN SERVIS (GARANSI)'}</p>
           </div>
           <div class="divider"></div>
           <div class="info-grid">
-            <div class="info-item"><strong>No. Resi</strong> <span>${selectedService.resi}</span></div>
+            <div class="info-item"><strong>No. Resi</strong> <span>${escapeHtml(selectedService.resi)}</span></div>
             <div class="info-item"><strong>Tanggal</strong> <span>${dateStr}</span></div>
-            <div class="info-item"><strong>Pelanggan</strong> <span>${selectedService.customer_name}</span></div>
-            <div class="info-item"><strong>Perangkat</strong> <span>${selectedService.device_name}</span></div>
-            <div class="info-item"><strong>Teknisi</strong> <span>${techName}</span></div>
+            <div class="info-item"><strong>Pelanggan</strong> <span>${escapeHtml(selectedService.customer_name)}</span></div>
+            <div class="info-item"><strong>Perangkat</strong> <span>${escapeHtml(selectedService.device_name)}</span></div>
+            <div class="info-item"><strong>Teknisi</strong> <span>${escapeHtml(techName)}</span></div>
           </div>
           
           <div><strong style="color: #64748b; font-size: 0.85em; text-transform: uppercase;">Rincian Perbaikan:</strong></div>
-          <div class="issue-box">${(selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, '')}</div>
+          <div class="issue-box">${escapeHtml((selectedService.issue || '').replace(/\n\[Diskon: .*?\]/, ''))}</div>
           
           <table class="table">
             <thead>
@@ -671,24 +679,24 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
             </tbody>
           </table>
           
-          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${paymentInfoText.replace(/\n/g, '<br/>')}</div>` : ''}
-          ${qrisImageUrl ? `<div class="qr-section"><img src="${qrisImageUrl}" alt="QRIS Pembayaran" /><p>Scan QRIS untuk pembayaran</p></div>` : ''}
+          ${paymentInfoText ? `<div class="bank-info"><strong>INFO REKENING PEMBAYARAN:</strong><br/>${escapeHtml(paymentInfoText).replace(/\n/g, '<br/>')}</div>` : ''}
+          ${qrisImageUrl ? `<div class="qr-section"><img src="${safeImageUrl(qrisImageUrl)}" alt="QRIS Pembayaran" /><p>Scan QRIS untuk pembayaran</p></div>` : ''}
           
           <div class="qr-section">
-            <img src="${qrCodeUrl}" alt="QR Code Tracking" />
-            <p>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>${trackingUrl}</strong></p>
+            <img src="${safeImageUrl(qrCodeUrl)}" alt="QR Code Tracking" />
+            <p>Scan QR untuk cek garansi & status<br/>atau kunjungi: <strong>${escapeHtml(trackingUrl)}</strong></p>
           </div>
 
           <div class="divider"></div>
           <div class="footer">
-            ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${tenant.settings.receipt_note_service.replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>`}
+            ${tenant?.settings?.receipt_note_service ? `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">${escapeHtml(tenant.settings.receipt_note_service).replace(/\n/g, '<br/>')}</p>` : `<p style="margin: 0 0 5px 0; color: #0f172a; font-weight: 700;">Terima kasih atas kepercayaan Anda!</p>`}
             <p style="margin: 0;">${isBillingReceipt ? 'Silakan lakukan pembayaran atau pengambilan sesuai total tagihan.' : 'Simpan nota ini sebagai bukti pembayaran dan garansi.'}</p>
           </div>
         </div>
       `;
     }
     
-    doc.write(`<html><head><title>Print Nota - ${selectedService.resi}</title>${css}</head><body onload="setTimeout(function(){ window.print(); window.close(); }, 500);">${htmlContent}</body></html>`);
+    doc.write(`<html><head><title>Print Nota - ${escapeHtml(selectedService.resi)}</title>${css}</head><body onload="setTimeout(function(){ window.print(); window.close(); }, 500);">${htmlContent}</body></html>`);
     doc.close();
     setShowPrintModal(false);
   };
@@ -849,7 +857,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
       });
       
       // Auto-sync tier and settings from server
-      apiService.getTenantPublic(tenant.code).then(async data => {
+      apiService.getTenantForSession(tenant.code).then(async data => {
         if (data) {
           let updatedTier = data.tier;
           let updatedSettings = typeof data.settings === 'string' ? JSON.parse(data.settings) : (data.settings || {});
@@ -1401,7 +1409,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                     <span style={{ background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: '800' }}>FREE</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {['🤖 WA Bot Otomatis', '👷 Portal Teknisi', '📊 Laporan Laba', '📤 Export Excel', '♾️ Unlimited Servis'].map(f => (
+                    {['🤖 WA Bot Otomatis', '👷 Tim lebih dari 1 orang', '📊 Laporan Laba', '📤 Export Excel', '♾️ Unlimited Servis'].map(f => (
                       <span key={f} style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', padding: '3px 9px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>🔒 {f}</span>
                     ))}
                   </div>
@@ -2870,7 +2878,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                           </div>
                           <span style={{ background: status?.bg, color: status?.color }}>{status?.label || service.status || 'PROSES'}</span>
                         </div>
-                        <p className="service-mobile-device">{service.device_name}</p>
+                        <p className="service-mobile-device">{service.device_name}</p><ServicePhoto src={service.photo_url} />
                         <p className="service-mobile-meta">Teknisi: {technician?.name || 'Belum ditugaskan'}</p>
                         <label className="service-mobile-status-label">Ubah status
                           <select className="input-field" value={normalizeServiceStatus(service.status || 'PROSES')} onChange={(event) => updateServiceStatusFromAction(service, event.target.value)}>
@@ -2924,7 +2932,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                               </a>
                             </td>
                             <td>{s.customer_name} <br/><small style={{color: 'var(--text-muted)'}}>{s.customer_phone}</small></td>
-                            <td>{s.device_name}</td>
+                            <td>{s.device_name}<ServicePhoto src={s.photo_url} /></td>
                             <td style={{ maxWidth: '260px' }}><IssueChips issue={cleanIssue} /></td>
                             <td>{garansiStatus !== '-' ? <span className="badge badge-success" style={{background: '#dcfce7', color: '#16a34a'}}>s/d {garansiStatus}</span> : '-'}</td>
                             <td>{tech ? <span className="badge badge-warning">{tech.name}</span> : <span style={{ color: 'var(--text-muted)' }}>Belum Dipilih</span>}</td>
@@ -3216,14 +3224,6 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
           </div>
 
         ) : activeTab === 'karyawan' ? (
-          isFree ? (
-            <UpgradePrompt
-              mode="card"
-              featureName="Portal Multi-Karyawan"
-              featureDescription="Tambahkan teknisi dan kasir dengan PIN login masing-masing. Kelola gaji, komisi, kasbon, dan pantau absensi — semua dari satu dashboard."
-              icon={<Users size={28} />}
-            />
-          ) :
           <div className="glass-panel employee-management" style={{ minHeight: '400px' }}>
              <div className="module-heading"><span>TIM & KEHADIRAN</span><h3 className="employee-management-title">Manajemen Tim</h3><p>Kelola akses, kompensasi, kasbon, dan kehadiran anggota tim.</p></div>
 
@@ -3243,6 +3243,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                <div id="employee-management-active-panel" data-active-employee-tab="daftar" className="animate-fade-in employee-management-content">
                  <details className="management-action-disclosure employee-action-disclosure">
                    <summary><Plus size={18} /> Tambah karyawan</summary>
+                   {isFree && <p>Akun Free: {users.length}/1 anggota tim. Upgrade untuk menambah anggota.</p>}
                  <div className="employee-add-form" style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <input type="text" className="input-field" placeholder="Nama Karyawan..." id="newEmpName" style={{ flex: 1, minWidth: '150px' }} />
                     <input type="text" className="input-field" placeholder="No WhatsApp (Opsional)" id="newEmpPhone" style={{ width: '180px' }} />
@@ -3253,7 +3254,9 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                     </select>
                     <input type="number" className="input-field" placeholder="Gaji/Bulan (Rp)" id="newEmpSalary" style={{ width: '150px' }} />
                     <input type="number" className="input-field" placeholder="% Komisi" id="newEmpComm" style={{ width: '100px' }} />
-                    <button className="btn btn-primary" onClick={async () => {
+                    <button className="btn btn-primary" disabled={addingEmployee || (isFree && users.length >= 1)} onClick={async () => {
+                      if (employeeSubmissionLock.current) return;
+                      if (isFree && users.length >= 1) return alert('Akun Free maksimal 1 anggota tim.');
                       const name = document.getElementById('newEmpName').value;
                       const phone = document.getElementById('newEmpPhone').value;
                       const pin = document.getElementById('newEmpPin').value;
@@ -3261,6 +3264,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                       const salary = document.getElementById('newEmpSalary').value || '0';
                       const comm = document.getElementById('newEmpComm').value || '0';
                       if (!name || !pin) return alert('Nama dan PIN wajib diisi');
+                      employeeSubmissionLock.current = true;
+                      setAddingEmployee(true);
                       try {
                         const newUser = await apiService.post('/users', { tenant_code: tenant.code, name, role, pin, phone });
                         
@@ -3280,7 +3285,8 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                         document.getElementById('newEmpSalary').value = '';
                         document.getElementById('newEmpComm').value = '';
                         alert('Karyawan Berhasil Ditambah!');
-                      } catch (e) { alert('Gagal'); }
+                      } catch (e) { alert(e.message || 'Gagal menambah anggota tim'); }
+                      finally { employeeSubmissionLock.current = false; setAddingEmployee(false); }
                     }}>
                       <Plus size={18} /> Tambah
                     </button>
@@ -3488,8 +3494,10 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 <h3>Daftarkan & tugaskan servis</h3>
                 <span>Kolom bertanda * wajib diisi.</span>
               </div>
-              <button type="button" className="btn btn-ghost" onClick={() => setShowServiceRegistration(false)} aria-label="Tutup formulir"><X size={20} /></button>
+              <button type="button" className="btn btn-ghost" disabled={photoBusy || isCreatingService} onClick={() => { setServicePhoto(null); setShowServiceRegistration(false); }} aria-label="Tutup formulir"><X size={20} /></button>
             </div>
+            <input type="hidden" name="photo_url" value={servicePhoto || ''} />
+            <ServicePhotoInput value={servicePhoto} onChange={setServicePhoto} onBusy={setPhotoBusy} />
             <div className="service-registration-form-grid">
               <label className="label">Nama pelanggan *<input name="name" className="input-field" placeholder="Contoh: Budi Santoso" autoComplete="name" required /></label>
               <label className="label">Nomor WhatsApp *<input name="phone" type="tel" className="input-field" placeholder="081234567890" inputMode="tel" autoComplete="tel" required /></label>
@@ -3505,7 +3513,7 @@ Klik OK hanya jika Anda yakin nomor ini memang nomor pelanggan.`);
                 </select>
               </label>
             </div>
-            <button type="submit" className="btn btn-primary service-registration-submit" disabled={isCreatingService} aria-busy={isCreatingService}>
+            <button type="submit" className="btn btn-primary service-registration-submit" disabled={isCreatingService || photoBusy} aria-busy={isCreatingService || photoBusy}>
               <Check size={18} /> {isCreatingService ? 'Sedang menyimpan...' : 'Simpan Servis & Kirim Tugas'}
             </button>
           </form>

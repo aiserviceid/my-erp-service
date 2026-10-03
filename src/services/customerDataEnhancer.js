@@ -1,3 +1,4 @@
+import { escapeHtml } from '../utils/safeHtml';
 import { supabase } from './supabase';
 import {
   buildCustomerDirectory,
@@ -94,7 +95,7 @@ const renderSuggestions = (form, panel, customers, query) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;background:#fff;border:1px solid #dbeafe;border-radius:11px;padding:10px 11px;color:#0f172a;';
-    button.innerHTML = `<span><strong style="display:block;font-size:13px">${customer.name || 'Pelanggan'}</strong><span style="font-size:12px;color:#64748b">${localPhone(customer.phone) || 'Nomor belum tersedia'}</span></span><small style="color:#0369a1;font-weight:800;white-space:nowrap">${customer.serviceCount} servis</small>`;
+    button.innerHTML = `<span><strong style="display:block;font-size:13px">${escapeHtml(customer.name || 'Pelanggan')}</strong><span style="font-size:12px;color:#64748b">${escapeHtml(localPhone(customer.phone) || 'Nomor belum tersedia')}</span></span><small style="color:#0369a1;font-weight:800;white-space:nowrap">${escapeHtml(customer.serviceCount)} servis</small>`;
     button.addEventListener('click', () => {
       applyCustomerToAdminForm(form, customer);
       panel.innerHTML = `<div style="font-size:12px;font-weight:800;color:#047857">✓ Pelanggan lama dipilih. Nama dan nomor memakai data yang sudah ada.</div>`;

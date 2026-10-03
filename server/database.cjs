@@ -78,6 +78,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         customer_phone TEXT NOT NULL,
         device_name TEXT NOT NULL,
         issue TEXT NOT NULL,
+        photo_url TEXT,
         status TEXT DEFAULT 'PROSES',
         jasa_fee INTEGER DEFAULT 0,
         part_fee INTEGER DEFAULT 0,
@@ -86,6 +87,17 @@ const db = new sqlite3.Database(dbPath, (err) => {
         FOREIGN KEY (tenant_code) REFERENCES tenants(code),
         FOREIGN KEY (technician_id) REFERENCES users(id)
       )`);
+
+      db.run('ALTER TABLE services ADD COLUMN photo_url TEXT', () => {});
+      db.run(`CREATE TRIGGER IF NOT EXISTS free_team_insert BEFORE INSERT ON users
+        WHEN COALESCE((SELECT lower(tier) FROM tenants WHERE code = NEW.tenant_code), 'free') = 'free'
+        AND (SELECT count(*) FROM users WHERE tenant_code = NEW.tenant_code) >= 1
+        BEGIN SELECT RAISE(ABORT, 'Akun Free maksimal 1 anggota tim.'); END`);
+      db.run(`CREATE TRIGGER IF NOT EXISTS free_team_move BEFORE UPDATE OF tenant_code ON users
+        WHEN OLD.tenant_code IS NOT NEW.tenant_code
+        AND COALESCE((SELECT lower(tier) FROM tenants WHERE code = NEW.tenant_code), 'free') = 'free'
+        AND (SELECT count(*) FROM users WHERE tenant_code = NEW.tenant_code) >= 1
+        BEGIN SELECT RAISE(ABORT, 'Akun Free maksimal 1 anggota tim.'); END`);
 
       // 5. Transactions (Financials)
       db.run(`CREATE TABLE IF NOT EXISTS transactions (

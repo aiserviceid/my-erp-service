@@ -30,7 +30,7 @@ jobs:
 
       - name: Install Dependencies & Build Web
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Setup Java JDK
@@ -44,13 +44,18 @@ jobs:
 
       - name: Sync Capacitor Android
         run: |
-          npx cap sync android
+          npm run sync:android
 
       - name: Build Release APK
         working-directory: ./android
         run: |
           chmod +x ./gradlew
           ./gradlew assembleRelease --stacktrace
+
+      - name: Verify APK before publication
+        run: |
+          node scripts/verify-apk.mjs android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --verbose android/app/build/outputs/apk/release/app-release.apk
 
       - name: Name APK for Distribution
         run: |

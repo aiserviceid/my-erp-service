@@ -61,9 +61,9 @@ export default function POSView({ products, transactions = [], onTransactionCrea
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
-        p.name.toLowerCase().includes(q) || 
-        (p.id && p.id.toLowerCase().includes(q)) ||
-        (p.code && p.code.toLowerCase().includes(q))
+        String(p.name ?? '').toLowerCase().includes(q) ||
+        String(p.id ?? '').toLowerCase().includes(q) ||
+        String(p.code ?? '').toLowerCase().includes(q)
       );
     });
   }, [products, searchQuery, selectedCategory]);
@@ -145,7 +145,7 @@ export default function POSView({ products, transactions = [], onTransactionCrea
   // Handle barcode scan
   const handleScan = (decodedText) => {
     const product = products.find(p => 
-      p.id === decodedText || p.name.toLowerCase().includes(decodedText.toLowerCase())
+      String(p.id ?? '') === String(decodedText) || String(p.name ?? '').toLowerCase().includes(String(decodedText).toLowerCase())
     );
     if (product) {
       const currentQty = Number(cart.find(item => String(item.id) === String(product.id))?.qty || 0);
