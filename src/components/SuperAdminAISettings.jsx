@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Bot, CheckCircle, Eye, EyeOff, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api' : 'http://localhost:3001/api');
@@ -49,12 +49,15 @@ export default function SuperAdminAISettings() {
     return payload;
   };
 
+  const normalizeModel = (m) => (!m || m === 'gemini-2.0-flash' ? 'gemini-2.5-flash' : m);
+
   const loadConfig = async () => {
     setLoading(true);
     setStatus('');
     try {
       const result = await request('/admin/ai-config');
-      setConfig((current) => ({ ...current, ...result }));
+      const cleanModel = normalizeModel(result.model);
+      setConfig((current) => ({ ...current, ...result, model: cleanModel }));
     } catch (error) {
       setStatus(`❌ ${error.message}`);
     } finally {
@@ -74,12 +77,13 @@ export default function SuperAdminAISettings() {
         method: 'PUT',
         body: JSON.stringify({
           enabled: config.enabled,
-          model: config.model,
+          model: normalizeModel(config.model),
           custom_instruction: config.custom_instruction,
           ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
         }),
       });
-      setConfig((current) => ({ ...current, ...result }));
+      const cleanModel = normalizeModel(result.model);
+      setConfig((current) => ({ ...current, ...result, model: cleanModel }));
       setApiKey('');
       setStatus('✅ Konfigurasi Gemini tersimpan aman di server.');
     } catch (error) {
@@ -96,7 +100,7 @@ export default function SuperAdminAISettings() {
       const result = await request('/admin/ai-config/test', {
         method: 'POST',
         body: JSON.stringify({
-          model: config.model,
+          model: normalizeModel(config.model),
           ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
         }),
       });
@@ -128,7 +132,7 @@ export default function SuperAdminAISettings() {
             onClick={() => setConfig((current) => ({ ...current, enabled: !current.enabled }))}
             style={{ border: 'none', borderRadius: 999, padding: '8px 14px', cursor: 'pointer', fontWeight: '900', background: config.enabled ? '#22c55e' : '#475569', color: '#fff' }}
           >
-            {config.enabled ? '🟢 Gemini Global ON' : '⚫ Gemini Global OFF'}
+            {config.enabled ? '🟢 Gemini Global ON' : '⚪ Gemini Global OFF'}
           </button>
         </div>
       </div>
@@ -162,9 +166,10 @@ export default function SuperAdminAISettings() {
           <div>
             <label style={{ display: 'block', fontWeight: 800, fontSize: '0.78rem', color: '#475569', marginBottom: 5 }}>Model</label>
             <select value={config.model} onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))} style={fieldStyle}>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash — rekomendasi</option>
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash — rekomendasi stabil</option>
+              <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite — cepat & hemat</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro — analisis cerdas</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash (legacy)</option>
             </select>
             <small style={{ color: '#64748b' }}>Model dapat diganti tanpa mengubah aplikasi tenant.</small>
           </div>
@@ -204,4 +209,3 @@ export default function SuperAdminAISettings() {
     </div>
   );
 }
-
