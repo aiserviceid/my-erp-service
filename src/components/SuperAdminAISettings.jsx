@@ -23,7 +23,7 @@ export default function SuperAdminAISettings() {
   const [status, setStatus] = useState('');
   const [config, setConfig] = useState({
     enabled: true,
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     has_api_key: false,
     masked_key: '',
     custom_instruction: '',
@@ -204,3 +204,4 @@ export default function SuperAdminAISettings() {
     </div>
   );
 }
+
